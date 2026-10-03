@@ -1,0 +1,29 @@
+name: Release
+
+# Validates that a tagged commit installs cleanly as a Composer package.
+# Release notes are drafted continuously by release-drafter.yml; publish the
+# draft (or `gh release create`) after this workflow passes.
+on:
+    push:
+        tags:
+            - "v*.*.*"
+
+jobs:
+    release:
+        name: Release Validation
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: shivammathur/setup-php@v2
+              with:
+                  php-version: 8.4
+                  tools: composer
+                  coverage: none
+
+            - name: Validate composer.json
+              run: composer validate --strict
+
+            - name: Ensure package installs without dev dependencies
+              run: composer install --no-interaction --prefer-dist --no-dev

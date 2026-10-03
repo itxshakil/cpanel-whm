@@ -1,0 +1,37 @@
+name: Dependabot auto-merge
+
+# Dependabot PRs for CI actions merge themselves once the "CI passed" check is
+# green. Nothing here ships to people who install the package, and CI is the
+# review. Runtime dependency bumps (none today) still wait for a human.
+#
+# Needs, once, in the repo settings (see RELEASING.md):
+#   - "Allow auto-merge"
+#   - branch protection on main requiring the "CI passed" check
+on: pull_request
+
+permissions:
+    contents: write
+    pull-requests: write
+
+jobs:
+    auto-merge:
+        name: Enable auto-merge
+        runs-on: ubuntu-latest
+        if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == 'itxshakil/cpanel-whm'
+        steps:
+            - name: Dependabot metadata
+              id: metadata
+              uses: dependabot/fetch-metadata@v3
+              with:
+                  github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+            # GitHub may refuse to let GITHUB_TOKEN merge changes to workflow
+            # files. If it does, this step stays non-fatal and the monthly
+            # grouped actions PR needs one click.
+            - name: Auto-merge GitHub Actions updates
+              if: steps.metadata.outputs.package-ecosystem == 'github_actions'
+              continue-on-error: true
+              run: gh pr merge --auto --squash "$PR_URL"
+              env:
+                  PR_URL: ${{ github.event.pull_request.html_url }}
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

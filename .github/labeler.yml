@@ -1,0 +1,83 @@
+client:
+    - changed-files:
+          - any-glob-to-any-file:
+                - src/WhmClient.php
+                - src/WhmManager.php
+                - src/WhmRequest.php
+                - src/WhmResponse.php
+                - src/Transport/**
+                - src/Exceptions/**
+                - src/Contracts/**
+
+modules:
+    - changed-files:
+          - any-glob-to-any-file:
+                - src/Modules/**
+                - src/Data/**
+                - src/Enums/**
+                - src/Support/**
+
+console:
+    - changed-files:
+          - any-glob-to-any-file:
+                - src/Console/**
+                - src/Doctor/**
+
+testing:
+    - changed-files:
+          - any-glob-to-any-file:
+                - src/Testing/**
+
+config:
+    - changed-files:
+          - any-glob-to-any-file:
+                - config/cpanel-whm.php
+                - src/CpanelWhmServiceProvider.php
+                - src/Facades/**
+
+events:
+    - changed-files:
+          - any-glob-to-any-file:
+                - src/Events/**
+
+tests:
+    - changed-files:
+          - any-glob-to-any-file:
+                - tests/**
+                - phpunit.xml.dist
+
+documentation:
+    - changed-files:
+          - any-glob-to-any-file:
+                - README.md
+                - CHANGELOG.md
+                - docs/**
+                - resources/boost/**
+
+ci:
+    - changed-files:
+          - any-glob-to-any-file:
+                - .github/workflows/**
+                - .github/labeler.yml
+
+tooling:
+    - changed-files:
+          - any-glob-to-any-file:
+                - phpstan.neon.dist
+                - pint.json
+                - testbench.yaml
+                - .editorconfig
+
+dependencies:
+    - changed-files:
+          - any-glob-to-any-file:
+                - composer.json
+
+meta:
+    - changed-files:
+          - any-glob-to-any-file:
+                - .github/**
+                - .gitignore
+                - .gitattributes
+
+# `breaking-change` is applied by hand on PRs that change public behaviour.

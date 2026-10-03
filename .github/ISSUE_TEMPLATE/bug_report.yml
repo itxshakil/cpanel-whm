@@ -1,0 +1,29 @@
+name: Bug report
+description: Something doesn't work as documented
+labels: [bug]
+body:
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Package, Laravel, PHP and cPanel & WHM versions
+      placeholder: cpanel-whm 0.1.0, Laravel 13.2, PHP 8.4, WHM 11.134.0.5
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: whm:doctor output
+      description: "`php artisan whm:doctor --json`. It contains no secrets, but check before pasting."
+      render: json
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: A failing test with `Whm::fake()` is ideal. Remove tokens, passwords and login URLs.

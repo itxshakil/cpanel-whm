@@ -1,0 +1,85 @@
+{
+    "name": "itxshakil/cpanel-whm",
+    "description": "A typed, token-only, fakeable cPanel WHM API 1 client for Laravel, with UAPI through WHM, a whm:doctor connection check and Artisan commands for everyday account work.",
+    "keywords": [
+        "laravel",
+        "laravel-package",
+        "cpanel",
+        "whm",
+        "whm-api",
+        "cpanel-api",
+        "uapi",
+        "web-hosting",
+        "hosting-automation",
+        "reseller",
+        "provisioning"
+    ],
+    "homepage": "https://github.com/itxshakil/cpanel-whm",
+    "license": "MIT",
+    "type": "library",
+    "authors": [
+        {
+            "name": "Shakil Alam",
+            "email": "itxshakil@gmail.com",
+            "role": "Developer",
+            "homepage": "https://github.com/itxshakil"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/itxshakil/cpanel-whm/issues",
+        "source": "https://github.com/itxshakil/cpanel-whm",
+        "docs": "https://github.com/itxshakil/cpanel-whm/tree/main/docs"
+    },
+    "funding": [
+        {
+            "type": "github",
+            "url": "https://github.com/sponsors/itxshakil"
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "laravel/framework": "^12.0|^13.0"
+    },
+    "require-dev": {
+        "larastan/larastan": "^3.0",
+        "laravel/pint": "^1.18",
+        "orchestra/testbench": "^10.0|^11.0",
+        "phpunit/phpunit": "^11.5|^12.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Itxshakil\\CpanelWhm\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Itxshakil\\CpanelWhm\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "analyse": "phpstan analyse --memory-limit=1G",
+        "format": "pint",
+        "lint": "pint --test",
+        "qa": [
+            "@lint",
+            "@analyse",
+            "@test"
+        ]
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Itxshakil\\CpanelWhm\\CpanelWhmServiceProvider"
+            ],
+            "aliases": {
+                "Whm": "Itxshakil\\CpanelWhm\\Facades\\Whm"
+            }
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

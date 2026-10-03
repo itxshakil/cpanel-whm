@@ -1,0 +1,4 @@
+# Used by Orchestra Testbench's CLI and by Larastan, which boots the package
+# through Testbench to resolve container bindings.
+providers:
+  - Itxshakil\CpanelWhm\CpanelWhmServiceProvider

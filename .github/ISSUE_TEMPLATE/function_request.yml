@@ -1,0 +1,25 @@
+name: WHM function request
+description: Ask for a typed method for a WHM API 1 or UAPI function
+labels: [modules]
+body:
+  - type: input
+    id: function
+    attributes:
+      label: Function
+      description: The WHM API 1 function (or UAPI module and function), with a link to its cPanel docs page
+      placeholder: listzones, https://api.docs.cpanel.net/...
+    validations:
+      required: true
+  - type: textarea
+    id: use
+    attributes:
+      label: What do you use it for?
+      description: Every function is already callable with Whm::call(). Tell us what a typed method would make easier.
+    validations:
+      required: true
+  - type: textarea
+    id: response
+    attributes:
+      label: An example response
+      description: Redacted JSON from `php artisan whm:call <function> --json`, if you have one.
+      render: json
