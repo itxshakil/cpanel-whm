@@ -6,6 +6,9 @@ namespace Itxshakil\CpanelWhm\Modules;
 
 use Illuminate\Support\Collection;
 use Itxshakil\CpanelWhm\Data\SuspendedAccount;
+use Itxshakil\CpanelWhm\Enums\HttpMethod;
+use Itxshakil\CpanelWhm\Events\AccountSuspended;
+use Itxshakil\CpanelWhm\Events\AccountUnsuspended;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\Support\UsernameRules;
 use Itxshakil\CpanelWhm\WhmResponse;
@@ -22,13 +25,18 @@ class Suspensions extends Module
      */
     public function suspend(string $user, string $reason = '', bool $lock = false): WhmResponse
     {
-        $params = ['user' => UsernameRules::normalise($user), 'reason' => $reason];
+        $user = UsernameRules::normalise($user);
+        $params = ['user' => $user, 'reason' => $reason];
 
         if ($lock) {
             $params['disallowun'] = 1;
         }
 
-        return $this->client->call('suspendacct', $params);
+        $response = $this->client->call('suspendacct', $params, HttpMethod::Post);
+
+        $this->client->dispatch(new AccountSuspended($this->client->config()->name, $user, $reason, $lock));
+
+        return $response;
     }
 
     /**
@@ -36,7 +44,13 @@ class Suspensions extends Module
      */
     public function unsuspend(string $user): WhmResponse
     {
-        return $this->client->call('unsuspendacct', ['user' => UsernameRules::normalise($user)]);
+        $user = UsernameRules::normalise($user);
+
+        $response = $this->client->call('unsuspendacct', ['user' => $user], HttpMethod::Post);
+
+        $this->client->dispatch(new AccountUnsuspended($this->client->config()->name, $user));
+
+        return $response;
     }
 
     /**

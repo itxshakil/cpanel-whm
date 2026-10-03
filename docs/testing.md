@@ -39,6 +39,36 @@ $whm->assertNothingSent();
 $whm->recorded('createacct');   // list<WhmRequest>
 ```
 
+## Record real responses
+
+`php artisan whm:record` calls a read-only function on a real server and saves the response as a JSON fixture, with secrets redacted:
+
+```bash
+php artisan whm:record listaccts searchtype=user search=acme
+php artisan whm:record parse_dns_zone zone=acme.example --name=acme-zone
+```
+
+Replay it in a test:
+
+```php
+Whm::fake(['listaccts' => Whm::fixture('tests/Fixtures/whm/listaccts.json')]);
+```
+
+Only secrets are redacted (tokens, passwords, keys). Read the file for customer data before committing it.
+
+## Events in tests
+
+The modules dispatch `AccountCreated`, `AccountSuspended` and so on through Laravel, so `Event::fake()` works:
+
+```php
+Event::fake([AccountSuspended::class]);
+Whm::fake(['suspendacct' => Whm::response()]);
+
+// ... run your code ...
+
+Event::assertDispatched(AccountSuspended::class, fn ($e) => $e->user === 'acme');
+```
+
 ## Http::fake() also works
 
 The real transport uses Laravel's HTTP client, so `Http::fake()` and `Http::preventStrayRequests()` work too. That is how the package tests its own transport. Prefer `Whm::fake()` in app tests: it is shorter and doesn't depend on URLs.

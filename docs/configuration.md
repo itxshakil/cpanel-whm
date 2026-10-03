@@ -34,6 +34,33 @@ Add more servers as more entries and pick one with `Whm::connection('name')` or 
 
 In WHM: **Development › Manage API Tokens › Generate Token**. Give it only the privileges your app needs, and set an expiry. Copy it immediately: WHM will not show it again. Expired tokens are not deleted automatically.
 
+## Retries
+
+```php
+'connections' => [
+    'main' => [
+        // ...
+        'retry' => [
+            'times' => (int) env('WHM_RETRY_TIMES', 2),
+            'sleep_ms' => (int) env('WHM_RETRY_SLEEP_MS', 250),
+        ],
+    ],
+],
+```
+
+Only read-only functions are retried, and only after a connection error or an HTTP 5xx. The wait grows with each attempt (250 ms, then 500 ms). Set `times` to `0` to turn retries off.
+
+## Cache
+
+```php
+'cache' => [
+    'store' => env('WHM_CACHE_STORE'),   // null: the default cache store
+    'prefix' => 'cpanel-whm',
+],
+```
+
+Used by `Whm::cache($ttl)`. Keys include the connection, the function and its parameters.
+
 ## Logging
 
 ```php

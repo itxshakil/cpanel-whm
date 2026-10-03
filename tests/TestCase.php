@@ -53,11 +53,15 @@ abstract class TestCase extends Orchestra
             'verify_tls' => true,
             'timeout' => 30,
             'connect_timeout' => 10,
+            // Tests opt in to retries; RetryAndCacheTest covers them.
+            'retry' => ['times' => 0, 'sleep_ms' => 0],
         ]);
         $app['config']->set('cpanel-whm.connections.ca-1', [
             'host' => 'https://ca1.example.com:2087',
             'user' => 'reseller',
             'token' => 'OTHER-TOKEN',
+            'retry' => ['times' => 0, 'sleep_ms' => 0],
         ]);
+        $app['config']->set('cache.default', 'array');
     }
 }

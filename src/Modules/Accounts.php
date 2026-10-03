@@ -10,6 +10,10 @@ use Itxshakil\CpanelWhm\Data\CreatedAccount;
 use Itxshakil\CpanelWhm\Data\NewAccount;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Enums\SearchType;
+use Itxshakil\CpanelWhm\Events\AccountCreated;
+use Itxshakil\CpanelWhm\Events\AccountPackageChanged;
+use Itxshakil\CpanelWhm\Events\AccountPasswordChanged;
+use Itxshakil\CpanelWhm\Events\AccountRemoved;
 use Itxshakil\CpanelWhm\Exceptions\InvalidUsername;
 use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
@@ -45,7 +49,11 @@ class Accounts extends Module
         $username = $params['username'] ?? '';
         $domain = $params['domain'] ?? null;
 
-        return CreatedAccount::fromResponse($response, is_string($username) ? $username : '', is_string($domain) ? $domain : null);
+        $created = CreatedAccount::fromResponse($response, is_string($username) ? $username : '', is_string($domain) ? $domain : null);
+
+        $this->client->dispatch(new AccountCreated($this->client->config()->name, $created));
+
+        return $created;
     }
 
     /**
@@ -132,10 +140,16 @@ class Accounts extends Module
      */
     public function remove(string $user, bool $keepDns = false): WhmResponse
     {
-        return $this->client->call('removeacct', [
-            'user' => UsernameRules::normalise($user),
+        $user = UsernameRules::normalise($user);
+
+        $response = $this->client->call('removeacct', [
+            'user' => $user,
             'keepdns' => $keepDns ? 1 : 0,
         ], HttpMethod::Post);
+
+        $this->client->dispatch(new AccountRemoved($this->client->config()->name, $user));
+
+        return $response;
     }
 
     /**
@@ -145,11 +159,17 @@ class Accounts extends Module
      */
     public function changePassword(string $user, #[SensitiveParameter] string $password, bool $syncDatabasePasswords = false): WhmResponse
     {
-        return $this->client->call('passwd', [
-            'user' => UsernameRules::normalise($user),
+        $user = UsernameRules::normalise($user);
+
+        $response = $this->client->call('passwd', [
+            'user' => $user,
             'password' => $password,
             'db_pass_update' => $syncDatabasePasswords ? 1 : 0,
         ], HttpMethod::Post);
+
+        $this->client->dispatch(new AccountPasswordChanged($this->client->config()->name, $user));
+
+        return $response;
     }
 
     /**
@@ -159,10 +179,16 @@ class Accounts extends Module
      */
     public function changePackage(string $user, string $package): WhmResponse
     {
-        return $this->client->call('changepackage', [
-            'user' => UsernameRules::normalise($user),
+        $user = UsernameRules::normalise($user);
+
+        $response = $this->client->call('changepackage', [
+            'user' => $user,
             'pkg' => $package,
-        ]);
+        ], HttpMethod::Post);
+
+        $this->client->dispatch(new AccountPackageChanged($this->client->config()->name, $user, $package));
+
+        return $response;
     }
 
     /**

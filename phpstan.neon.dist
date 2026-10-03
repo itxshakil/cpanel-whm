@@ -5,6 +5,7 @@ parameters:
     level: max
     paths:
         - src
+        - generator/src
         - tests/Fixtures
         - tests/TestCase.php
     tmpDir: build/phpstan

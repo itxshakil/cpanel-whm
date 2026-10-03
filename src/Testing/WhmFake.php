@@ -6,6 +6,7 @@ namespace Itxshakil\CpanelWhm\Testing;
 
 use Closure;
 use Illuminate\Http\Client\ConnectionException;
+use InvalidArgumentException;
 use Itxshakil\CpanelWhm\Contracts\Transport;
 use Itxshakil\CpanelWhm\Exceptions\StrayWhmCall;
 use Itxshakil\CpanelWhm\Exceptions\WhmConnectionFailed;
@@ -126,6 +127,23 @@ final class WhmFake implements Transport
     public static function sequence(mixed ...$responses): FakeSequence
     {
         return new FakeSequence(...$responses);
+    }
+
+    /**
+     * A response saved with php artisan whm:record (a JSON file with data and
+     * metadata). A relative path is resolved from the project root.
+     */
+    public static function fixture(string $path): TransportResponse
+    {
+        $resolved = str_starts_with($path, '/') || ! function_exists('base_path') ? $path : base_path($path);
+        $contents = is_file($resolved) ? file_get_contents($resolved) : false;
+        $json = is_string($contents) ? json_decode($contents, true) : null;
+
+        if (! is_array($json)) {
+            throw new InvalidArgumentException("{$path} is not a WHM fixture. Record one with php artisan whm:record.");
+        }
+
+        return TransportResponse::json($json);
     }
 
     /**

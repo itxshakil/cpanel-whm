@@ -37,11 +37,51 @@ php artisan whm:call listips --json
 php artisan whm:call createacct username=acme domain=acme.example --dry-run
 ```
 
-Rows are printed as a table when the answer holds one list (like `acct` or `pkg`), otherwise as key/value pairs. Output is redacted. `--dry-run` prints the request with secrets masked and sends nothing. Destructive functions (`removeacct`, `terminatereseller`, `killdns`, `killpkg`, `removezonerecord`, `mass_edit_dns_zone`, `backup_destination_delete`, `api_token_revoke`) ask you to type the function name unless you pass `--force`.
+Rows are printed as a table when the answer holds one list (like `acct` or `pkg`), otherwise as key/value pairs. Output is redacted. `--dry-run` prints the request with secrets masked and sends nothing. Destructive functions (`removeacct`, `terminatereseller`, `killdns`, `killpkg`, `removezonerecord`, `mass_edit_dns_zone`, `backup_destination_delete`, `api_token_revoke`, `delete_domain`, `resetzone`, `unsetupreseller`, `restore_queue_clear_all_tasks`, `reboot`) ask you to type the function name unless you pass `--force`.
 
 ## whm:functions
 
-Without options, lists the functions that have a typed method. With `--server`, lists every function the server offers (`applist`) and the method to use; `--missing` shows only those without a typed method. A search argument filters by name.
+Finds the method for any function. Searches names and summaries:
+
+```bash
+php artisan whm:functions zone             # every WHM function about zones, with its method
+php artisan whm:functions --curated        # only hand-written methods with typed results
+php artisan whm:functions pop --uapi       # UAPI functions, run with Whm::asUser($user)->api()
+php artisan whm:functions --server --missing   # what this server offers that has no typed method (plugins)
+```
+
+## whm:suspend, whm:unsuspend
+
+```bash
+php artisan whm:suspend acme --reason="Unpaid invoice #1042" --lock
+php artisan whm:unsuspend acme
+```
+
+`whm:suspend` asks first unless you pass `--force`.
+
+## whm:packages
+
+Lists packages and their limits; `--json` prints WHM's raw settings.
+
+## whm:dns
+
+```bash
+php artisan whm:dns                        # every zone
+php artisan whm:dns acme.example           # the zone's records, with line numbers and the serial
+php artisan whm:dns acme.example --type=MX
+```
+
+## whm:token
+
+Lists the connection user's API tokens with their expiry and privileges. Exits with 1 when a token expires within `--days` (14 by default), so it works as a scheduled check:
+
+```php
+Schedule::command('whm:token --days=14')->weekly()->emailOutputOnFailure('ops@example.com');
+```
+
+## whm:record
+
+Saves a read-only function's redacted response as a fixture for `Whm::fake()`. See [testing](testing.md#record-real-responses). Refuses functions that change the server.
 
 ## whm:accounts, whm:account, whm:login
 

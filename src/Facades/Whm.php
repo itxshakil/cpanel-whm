@@ -20,6 +20,15 @@ use Itxshakil\CpanelWhm\WhmManager;
  * @method static \Itxshakil\CpanelWhm\Modules\Quotas quotas()
  * @method static \Itxshakil\CpanelWhm\Modules\Sessions sessions()
  * @method static \Itxshakil\CpanelWhm\Modules\Server server()
+ * @method static \Itxshakil\CpanelWhm\Modules\Dns dns()
+ * @method static \Itxshakil\CpanelWhm\Modules\Domains domains()
+ * @method static \Itxshakil\CpanelWhm\Modules\Usage usage()
+ * @method static \Itxshakil\CpanelWhm\Modules\Backups backups()
+ * @method static \Itxshakil\CpanelWhm\Modules\Resellers resellers()
+ * @method static \Itxshakil\CpanelWhm\Modules\Ssl ssl()
+ * @method static \Itxshakil\CpanelWhm\Modules\Tokens tokens()
+ * @method static \Itxshakil\CpanelWhm\Api\WhmApi api()
+ * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient cache(int|\DateInterval|\DateTimeInterface $ttl, ?string $store = null)
  * @method static \Itxshakil\CpanelWhm\Modules\CpanelUser asUser(string $user)
  * @method static \Itxshakil\CpanelWhm\Support\ConnectionConfig config()
  * @method static \Itxshakil\CpanelWhm\Support\ConnectionConfig configFor(string $name)
@@ -93,6 +102,14 @@ final class Whm extends Facade
     public static function sequence(mixed ...$responses): FakeSequence
     {
         return WhmFake::sequence(...$responses);
+    }
+
+    /**
+     * A response saved with php artisan whm:record.
+     */
+    public static function fixture(string $path): TransportResponse
+    {
+        return WhmFake::fixture($path);
     }
 
     protected static function getFacadeAccessor(): string

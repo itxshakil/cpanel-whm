@@ -1,0 +1,78 @@
+openapi: 3.0.2
+info:
+  title: WHM API
+  version: 11.200.0.1
+x-tagGroups:
+  - name: Accounts
+    tags: [Account Creation]
+  - name: Login Security (cPHulk)
+    tags: [cPHulk]
+components:
+  schemas:
+    Flag:
+      type: integer
+      enum: [0, 1]
+    Unlimited:
+      oneOf:
+        - type: integer
+        - type: string
+          enum: [unlimited]
+        - enum: [null]
+paths:
+  /createacct:
+    get:
+      operationId: Accounts-createacct
+      summary: Create cPanel account
+      description: |
+        This function creates a cPanel account. See [the docs](https://example.com).
+
+        A second paragraph that is left out.
+      tags: [Account Creation, Accounts]
+      x-readonly: false
+      parameters:
+        - { in: query, name: username, required: true, description: "The account's username. More text.", schema: { type: string } }
+        - { in: query, name: bwlimit, schema: { $ref: '#/components/schemas/Unlimited' } }
+        - { in: query, name: hasshell, schema: { $ref: '#/components/schemas/Flag' } }
+        - { in: query, name: MAX_EMAIL_PER_HOUR, schema: { type: integer } }
+        - { in: query, name: copymysqldb-*, schema: { type: string } }
+        - { in: query, name: extra, schema: { type: string } }
+        - { in: query, name: api.version, schema: { type: integer } }
+  /listaccts:
+    get:
+      operationId: Accounts-listaccts
+      summary: Return cPanel accounts
+      tags: [Account Creation]
+      x-readonly: true
+      deprecated: true
+      parameters:
+        - { in: query, name: search, schema: { type: string } }
+  /flush_cphulk_login_history_for_ips:
+    get:
+      operationId: cPHulk-flush
+      summary: Unblock IPs
+      tags: [cPHulk]
+      parameters:
+        - { in: query, name: ip, required: true, schema: { type: array, items: { type: string } } }
+  /addzonerecord:
+    post:
+      operationId: DNS-addzonerecord
+      summary: Create DNS zone record
+      tags: [Mystery]
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [zone]
+              properties:
+                zone: { type: string, description: The zone. }
+                ttl: { type: number }
+  /personalization_set:
+    post:
+      operationId: Personalization-set
+      summary: Save data
+      tags: [Mystery]
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }

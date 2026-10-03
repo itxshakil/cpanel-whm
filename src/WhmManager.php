@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Itxshakil\CpanelWhm;
 
+use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Contracts\Events\Dispatcher;
@@ -52,6 +53,9 @@ class WhmManager
             $this->configFor($name),
             $this->transport(),
             $this->container->make(Dispatcher::class),
+            $this->container->bound(CacheFactory::class) ? $this->container->make(CacheFactory::class) : null,
+            cacheStore: $this->cacheSetting('store'),
+            cachePrefix: $this->cacheSetting('prefix') ?? 'cpanel-whm',
         );
     }
 
@@ -143,6 +147,13 @@ class WhmManager
         }
 
         unset($this->clients[$name]);
+    }
+
+    private function cacheSetting(string $key): ?string
+    {
+        $value = $this->config()->get("cpanel-whm.cache.{$key}");
+
+        return is_string($value) && $value !== '' ? $value : null;
     }
 
     private function transport(): Transport

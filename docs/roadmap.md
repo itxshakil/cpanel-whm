@@ -1,22 +1,21 @@
-# Roadmap and API coverage
+# Roadmap
 
-WHM API 1 has over 600 functions. Every one is callable today with `Whm::call()`, with full error handling. Typed methods are being added in three tiers:
+## Where 0.2 stands
 
-| Tier | Covers | How | Release |
-| --- | --- | --- | --- |
-| Curated | The everyday functions: accounts, suspensions, packages (read), quotas, sessions, UAPI bridge, server info | Hand-written, typed results | 0.1 (this release) |
-| Curated, part 2 | Packages (write), DNS zones with serial-checked edits, resellers and ACLs, API tokens, AutoSSL | Hand-written | 0.2 |
-| Generated WHM | Every other WHM API 1 function in cPanel's OpenAPI spec | `bin/generate` from `whm.openapi.yaml`, committed code, typed parameters, docs links, `@deprecated` flags | 0.3 |
-| Generated UAPI | Every UAPI module through `asUser()` | Same generator over `cpanel.openapi.yaml` | 0.4 |
+| | WHM API 1 | UAPI |
+| --- | --- | --- |
+| Typed method (generated) | 621 of 630 (98.6%) | 680 of 693 (98.1%) |
+| Hand-written, typed results | 68 functions | through `asUser()` |
+| Callable at all | every function, with `Whm::call()` | every function, with `uapi()` |
 
-Goal for 1.0: 100% of documented WHM API 1 functions with typed methods, and at least 80% with typed results. A coverage report (`docs/coverage.md`) and README badges will track both numbers.
+The functions without a typed method take a JSON body or a file upload; see [coverage](coverage.md).
 
-## Also planned
+## Next
 
-- `whm:suspend`, `whm:unsuspend`, `whm:packages`, `whm:token` (expiry warning) and `whm:record` (save redacted fixtures) commands.
-- Retries for read-only functions and `Whm::cache()` for slow reads.
-- A `WhmCheck` for spatie/laravel-health.
-- Batch calls (`batch`).
-- A Laravel Boost guidelines file is already included in `resources/boost/guidelines`.
+- Typed result objects for more generated functions, starting with the ones people ask for.
+- `Whm::batch()` for WHM's `batch` function.
+- Account transfers (`Transfers` group) as a hand-written module.
+- Email and database helpers on `asUser()` with typed results.
+- A `whm:usage` command (accounts near their disk or bandwidth limit).
 
 Ideas and function requests are welcome as GitHub issues.

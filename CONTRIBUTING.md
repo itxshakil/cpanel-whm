@@ -23,6 +23,10 @@ composer qa          # lint + analyse + test
 
 All of these run in CI against PHP 8.3–8.5 and Laravel 12 and 13.
 
+## Generated code
+
+`src/Api/Whm`, `src/Api/Uapi`, `src/Api/WhmApi.php`, `src/Api/UapiApi.php`, `src/Support/FunctionCatalog.php` and `docs/coverage.md` are generated. Don't edit them: change the generator in `generator/` and run `composer generate`.
+
 ## Ground rules
 
 - **Secrets never leave the Authorization header.** Passwords go in POST bodies; anything logged, printed, dumped or put in an exception goes through `Redactor`. A test should prove it for any new path.

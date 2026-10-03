@@ -28,6 +28,8 @@ final readonly class ConnectionConfig
         public bool $verifyTls = true,
         public int $timeout = 30,
         public int $connectTimeout = 10,
+        public int $retries = 2,
+        public int $retryDelayMs = 250,
     ) {}
 
     /**
@@ -43,6 +45,8 @@ final readonly class ConnectionConfig
             'verifyTls' => $this->verifyTls,
             'timeout' => $this->timeout,
             'connectTimeout' => $this->connectTimeout,
+            'retries' => $this->retries,
+            'retryDelayMs' => $this->retryDelayMs,
         ];
     }
 
@@ -79,6 +83,8 @@ final readonly class ConnectionConfig
             verifyTls: (bool) ($config['verify_tls'] ?? true),
             timeout: max(1, self::int($config['timeout'] ?? null, 30)),
             connectTimeout: max(1, self::int($config['connect_timeout'] ?? null, 10)),
+            retries: max(0, self::int(is_array($config['retry'] ?? null) ? ($config['retry']['times'] ?? null) : null, 2)),
+            retryDelayMs: max(0, self::int(is_array($config['retry'] ?? null) ? ($config['retry']['sleep_ms'] ?? null) : null, 250)),
         );
     }
 

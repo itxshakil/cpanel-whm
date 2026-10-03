@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Itxshakil\CpanelWhm\Modules;
 
+use Itxshakil\CpanelWhm\Api\UapiApi;
 use Itxshakil\CpanelWhm\Contracts\WhmClient;
 use Itxshakil\CpanelWhm\Data\UapiResult;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
@@ -26,6 +27,15 @@ class CpanelUser extends Module
         parent::__construct($client);
 
         $this->user = UsernameRules::normalise($user);
+    }
+
+    /**
+     * Every documented UAPI function as a typed method, by module:
+     * Whm::asUser('acme')->api()->email()->listPops().
+     */
+    public function api(): UapiApi
+    {
+        return new UapiApi($this);
     }
 
     public function user(): string

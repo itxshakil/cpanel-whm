@@ -102,15 +102,16 @@ final class CommandsTest extends TestCase
     #[Test]
     public function functions_lists_typed_methods_and_what_the_server_has_beyond_them(): void
     {
-        Whm::fake(['applist' => Whm::response(['app' => ['createacct', 'listips', 'version']])]);
+        Whm::fake(['applist' => Whm::response(['app' => ['createacct', 'listips', 'acme_plugin_function']])]);
 
         $this->artisan('whm:functions', ['search' => 'acct'])
             ->expectsOutputToContain('accounts()->create()')
             ->assertSuccessful();
 
         $this->artisan('whm:functions', ['--server' => true, '--missing' => true])
-            ->expectsOutputToContain("Whm::call('listips')")
+            ->expectsOutputToContain("Whm::call('acme_plugin_function')")
             ->doesntExpectOutputToContain('accounts()->create()')
+            ->doesntExpectOutputToContain('listips')
             ->expectsOutputToContain('3 functions on this server, 2 with a typed method')
             ->assertSuccessful();
     }

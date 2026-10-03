@@ -1,0 +1,75 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/*
+ * Regenerates the typed API from cPanel's OpenAPI documents:
+ *
+ *   composer generate                       # downloads the specs into build/openapi
+ *   php bin/generate --whm=whm.yaml --uapi=cpanel.yaml
+ *
+ * Writes src/Api/Whm/*, src/Api/Uapi/*, src/Api/WhmApi.php, src/Api/UapiApi.php,
+ * src/Support/FunctionCatalog.php and docs/coverage.md. Run Pint afterwards
+ * (composer generate does).
+ */
+
+use Itxshakil\CpanelWhm\Generator\Reader;
+use Itxshakil\CpanelWhm\Generator\Spec;
+use Itxshakil\CpanelWhm\Generator\Writer;
+use Itxshakil\CpanelWhm\Support\CuratedFunctions;
+
+require __DIR__.'/../vendor/autoload.php';
+
+$root = dirname(__DIR__);
+$options = getopt('', ['whm:', 'uapi:', 'refresh']);
+
+$sources = [
+    'whm' => ['option' => $options['whm'] ?? null, 'url' => 'https://api.docs.cpanel.net/_bundle/specifications/whm.openapi.yaml'],
+    'uapi' => ['option' => $options['uapi'] ?? null, 'url' => 'https://api.docs.cpanel.net/_bundle/specifications/cpanel.openapi.yaml'],
+];
+
+$paths = [];
+
+foreach ($sources as $kind => $source) {
+    if (is_string($source['option'])) {
+        $paths[$kind] = $source['option'];
+
+        continue;
+    }
+
+    $path = $root.'/build/openapi/'.basename($source['url']);
+
+    if (! is_file($path) || isset($options['refresh'])) {
+        fwrite(STDOUT, "Downloading {$source['url']}\n");
+        @mkdir(dirname($path), 0o755, true);
+        $contents = @file_get_contents($source['url']);
+
+        if ($contents === false) {
+            fwrite(STDERR, "Could not download {$source['url']}. Pass --{$kind}=path/to/spec.yaml instead.\n");
+
+            exit(1);
+        }
+
+        file_put_contents($path, $contents);
+    }
+
+    $paths[$kind] = $path;
+}
+
+$whmSpec = Spec::load($paths['whm']);
+$uapiSpec = Spec::load($paths['uapi']);
+
+$whm = (new Reader($whmSpec, Reader::WHM))->operations();
+$uapi = (new Reader($uapiSpec, Reader::UAPI))->operations();
+
+$written = (new Writer($root))->write($whm, $whmSpec->version(), $uapi, $uapiSpec->version(), CuratedFunctions::MAP);
+
+$generated = static fn (array $operations): int => count(array_filter($operations, static fn ($o): bool => $o->generated()));
+
+fwrite(STDOUT, sprintf(
+    "WHM API 1 %s: %d of %d functions. UAPI %s: %d of %d functions. %d files written.\n",
+    $whmSpec->version(), $generated($whm), count($whm),
+    $uapiSpec->version(), $generated($uapi), count($uapi),
+    count($written),
+));

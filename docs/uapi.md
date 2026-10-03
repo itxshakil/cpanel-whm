@@ -15,6 +15,15 @@ $result->messages;
 
 Calls are sent as POST, so passwords you pass (for example to `Email::add_pop`) never appear in a URL.
 
+Every documented UAPI function also has a typed method, one accessor per module:
+
+```php
+Whm::asUser('acme')->api()->email()->listPops(regex: 'info');
+Whm::asUser('acme')->api()->email()->addPop(email: 'info', password: $password, quota: 1024);
+```
+
+See [the generated API](api.md).
+
 ## Two levels of failure
 
 `uapi_cpanel` can succeed at the WHM level while the UAPI function inside it fails. The package checks both:

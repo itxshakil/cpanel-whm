@@ -38,6 +38,13 @@ return [
             'verify_tls' => (bool) env('WHM_VERIFY_TLS', true),
             'timeout' => (int) env('WHM_TIMEOUT', 30),
             'connect_timeout' => (int) env('WHM_CONNECT_TIMEOUT', 10),
+
+            // Read-only functions (listaccts, accountsummary, ...) are retried
+            // after a connection error or an HTTP 5xx. Changes never are.
+            'retry' => [
+                'times' => (int) env('WHM_RETRY_TIMES', 2),
+                'sleep_ms' => (int) env('WHM_RETRY_SLEEP_MS', 250),
+            ],
         ],
 
     ],
@@ -54,6 +61,20 @@ return [
     */
 
     'log_channel' => env('WHM_LOG_CHANNEL'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cache
+    |--------------------------------------------------------------------------
+    |
+    | The store Whm::cache($ttl) uses for read-only calls, e.g.
+    | Whm::cache(300)->accounts()->list(). null means the default store.
+    |
+    */
+    'cache' => [
+        'store' => env('WHM_CACHE_STORE'),
+        'prefix' => 'cpanel-whm',
+    ],
 
     /*
     |--------------------------------------------------------------------------

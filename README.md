@@ -4,9 +4,11 @@
 [![Latest version](https://img.shields.io/packagist/v/itxshakil/cpanel-whm.svg)](https://packagist.org/packages/itxshakil/cpanel-whm)
 [![Total downloads](https://img.shields.io/packagist/dt/itxshakil/cpanel-whm.svg)](https://packagist.org/packages/itxshakil/cpanel-whm)
 [![PHPStan level max](https://img.shields.io/badge/PHPStan-level%20max-brightgreen.svg)](phpstan.neon.dist)
+[![WHM API coverage](https://img.shields.io/badge/WHM%20API%201-98.6%25%20typed-brightgreen.svg)](docs/coverage.md)
+[![UAPI coverage](https://img.shields.io/badge/UAPI-98.1%25%20typed-brightgreen.svg)](docs/coverage.md)
 [![License](https://img.shields.io/packagist/l/itxshakil/cpanel-whm.svg)](LICENSE.md)
 
-**Create, suspend and manage cPanel accounts from Laravel through the WHM API, with typed results, clear errors, a fake for your tests, and a `whm:doctor` command that tells you exactly why a connection doesn't work.**
+**Create, suspend and manage cPanel accounts from Laravel through the WHM API: typed methods for almost every documented WHM API 1 and UAPI function, typed results for the everyday ones, clear errors, a fake for your tests, and a `whm:doctor` command that tells you exactly why a connection doesn't work.**
 
 ```php
 use Itxshakil\CpanelWhm\Data\NewAccount;
@@ -25,6 +27,14 @@ return redirect()->away(Whm::sessions()->create('acme')->url);   // one-click cP
 
 It's for hosting resellers, agencies and anyone building their own hosting billing or provisioning on Laravel.
 
+## What's covered
+
+| | |
+| --- | --- |
+| **Hand-written modules, typed results** | accounts, suspensions, packages, quotas, login sessions, server, DNS, domains, disk and bandwidth usage, backups and restores, resellers, SSL, API tokens (68 WHM functions) |
+| **Generated, typed methods** | 621 of 630 WHM API 1 functions with `Whm::api()`, 680 of 693 UAPI functions with `Whm::asUser($user)->api()` ([coverage](docs/coverage.md)) |
+| **Anything else** | `Whm::call('function', [...])` and `Whm::asUser($user)->uapi('Module', 'function')` |
+
 ---
 
 ## Why this package
@@ -39,7 +49,9 @@ Most WHM clients for PHP were written for Laravel 5, log in with a password or t
 | A token without the right ACL fails with a vague message | You get `WhmPermissionDenied`, and `whm:doctor` lists the missing privileges. |
 | WHM renames an account on a username collision | `create()` returns the username WHM actually assigned. |
 | Passwords leak into URLs, logs and cURL errors | Secrets go in POST bodies; logs, events and errors are redacted. |
-| Testing means mocking HTTP by hand | Use `Whm::fake()`, which goes through the real parsing and error paths. |
+| Testing means mocking HTTP by hand | Use `Whm::fake()`, which goes through the real parsing and error paths, or replay real responses saved with `whm:record`. |
+| Two people edit a DNS zone at once | DNS edits carry the zone's serial, so a stale edit fails instead of overwriting. |
+| A network blip fails a page | Read-only calls are retried; changes never are, so nothing is created twice. |
 
 ## Requirements
 
@@ -144,9 +156,45 @@ $mailboxes->warnings;
 Whm::asUser('acme')->uapi('Email', 'add_pop', ['email' => 'info', 'password' => $password]);
 ```
 
-### Any other function
+### DNS, domains, usage, backups, resellers, SSL, tokens
 
-Every WHM API 1 function is one call away, with the same error handling:
+```php
+use Itxshakil\CpanelWhm\Data\DnsRecord;
+
+Whm::dns()->add('acme.example', DnsRecord::a('shop', '203.0.113.20'), DnsRecord::txt('@', 'v=spf1 -all'));
+Whm::dns()->update('acme.example', Whm::dns()->zone('acme.example')->first('www', 'A')->withData('203.0.113.30'));
+
+Whm::domains()->createSubdomain('blog.acme.example', 'public_html/blog');
+Whm::domains()->owner('acme.example');                         // "acme"
+
+Whm::usage()->account('acme')->disk?->percentUsed();           // 72.4
+Whm::backups()->restore('acme', Whm::backups()->dates()->last());
+
+Whm::resellers()->create('res1');
+Whm::resellers()->setPrivileges('res1', ['create-acct', 'suspend-acct', 'list-accts']);
+
+Whm::ssl()->autoSslProblems('acme');
+Whm::tokens()->expiringWithin(14);
+```
+
+See [usage](docs/usage.md) for every module.
+
+### Every other function, typed
+
+Generated from cPanel's OpenAPI documents, with named arguments, docblocks and links to cPanel's docs:
+
+```php
+Whm::api()->ipAddressManagement()->listips();
+Whm::api()->sslCertificates()->fetchSslVhosts();
+Whm::asUser('acme')->api()->email()->addPop(email: 'info', password: $password, quota: 1024);
+Whm::asUser('acme')->api()->mysql()->createDatabase(name: 'acme_shop');
+```
+
+`php artisan whm:functions zone` finds the method for any function. See [the generated API](docs/api.md).
+
+### Any function by name
+
+Every WHM API 1 function is also one call away, with the same error handling:
 
 ```php
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
@@ -155,10 +203,10 @@ $response = Whm::call('listips');
 $response->get('ip.0.ip');           // dot notation into data
 $response->warnings();               // warnings WHM attached to a "successful" call
 
-Whm::call('installssl', $params, HttpMethod::Post);
+Whm::call('modifyacct', $params, HttpMethod::Post);
 ```
 
-`php artisan whm:functions` lists the functions with typed methods; `--server --missing` shows what your server offers beyond them.
+`php artisan whm:functions --server --missing` shows what your server offers beyond the spec (plugin functions, for example).
 
 ### Several servers
 
@@ -203,7 +251,7 @@ public function test_an_overdue_invoice_suspends_the_account(): void
 }
 ```
 
-Unfaked calls throw `StrayWhmCall`, so a test can never reach a real server. There are also `Whm::sequence()`, `Whm::connectionError()`, `Whm::httpError(401)`, `Whm::uapi([...])` and `Whm::uapiFailure('...')`, closures, and `assertCalledTimes` / `assertSentCount` / `assertNothingSent`. See [docs/testing.md](docs/testing.md).
+Unfaked calls throw `StrayWhmCall`, so a test can never reach a real server. There are also `Whm::sequence()`, `Whm::connectionError()`, `Whm::httpError(401)`, `Whm::uapi([...])`, `Whm::uapiFailure('...')` and `Whm::fixture('tests/Fixtures/whm/listaccts.json')` (saved with `php artisan whm:record`), closures, and `assertCalledTimes` / `assertSentCount` / `assertNothingSent`. See [docs/testing.md](docs/testing.md).
 
 ## Artisan commands
 
@@ -212,26 +260,39 @@ Unfaked calls throw `StrayWhmCall`, so a test can never reach a real server. The
 | `whm:install` | Set up the connection interactively, then run the doctor |
 | `whm:doctor` (`whm:test`) | Check a connection step by step (`--connection`, `--all`, `--json`) |
 | `whm:call {function} {key=value…}` | Run any function (`--post`, `--json`, `--dry-run`); destructive functions ask first |
-| `whm:functions {search?}` | Typed methods per function; `--server --missing` for the rest |
+| `whm:functions {search?}` | Find the method for any function (`--uapi`, `--curated`, `--server --missing`) |
 | `whm:accounts` | List accounts (`--search`, `--by`, `--package`, `--suspended`) |
 | `whm:account {user}` | One account's summary |
 | `whm:login {user}` | Print a one-time login link (`--service`, `--app`) |
+| `whm:suspend {user}` / `whm:unsuspend {user}` | Suspend (`--reason`, `--lock`) or unsuspend an account |
+| `whm:packages` | Packages and their limits (`--json`) |
+| `whm:dns {domain?}` | Zones, or one zone's records with line numbers (`--type`) |
+| `whm:token` | API tokens and their expiry; fails when one expires within `--days` |
+| `whm:record {function} {key=value…}` | Save a redacted real response as a test fixture |
 
 `php artisan about` also shows a cPanel WHM section.
 
-## Logging and events
+## Events, retries and caching
 
-Set `WHM_LOG_CHANNEL=stack` to log every call: function, connection, duration and outcome. Parameters are redacted (passwords, tokens and login URLs never reach the log). For anything custom, listen to `WhmRequestSending`, `WhmResponseReceived` and `WhmRequestFailed`.
+The modules dispatch `AccountCreated`, `AccountRemoved`, `AccountSuspended`, `AccountUnsuspended`, `AccountPackageChanged`, `AccountPasswordChanged` and `DnsZoneChanged` once WHM confirms the change: a ready-made feed for an audit log.
+
+Read-only calls are retried after a connection error or HTTP 5xx, and `Whm::cache(300)->packages()->list()` caches them. Calls that change something are never retried or cached.
+
+Set `WHM_LOG_CHANNEL=stack` to log every call: function, connection, duration and outcome. Parameters are redacted (passwords, tokens and login URLs never reach the log). `WhmRequestSending`, `WhmResponseReceived` and `WhmRequestFailed` fire for every call.
+
+With spatie/laravel-health, add `WhmCheck::new()->failWhenTokenExpiresWithin(7)` to your checks.
 
 ## Documentation
 
 - [Configuration](docs/configuration.md)
-- [Accounts, suspensions, packages and sessions](docs/usage.md)
+- [The modules: accounts, DNS, domains, usage, backups, resellers, SSL, tokens, ...](docs/usage.md)
+- [The generated API for every other function](docs/api.md)
 - [UAPI through WHM](docs/uapi.md)
 - [whm:doctor and the other commands](docs/commands.md)
 - [Errors](docs/errors.md)
 - [Testing](docs/testing.md)
-- [Roadmap and API coverage](docs/roadmap.md)
+- [API coverage](docs/coverage.md)
+- [Roadmap](docs/roadmap.md)
 
 ## Security
 

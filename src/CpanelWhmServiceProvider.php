@@ -13,10 +13,16 @@ use Illuminate\Support\ServiceProvider;
 use Itxshakil\CpanelWhm\Console\AccountCommand;
 use Itxshakil\CpanelWhm\Console\AccountsCommand;
 use Itxshakil\CpanelWhm\Console\CallCommand;
+use Itxshakil\CpanelWhm\Console\DnsCommand;
 use Itxshakil\CpanelWhm\Console\DoctorCommand;
 use Itxshakil\CpanelWhm\Console\FunctionsCommand;
 use Itxshakil\CpanelWhm\Console\InstallCommand;
 use Itxshakil\CpanelWhm\Console\LoginCommand;
+use Itxshakil\CpanelWhm\Console\PackagesCommand;
+use Itxshakil\CpanelWhm\Console\RecordCommand;
+use Itxshakil\CpanelWhm\Console\SuspendCommand;
+use Itxshakil\CpanelWhm\Console\TokenCommand;
+use Itxshakil\CpanelWhm\Console\UnsuspendCommand;
 use Itxshakil\CpanelWhm\Contracts\WhmClient as WhmClientContract;
 use Itxshakil\CpanelWhm\Doctor\NetworkProbe;
 use Itxshakil\CpanelWhm\Doctor\SocketProbe;
@@ -58,6 +64,12 @@ final class CpanelWhmServiceProvider extends ServiceProvider
             AccountsCommand::class,
             AccountCommand::class,
             LoginCommand::class,
+            SuspendCommand::class,
+            UnsuspendCommand::class,
+            PackagesCommand::class,
+            DnsCommand::class,
+            TokenCommand::class,
+            RecordCommand::class,
         ]);
 
         AboutCommand::add('cPanel WHM', fn (): array => $this->aboutDetails());
