@@ -11,11 +11,14 @@ use Illuminate\Contracts\Events\Dispatcher;
 use Itxshakil\CpanelWhm\Api\WhmApi;
 use Itxshakil\CpanelWhm\Contracts\Transport;
 use Itxshakil\CpanelWhm\Contracts\WhmClient as WhmClientContract;
+use Itxshakil\CpanelWhm\Data\UapiResult;
+use Itxshakil\CpanelWhm\Data\Value;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Events\WhmRequestFailed;
 use Itxshakil\CpanelWhm\Events\WhmRequestSending;
 use Itxshakil\CpanelWhm\Events\WhmResponseReceived;
 use Itxshakil\CpanelWhm\Exceptions\InvalidConfiguration;
+use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmAuthenticationFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmConnectionFailed;
@@ -40,6 +43,7 @@ use Itxshakil\CpanelWhm\Support\ConnectionConfig;
 use Itxshakil\CpanelWhm\Support\FunctionCatalog;
 use Itxshakil\CpanelWhm\Support\Params;
 use Itxshakil\CpanelWhm\Transport\TransportResponse;
+use SensitiveParameter;
 
 final class WhmClient implements WhmClientContract
 {
@@ -56,6 +60,14 @@ final class WhmClient implements WhmClientContract
         'not have the privilege',
         'requires the privilege',
     ];
+
+    /**
+     * Read-only functions whose answer must always be current: whether a
+     * username is free is checked right before an account is created.
+     *
+     * @var list<string>
+     */
+    private const array NEVER_CACHED = ['verify_new_username'];
 
     /**
      * @var array<class-string, object>
@@ -77,13 +89,17 @@ final class WhmClient implements WhmClientContract
         private readonly string $cachePrefix = 'cpanel-whm',
     ) {}
 
-    public function call(string $function, array $params = [], HttpMethod $method = HttpMethod::Get, ?int $timeout = null): WhmResponse
+    public function call(string $function, #[SensitiveParameter] array $params = [], ?HttpMethod $method = null, ?int $timeout = null): WhmResponse
     {
         $params = Params::normalise($params);
+        $method = HttpMethod::for($function, $params, $method);
         $readOnly = FunctionCatalog::isReadOnly($function);
 
-        if ($readOnly && $this->cacheTtl !== null && $this->cache instanceof CacheFactory) {
-            $key = $this->cachePrefix.':'.$this->config->name.':'.$function.':'.hash('xxh128', serialize($params));
+        if ($readOnly && $this->cacheTtl !== null && $this->cache instanceof CacheFactory && ! in_array($function, self::NEVER_CACHED, true)) {
+            // The server and user are part of the key, so two apps or tenants that
+            // reuse a connection name never read each other's answers.
+            $server = hash('xxh128', $this->config->baseUrl().'|'.$this->config->user);
+            $key = $this->cachePrefix.':'.$this->config->name.':'.$server.':'.$function.':'.hash('xxh128', serialize($params));
             $store = $this->cache->store($this->cacheStore);
             $cached = $store->get($key);
 
@@ -107,6 +123,13 @@ final class WhmClient implements WhmClientContract
         }
 
         return new self($this->config, $this->transport, $this->events, $this->cache, $ttl, $store ?? $this->cacheStore, $this->cachePrefix);
+    }
+
+    public function withoutCache(): static
+    {
+        return $this->cacheTtl === null
+            ? $this
+            : new self($this->config, $this->transport, $this->events, $this->cache, null, $this->cacheStore, $this->cachePrefix);
     }
 
     public function dispatch(object $event): void
@@ -243,18 +266,20 @@ final class WhmClient implements WhmClientContract
      */
     private function attempt(WhmRequest $request): WhmResponse
     {
-        $this->events?->dispatch(new WhmRequestSending($request));
+        // Listeners get redacted copies: events end up in Telescope, queued
+        // listeners and logs, none of which may see a password or a new token.
+        $this->events?->dispatch(new WhmRequestSending($request->redacted()));
 
         try {
             $raw = $this->transport->send($this->config, $request);
             $response = $this->interpret($request, $raw);
         } catch (WhmException $whmException) {
-            $this->events?->dispatch(new WhmRequestFailed($request, $whmException));
+            $this->events?->dispatch(new WhmRequestFailed($request->redacted(), $whmException));
 
             throw $whmException;
         }
 
-        $this->events?->dispatch(new WhmResponseReceived($request, $response, $raw->durationMs));
+        $this->events?->dispatch(new WhmResponseReceived($request->redacted(), $response->redacted(), $raw->durationMs));
 
         return $response;
     }
@@ -287,7 +312,52 @@ final class WhmClient implements WhmClientContract
                 : WhmCommandFailed::from($request->function, $response);
         }
 
+        $this->guardInnerCall($request, $response);
+
         return $response;
+    }
+
+    /**
+     * uapi_cpanel and cpanel run a cPanel function inside a WHM call. WHM
+     * reports success when it ran the function, even if the function itself
+     * failed, so that inner status is checked here for every caller.
+     *
+     * @throws UapiCallFailed
+     */
+    private function guardInnerCall(WhmRequest $request, WhmResponse $response): void
+    {
+        [$moduleKey, $functionKey, $candidates] = match ($request->function) {
+            'uapi_cpanel' => ['cpanel.module', 'cpanel.function', ['uapi']],
+            // UAPI answers under result, cPanel API 2 under cpanelresult (event.result).
+            'cpanel' => ['cpanel_jsonapi_module', 'cpanel_jsonapi_func', ['uapi', 'result', 'cpanelresult']],
+            default => [null, null, []],
+        };
+
+        foreach ($candidates as $path) {
+            $inner = $response->get($path);
+
+            if (! is_array($inner)) {
+                continue;
+            }
+
+            $status = $inner['status'] ?? data_get($inner, 'event.result');
+
+            if ($status === null || Value::bool($status)) {
+                continue;
+            }
+
+            $result = UapiResult::fromArray($inner);
+
+            if ($result->errors === [] && is_string($inner['error'] ?? null) && $inner['error'] !== '') {
+                $result = new UapiResult(false, $result->data, [$inner['error']], $result->warnings, $result->messages, $result->metadata);
+            }
+
+            throw new UapiCallFailed(
+                Value::string($request->params[$moduleKey] ?? null) ?? '',
+                Value::string($request->params[$functionKey] ?? null) ?? '',
+                $result,
+            );
+        }
     }
 
     /**

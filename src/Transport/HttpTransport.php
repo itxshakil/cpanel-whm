@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Itxshakil\CpanelWhm\Transport;
 
+use GuzzleHttp\Exception\TransferException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory;
 use Itxshakil\CpanelWhm\Contracts\Transport;
@@ -44,8 +45,10 @@ final readonly class HttpTransport implements Transport
             $response = $request->method === HttpMethod::Post
                 ? $pending->asForm()->post($url, $params)
                 : $pending->get($url, $params);
-        } catch (ConnectionException $connectionException) {
-            throw WhmConnectionFailed::to($config, $request->function, $connectionException);
+        } catch (ConnectionException|TransferException $exception) {
+            // Older Laravel releases let some Guzzle errors (an empty reply, a
+            // receive failure) through unwrapped; both carry the URL and headers.
+            throw WhmConnectionFailed::to($config, $request->function, $exception);
         }
 
         $json = $response->json();

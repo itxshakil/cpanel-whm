@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Itxshakil\CpanelWhm\Tests\Feature;
 
+use Illuminate\Config\Repository as ConfigRepository;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Itxshakil\CpanelWhm\Contracts\WhmClient;
@@ -16,6 +17,24 @@ use PHPUnit\Framework\Attributes\Test;
 
 final class ManagerTest extends TestCase
 {
+    #[Test]
+    public function under_octane_each_request_uses_its_own_configuration(): void
+    {
+        Http::fake(['*' => Http::response(Responses::envelope(['version' => '11.134.0.5']))]);
+        Whm::server()->version();
+
+        $sandbox = clone $this->app;
+        $config = new ConfigRepository($this->app->make('config')->all());
+        $config->set('cpanel-whm.connections.main.host', 'new-server.example.com');
+        $sandbox->instance('config', $config);
+
+        $this->app->make('events')->dispatch('Laravel\\Octane\\Events\\RequestReceived', [(object) ['sandbox' => $sandbox]]);
+
+        Whm::server()->version();
+
+        Http::assertSent(static fn (Request $request): bool => str_starts_with($request->url(), 'https://new-server.example.com:2087/'));
+    }
+
     #[Test]
     public function named_connections_use_their_own_credentials(): void
     {

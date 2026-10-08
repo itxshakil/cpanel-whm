@@ -59,6 +59,7 @@ final readonly class NewAccount
             'ip' => $this->dedicatedIp ? 'y' : null,
         ];
 
-        return [...array_filter($params, static fn (mixed $value): bool => $value !== null && $value !== ''), ...$this->extra];
+        // $extra goes first, so it can add parameters but never replace the validated ones.
+        return [...$this->extra, ...array_filter($params, static fn (mixed $value): bool => $value !== null && $value !== '')];
     }
 }

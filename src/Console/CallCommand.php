@@ -22,7 +22,7 @@ final class CallCommand extends Command
     protected $signature = 'whm:call
         {function : The WHM API 1 function, e.g. listaccts}
         {params?* : Parameters as key=value pairs, e.g. user=acme}
-        {--post : Send as a form POST (use it for passwords)}
+        {--post : Send as a form POST (the default for functions that change something and for secrets)}
         {--json : Print the raw response as JSON}
         {--dry-run : Show the request without sending it}
         {--force : Skip the confirmation for destructive functions}
@@ -34,7 +34,7 @@ final class CallCommand extends Command
     {
         $function = $this->stringArgument('function');
         $params = $this->parseParams();
-        $method = $this->option('post') === true ? HttpMethod::Post : HttpMethod::Get;
+        $method = HttpMethod::for($function, $params, $this->option('post') === true ? HttpMethod::Post : null);
 
         try {
             $client = $this->client();
@@ -46,8 +46,14 @@ final class CallCommand extends Command
             $config = $client->config();
             $query = http_build_query(['api.version' => 1, ...Redactor::redact($params)]);
 
-            $this->line("{$method->value} {$config->endpoint($function)}?{$query}");
-            $this->line("Authorization: whm {$config->user}:".Redactor::MASK);
+            if ($method === HttpMethod::Post) {
+                $this->line("POST {$config->endpoint($function)}");
+                $this->line("Authorization: whm {$config->user}:".Redactor::MASK);
+                $this->line("Body: {$query}");
+            } else {
+                $this->line("GET {$config->endpoint($function)}?{$query}");
+                $this->line("Authorization: whm {$config->user}:".Redactor::MASK);
+            }
 
             return self::SUCCESS;
         }

@@ -7,7 +7,7 @@ namespace Itxshakil\CpanelWhm\Events;
 use Itxshakil\CpanelWhm\WhmRequest;
 
 /**
- * Fired before every WHM call. Use $request->redactedParams() for anything you log.
+ * Fired before every WHM call. The request's parameters are already redacted.
  */
 final readonly class WhmRequestSending
 {

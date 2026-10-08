@@ -148,7 +148,8 @@ class Dns extends Module
             return $serial;
         }
 
-        $serial ??= $this->zone($domain)->serial;
+        // Read the serial uncached: a cached one goes stale after the first edit.
+        $serial ??= (new self($this->client->withoutCache()))->zone($domain)->serial;
 
         if ($serial === null) {
             throw new InvalidArgumentException("The zone {$domain} has no SOA serial; pass one to edit().");

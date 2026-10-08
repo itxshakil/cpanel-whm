@@ -38,8 +38,18 @@ final class Redactor
     ];
 
     /**
-     * @param  array<array-key, mixed>  $data
-     * @return array<array-key, mixed>
+     * Parameter names that hold a secret anywhere in the name: password, passwd,
+     * passphrase, oldpass, mysql_pass, pass_hash, client_secret, private_key,
+     * api_token, ... A bare "pass" must end the name and start a word, so flags
+     * such as passive, showpass, spf_bypass or db_pass_update are left alone.
+     */
+    private const string SENSITIVE_PATTERN = '/(?:password|passwd|passphrase)(?:_hash)?$|(?:^|_|old|new)pass(?:_hash)?$|secret|private_?key|(?:^|_)token$|key_data|auth_?code|api_?key/';
+
+    /**
+     * @template TKey of array-key
+     *
+     * @param  array<TKey, mixed>  $data
+     * @return array<TKey, mixed>
      */
     public static function redact(array $data): array
     {
@@ -75,14 +85,38 @@ final class Redactor
         return (string) preg_replace('/([?&]session=)[^&\s]+/', '$1'.self::MASK, $value);
     }
 
+    /**
+     * Whether a parameter name holds a secret. List parameters (password-1, ...)
+     * count like their first entry.
+     */
     public static function isSensitiveKey(string $key): bool
     {
-        $lower = mb_strtolower($key);
+        $lower = (string) preg_replace('/-\d+$/', '', mb_strtolower($key));
 
         if (in_array($lower, self::SENSITIVE_KEYS, true)) {
             return true;
         }
 
-        return str_ends_with($lower, 'password') || str_ends_with($lower, '_token');
+        return preg_match(self::SENSITIVE_PATTERN, $lower) === 1;
+    }
+
+    /**
+     * Whether any key, at any depth, holds a secret.
+     *
+     * @param  array<array-key, mixed>  $data
+     */
+    public static function containsSensitive(array $data): bool
+    {
+        foreach ($data as $key => $value) {
+            if (is_string($key) && self::isSensitiveKey($key)) {
+                return true;
+            }
+
+            if (is_array($value) && self::containsSensitive($value)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

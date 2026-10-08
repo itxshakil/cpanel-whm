@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Itxshakil\CpanelWhm\Modules;
 
 use Itxshakil\CpanelWhm\Data\LoginSession;
+use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Enums\SessionService;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\Support\UsernameRules;
@@ -30,6 +31,6 @@ class Sessions extends Module
             'locale' => $locale,
         ], static fn (?string $value): bool => $value !== null && $value !== '');
 
-        return LoginSession::fromResponse($this->client->call('create_user_session', $params), $user, $service);
+        return LoginSession::fromResponse($this->client->call('create_user_session', $params, HttpMethod::Post), $user, $service);
     }
 }

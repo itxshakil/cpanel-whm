@@ -17,6 +17,7 @@ use Itxshakil\CpanelWhm\Events\AccountRemoved;
 use Itxshakil\CpanelWhm\Exceptions\InvalidUsername;
 use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
 use Itxshakil\CpanelWhm\Support\Filter;
 use Itxshakil\CpanelWhm\Support\UsernameRules;
 use Itxshakil\CpanelWhm\WhmResponse;
@@ -128,6 +129,9 @@ class Accounts extends Module
 
         try {
             return $this->client->call('verify_new_username', ['user' => UsernameRules::normalise($username)])->successful();
+        } catch (WhmPermissionDenied $whmPermissionDenied) {
+            // A token without the privilege must not read as "name taken".
+            throw $whmPermissionDenied;
         } catch (WhmCommandFailed) {
             return false;
         }
@@ -200,6 +204,8 @@ class Accounts extends Module
      */
     public function modify(string $user, array $changes): WhmResponse
     {
+        unset($changes['user']);
+
         return $this->client->call('modifyacct', ['user' => UsernameRules::normalise($user), ...$changes], HttpMethod::Post);
     }
 

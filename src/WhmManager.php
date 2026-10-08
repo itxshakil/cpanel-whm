@@ -32,7 +32,18 @@ class WhmManager
 
     private ?WhmFake $fake = null;
 
-    public function __construct(private readonly Container $container) {}
+    public function __construct(private Container $container) {}
+
+    /**
+     * Point the manager at a new application and forget resolved clients.
+     * Octane calls this with each request's sandbox, so config and event
+     * listeners changed during a request are seen. A fake is kept.
+     */
+    public function setContainer(Container $container): void
+    {
+        $this->container = $container;
+        $this->clients = [];
+    }
 
     /**
      * @param  array<string, mixed>  $arguments
@@ -49,8 +60,10 @@ class WhmManager
     {
         $name ??= $this->getDefaultConnection();
 
+        $config = $this->configFor($name);
+
         return $this->clients[$name] ??= new WhmClient(
-            $this->configFor($name),
+            $this->fake instanceof WhmFake ? $config->withoutRetryDelay() : $config,
             $this->transport(),
             $this->container->make(Dispatcher::class),
             $this->container->bound(CacheFactory::class) ? $this->container->make(CacheFactory::class) : null,

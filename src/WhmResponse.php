@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Itxshakil\CpanelWhm;
 
+use Itxshakil\CpanelWhm\Support\Redactor;
+
 /**
  * WHM API 1's envelope: { "data": {...}, "metadata": { "result", "reason", "command", "version", "output" } }.
  */
@@ -29,6 +31,15 @@ final readonly class WhmResponse
             metadata: is_array($json['metadata'] ?? null) ? $json['metadata'] : [],
             status: $status,
         );
+    }
+
+    /**
+     * A copy with secrets masked: new API tokens, login URLs, passwords.
+     * Events carry this copy; the caller gets the real response.
+     */
+    public function redacted(): self
+    {
+        return new self(Redactor::redact($this->data), Redactor::redact($this->metadata), $this->status);
     }
 
     public function successful(): bool

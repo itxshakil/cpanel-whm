@@ -38,10 +38,18 @@ final readonly class WhmRequest
     }
 
     /**
+     * A copy with secrets masked, for events and anything else outside the client.
+     */
+    public function redacted(): self
+    {
+        return new self($this->connection, $this->function, $this->redactedParams(), $this->method, $this->timeout);
+    }
+
+    /**
      * The parameters with passwords, tokens and session ids masked. Use this for
      * anything that is logged or displayed.
      *
-     * @return array<array-key, mixed>
+     * @return array<string, mixed>
      */
     public function redactedParams(): array
     {

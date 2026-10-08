@@ -54,7 +54,8 @@ final class CommandsTest extends TestCase
         Whm::purge();
 
         $this->artisan('whm:call', ['function' => 'passwd', 'params' => ['user=acme', 'password=hunter2'], '--dry-run' => true])
-            ->expectsOutputToContain('GET https://server.example.com:2087/json-api/passwd?api.version=1&user=acme&password=%5BREDACTED%5D')
+            ->expectsOutputToContain('POST https://server.example.com:2087/json-api/passwd')
+            ->expectsOutputToContain('Body: api.version=1&user=acme&password=%5BREDACTED%5D')
             ->expectsOutputToContain('Authorization: whm root:[REDACTED]')
             ->doesntExpectOutputToContain('SECRET-TOKEN-123')
             ->assertSuccessful();

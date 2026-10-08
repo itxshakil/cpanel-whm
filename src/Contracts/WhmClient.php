@@ -25,6 +25,7 @@ use Itxshakil\CpanelWhm\Modules\Tokens;
 use Itxshakil\CpanelWhm\Modules\Usage;
 use Itxshakil\CpanelWhm\Support\ConnectionConfig;
 use Itxshakil\CpanelWhm\WhmResponse;
+use SensitiveParameter;
 
 /**
  * One WHM server. Inject this interface; Whm::fake() swaps what is behind it.
@@ -39,17 +40,27 @@ interface WhmClient
      * repeated parameters (name, name-1, name-2, ...). Read-only functions are
      * retried after a connection error or HTTP 5xx.
      *
+     * Without a $method the call uses the one cPanel documents for the function
+     * (POST for undocumented ones). Parameters that hold a secret (password,
+     * token, passphrase, ...) are always sent as POST.
+     *
      * @param  array<string, mixed>  $params
      *
      * @throws WhmException
      */
-    public function call(string $function, array $params = [], HttpMethod $method = HttpMethod::Get, ?int $timeout = null): WhmResponse;
+    public function call(string $function, #[SensitiveParameter] array $params = [], ?HttpMethod $method = null, ?int $timeout = null): WhmResponse;
 
     /**
      * A copy of this client that caches read-only calls for $ttl:
      * Whm::cache(300)->accounts()->list(). Calls that change something are never cached.
      */
     public function cache(int|DateInterval|DateTimeInterface $ttl, ?string $store = null): static;
+
+    /**
+     * A copy of this client that always asks WHM, for reads that a change
+     * depends on (a DNS zone's serial, for example).
+     */
+    public function withoutCache(): static;
 
     /**
      * Dispatch one of the package's events (AccountCreated, ...) through Laravel.

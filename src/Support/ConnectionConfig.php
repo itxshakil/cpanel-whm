@@ -96,6 +96,18 @@ final readonly class ConnectionConfig
         return new self($name, 'https', 'whm.test', 2087, 'root', 'fake-token');
     }
 
+    /**
+     * The same connection without the pause between retries. Fakes use it, so
+     * tests of retry behaviour do not sleep.
+     */
+    public function withoutRetryDelay(): self
+    {
+        return new self(
+            $this->name, $this->scheme, $this->host, $this->port, $this->user, $this->token,
+            $this->verifyTls, $this->timeout, $this->connectTimeout, $this->retries, 0,
+        );
+    }
+
     public function baseUrl(): string
     {
         return "{$this->scheme}://{$this->host}:{$this->port}";

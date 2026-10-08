@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Itxshakil\CpanelWhm;
 
 use Illuminate\Contracts\Config\Repository;
+use Illuminate\Contracts\Container\Container;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Foundation\Console\AboutCommand;
@@ -31,6 +32,11 @@ use Itxshakil\CpanelWhm\Support\RequestLogger;
 
 final class CpanelWhmServiceProvider extends ServiceProvider
 {
+    /**
+     * Named as a string so Octane stays optional.
+     */
+    private const string OCTANE_REQUEST_RECEIVED = 'Laravel\\Octane\\Events\\RequestReceived';
+
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/cpanel-whm.php', 'cpanel-whm');
@@ -47,6 +53,7 @@ final class CpanelWhmServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerLogging();
+        $this->registerOctaneReset();
 
         if (! $this->app->runningInConsole()) {
             return;
@@ -98,6 +105,21 @@ final class CpanelWhmServiceProvider extends ServiceProvider
             'TLS certificate' => $tls,
             'Connections' => (string) count($manager->connectionNames()),
         ];
+    }
+
+    /**
+     * Under Octane the manager outlives a request. Each request gets clients
+     * built from that request's sandbox (its config, events and cache).
+     */
+    private function registerOctaneReset(): void
+    {
+        $this->app->make(Dispatcher::class)->listen(self::OCTANE_REQUEST_RECEIVED, function (object $event): void {
+            $sandbox = $event->sandbox ?? null;
+
+            if ($sandbox instanceof Container && $this->app->resolved(WhmManager::class)) {
+                $this->app->make(WhmManager::class)->setContainer($sandbox);
+            }
+        });
     }
 
     private function registerLogging(): void

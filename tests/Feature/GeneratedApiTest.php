@@ -11,6 +11,7 @@ use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Support\CuratedFunctions;
 use Itxshakil\CpanelWhm\Support\FunctionCatalog;
+use Itxshakil\CpanelWhm\Support\Redactor;
 use Itxshakil\CpanelWhm\Tests\TestCase;
 use Itxshakil\CpanelWhm\WhmRequest;
 use PHPUnit\Framework\Attributes\Test;
@@ -148,7 +149,9 @@ final class GeneratedApiTest extends TestCase
                     self::assertSame($module, $request->params['cpanel.module']);
                     self::assertSame($uapiFunction, $request->params['cpanel.function']);
                 } else {
-                    self::assertSame($readOnly ? HttpMethod::Get : HttpMethod::Post, $request->method, "{$key} used the wrong HTTP method");
+                    // Secrets go as POST even for read-only functions.
+                    $expected = $readOnly && ! Redactor::containsSensitive($request->params) ? HttpMethod::Get : HttpMethod::Post;
+                    self::assertSame($expected, $request->method, "{$key} used the wrong HTTP method");
                 }
             }
         }

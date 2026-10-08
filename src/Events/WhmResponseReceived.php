@@ -8,7 +8,8 @@ use Itxshakil\CpanelWhm\WhmRequest;
 use Itxshakil\CpanelWhm\WhmResponse;
 
 /**
- * Fired after WHM answered with valid JSON, whether the function succeeded or not.
+ * Fired after WHM answered with a successful call. The request and the
+ * response are redacted copies: new tokens, login URLs and passwords are masked.
  */
 final readonly class WhmResponseReceived
 {

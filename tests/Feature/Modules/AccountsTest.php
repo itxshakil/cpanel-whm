@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Enums\SearchType;
 use Itxshakil\CpanelWhm\Exceptions\InvalidUsername;
 use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
+use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
 use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Modules\Accounts;
 use Itxshakil\CpanelWhm\Support\Filter;
@@ -139,6 +140,28 @@ final class AccountsTest extends TestCase
         self::assertFalse(Whm::accounts()->isUsernameAvailable('taken'));
 
         $fake->assertCalledTimes('verify_new_username', 2);
+    }
+
+    #[Test]
+    public function a_token_without_the_privilege_is_not_reported_as_a_taken_name(): void
+    {
+        Whm::fake(['verify_new_username' => Whm::failure('Access denied')]);
+
+        $this->expectException(WhmPermissionDenied::class);
+
+        Whm::accounts()->isUsernameAvailable('acme');
+    }
+
+    #[Test]
+    public function extra_parameters_cannot_replace_the_validated_username(): void
+    {
+        $fake = Whm::fake(['createacct' => Whm::response(['user' => 'acme']), 'modifyacct' => Whm::response()]);
+
+        Whm::accounts()->create(new NewAccount('acme', 'acme.example', extra: ['username' => 'Root;', 'maxftp' => 5]));
+        Whm::accounts()->modify('acme', ['user' => 'other', 'CONTACTEMAIL' => 'a@acme.example']);
+
+        $fake->assertCalled('createacct', static fn (array $params): bool => $params['username'] === 'acme' && $params['maxftp'] === 5);
+        $fake->assertCalled('modifyacct', static fn (array $params): bool => $params['user'] === 'acme' && $params['CONTACTEMAIL'] === 'a@acme.example');
     }
 
     #[Test]

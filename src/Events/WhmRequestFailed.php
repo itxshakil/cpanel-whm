@@ -9,6 +9,7 @@ use Itxshakil\CpanelWhm\WhmRequest;
 
 /**
  * Fired when a call throws: connection failure, HTTP error or WHM failure.
+ * The request's parameters are already redacted.
  */
 final readonly class WhmRequestFailed
 {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Itxshakil\CpanelWhm\Tests\Feature;
 
 use Illuminate\Support\Facades\Cache;
+use Itxshakil\CpanelWhm\Data\DnsRecord;
 use Itxshakil\CpanelWhm\Exceptions\WhmAuthenticationFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmConnectionFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmHttpError;
@@ -44,6 +45,16 @@ final class RetryAndCacheTest extends TestCase
     }
 
     #[Test]
+    public function faked_connections_keep_their_retries_but_do_not_sleep(): void
+    {
+        config()->set('cpanel-whm.connections.main.retry', ['times' => 2, 'sleep_ms' => 1000]);
+        Whm::fake();
+
+        self::assertSame(2, Whm::connection()->config()->retries);
+        self::assertSame(0, Whm::connection()->config()->retryDelayMs);
+    }
+
+    #[Test]
     public function changes_and_client_errors_are_never_retried(): void
     {
         $fake = Whm::fake([
@@ -64,6 +75,49 @@ final class RetryAndCacheTest extends TestCase
         }
 
         $fake->assertCalledTimes('suspendacct', 1)->assertCalledTimes('version', 1)->assertCalledTimes('listpkgs', 1);
+    }
+
+    #[Test]
+    public function dns_edits_on_a_cached_client_read_the_current_serial(): void
+    {
+        $fake = Whm::fake([
+            'parse_dns_zone' => Whm::sequence(
+                Whm::response(['payload' => [['type' => 'record', 'record_type' => 'SOA', 'line_index' => 1, 'dname_b64' => base64_encode('acme.example.'), 'data_b64' => [base64_encode('ns1.example.com.'), base64_encode('admin.acme.example.'), base64_encode('2026100701')]]]]),
+                Whm::response(['payload' => [['type' => 'record', 'record_type' => 'SOA', 'line_index' => 1, 'dname_b64' => base64_encode('acme.example.'), 'data_b64' => [base64_encode('ns1.example.com.'), base64_encode('admin.acme.example.'), base64_encode('2026100702')]]]]),
+            ),
+            'mass_edit_dns_zone' => Whm::response(['new_serial' => 2026100702]),
+        ]);
+
+        $dns = Whm::cache(300)->dns();
+        $dns->edit('acme.example', add: [DnsRecord::a('one', '203.0.113.1')]);
+        $dns->edit('acme.example', add: [DnsRecord::a('two', '203.0.113.2')]);
+
+        $fake->assertCalledTimes('parse_dns_zone', 2)
+            ->assertCalled('mass_edit_dns_zone', static fn (array $params): bool => $params['serial'] === 2026100702);
+    }
+
+    #[Test]
+    public function username_checks_are_never_cached(): void
+    {
+        $fake = Whm::fake(['verify_new_username' => Whm::response()]);
+
+        Whm::cache(300)->accounts()->isUsernameAvailable('acme');
+        Whm::cache(300)->accounts()->isUsernameAvailable('acme');
+
+        $fake->assertCalledTimes('verify_new_username', 2);
+    }
+
+    #[Test]
+    public function the_cache_key_includes_the_server_and_user(): void
+    {
+        $fake = Whm::fake(['listpkgs' => Whm::response(['pkg' => []])]);
+
+        Whm::cache(300)->packages()->list();
+        config()->set('cpanel-whm.connections.main.host', 'other-server.example.com');
+        Whm::purge();
+        Whm::cache(300)->packages()->list();
+
+        $fake->assertCalledTimes('listpkgs', 2);
     }
 
     #[Test]
@@ -92,7 +146,8 @@ final class RetryAndCacheTest extends TestCase
         Whm::connection('ca-1')->cache(300)->accounts()->search('a');
 
         $fake->assertCalledTimes('listaccts', 3);
-        self::assertTrue(Cache::has('cpanel-whm:main:listaccts:'.hash('xxh128', serialize(['searchtype' => 'user', 'search' => 'a', 'searchmethod' => 'regex']))));
+        $server = hash('xxh128', 'https://server.example.com:2087|root');
+        self::assertTrue(Cache::has("cpanel-whm:main:{$server}:listaccts:".hash('xxh128', serialize(['searchtype' => 'user', 'search' => 'a', 'searchmethod' => 'regex']))));
     }
 
     #[Test]

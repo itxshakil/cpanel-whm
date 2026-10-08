@@ -11,6 +11,7 @@ use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\Support\UsernameRules;
+use SensitiveParameter;
 
 /**
  * Runs cPanel UAPI functions as one account through WHM's uapi_cpanel, using
@@ -49,7 +50,7 @@ class CpanelUser extends Module
      * @throws UapiCallFailed when the UAPI function reports failure
      * @throws WhmException
      */
-    public function uapi(string $module, string $function, array $params = []): UapiResult
+    public function uapi(string $module, string $function, #[SensitiveParameter] array $params = []): UapiResult
     {
         // POST keeps whatever the function receives (passwords included) out of URLs.
         $response = $this->client->call('uapi_cpanel', [
@@ -62,6 +63,7 @@ class CpanelUser extends Module
         $uapi = $response->get('uapi');
         $result = UapiResult::fromArray(is_array($uapi) ? $uapi : []);
 
+        // The client throws when data.uapi reports failure; this catches an answer without data.uapi.
         if (! $result->successful) {
             throw new UapiCallFailed($module, $function, $result);
         }
