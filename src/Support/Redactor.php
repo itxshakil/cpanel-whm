@@ -75,14 +75,22 @@ final class Redactor
     }
 
     /**
-     * Masks cPanel security tokens (cpsess1234567890) and login session ids
-     * (session=user:hash) inside URLs.
+     * Masks cPanel security tokens (cpsess1234567890), login session ids
+     * (session=user:hash) and secret parameters inside URLs and query strings.
      */
     public static function redactString(string $value): string
     {
         $value = (string) preg_replace('/cpsess\d+/', 'cpsess'.self::MASK, $value);
+        $value = (string) preg_replace('/([?&]session=)[^&\s]+/', '$1'.self::MASK, $value);
 
-        return (string) preg_replace('/([?&]session=)[^&\s]+/', '$1'.self::MASK, $value);
+        // Query strings inside a value, such as a batch command "passwd?user=acme&password=...".
+        return (string) preg_replace_callback(
+            '/([?&])([^=&?\s]+)=([^&\s]*)/',
+            static fn (array $match): string => self::isSensitiveKey(rawurldecode($match[2])) && $match[3] !== self::MASK
+                ? $match[1].$match[2].'='.self::MASK
+                : $match[0],
+            $value,
+        );
     }
 
     /**

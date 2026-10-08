@@ -39,6 +39,18 @@ $whm->assertNothingSent();
 $whm->recorded('createacct');   // list<WhmRequest>
 ```
 
+## Batches
+
+`Whm::fake()` answers `Whm::batch()` command by command from the same stubs, records each command as its own call (then the batch itself), honours `abortOnError()`, and throws `StrayWhmCall` for a command it has no answer for. Stub `batch` directly to answer the whole request yourself.
+
+```php
+$whm = Whm::fake(['version' => Whm::response(['version' => '11.138.0.10']), 'accountsummary' => Whm::failure('No such user')]);
+
+$results = Whm::batch()->add('version')->add('accountsummary', ['user' => 'ghost'])->send();
+
+$whm->assertCalled('accountsummary', fn (array $params) => $params['user'] === 'ghost');
+```
+
 ## Record real responses
 
 `php artisan whm:record` calls a read-only function on a real server and saves the response as a JSON fixture, with secrets redacted:

@@ -78,6 +78,16 @@ final class RedactorTest extends TestCase
     }
 
     #[Test]
+    public function secrets_inside_query_strings_are_masked(): void
+    {
+        self::assertSame(
+            ['command' => 'passwd?user=acme&password=[REDACTED]', 'command-1' => 'version', 'note' => 'a?b=c'],
+            Redactor::redact(['command' => 'passwd?user=acme&password=hunter2', 'command-1' => 'version', 'note' => 'a?b=c']),
+        );
+        self::assertSame('x?new%5Fpass=[REDACTED]&plan=a', Redactor::redactString('x?new%5Fpass=s3cret&plan=a'));
+    }
+
+    #[Test]
     public function a_dumped_request_does_not_show_secrets(): void
     {
         $request = new WhmRequest('main', 'passwd', ['user' => 'acme', 'password' => 'hunter2'], HttpMethod::Post);

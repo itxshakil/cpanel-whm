@@ -24,7 +24,6 @@ use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmConnectionFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\Exceptions\WhmHttpError;
-use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
 use Itxshakil\CpanelWhm\Modules\Accounts;
 use Itxshakil\CpanelWhm\Modules\Backups;
 use Itxshakil\CpanelWhm\Modules\CpanelUser;
@@ -47,20 +46,6 @@ use SensitiveParameter;
 
 final class WhmClient implements WhmClientContract
 {
-    /**
-     * Phrases WHM uses when a token's ACL does not cover a function.
-     *
-     * @var list<string>
-     */
-    private const array PERMISSION_PHRASES = [
-        'access denied',
-        'permission denied',
-        'you do not have permission',
-        'you do not have access',
-        'not have the privilege',
-        'requires the privilege',
-    ];
-
     /**
      * Read-only functions whose answer must always be current: whether a
      * username is free is checked right before an account is created.
@@ -212,6 +197,11 @@ final class WhmClient implements WhmClientContract
         return $this->api ??= new WhmApi($this);
     }
 
+    public function batch(): WhmBatch
+    {
+        return new WhmBatch($this);
+    }
+
     public function asUser(string $user): CpanelUser
     {
         return new CpanelUser($this, $user);
@@ -312,9 +302,7 @@ final class WhmClient implements WhmClientContract
         $response = WhmResponse::fromArray($json, $raw->status);
 
         if ($response->failed()) {
-            throw $this->isPermissionFailure($response->reason())
-                ? WhmPermissionDenied::from($request->function, $response)
-                : WhmCommandFailed::from($request->function, $response);
+            throw WhmCommandFailed::classify($request->function, $response);
         }
 
         $this->guardInnerCall($request, $response);
@@ -374,18 +362,5 @@ final class WhmClient implements WhmClientContract
         $reason = is_array($metadata) ? ($metadata['reason'] ?? null) : null;
 
         return is_string($reason) ? $reason : null;
-    }
-
-    private function isPermissionFailure(string $reason): bool
-    {
-        $reason = mb_strtolower($reason);
-
-        foreach (self::PERMISSION_PHRASES as $phrase) {
-            if (str_contains($reason, $phrase)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

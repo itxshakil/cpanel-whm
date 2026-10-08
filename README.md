@@ -211,6 +211,13 @@ Without a method, `Whm::call()` uses the one cPanel documents for the function, 
 
 `php artisan whm:functions --server --missing` shows what your server offers beyond the spec (plugin functions, for example).
 
+### Several calls in one request
+
+```php
+$results = Whm::batch()->add('accountsummary', ['user' => 'acme'])->add('version')->send();
+$results[0]->get('acct.0.domain');
+```
+
 ### Several servers
 
 ```php

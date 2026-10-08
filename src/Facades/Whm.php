@@ -13,7 +13,8 @@ use Itxshakil\CpanelWhm\WhmManager;
 
 /**
  * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient connection(?string $name = null)
- * @method static \Itxshakil\CpanelWhm\WhmResponse call(string $function, array<string, mixed> $params = [], \Itxshakil\CpanelWhm\Enums\HttpMethod $method = \Itxshakil\CpanelWhm\Enums\HttpMethod::Get, ?int $timeout = null)
+ * @method static \Itxshakil\CpanelWhm\WhmResponse call(string $function, array<string, mixed> $params = [], ?\Itxshakil\CpanelWhm\Enums\HttpMethod $method = null, ?int $timeout = null)
+ * @method static \Itxshakil\CpanelWhm\WhmBatch batch()
  * @method static \Itxshakil\CpanelWhm\Modules\Accounts accounts()
  * @method static \Itxshakil\CpanelWhm\Modules\Suspensions suspensions()
  * @method static \Itxshakil\CpanelWhm\Modules\Packages packages()
@@ -29,6 +30,8 @@ use Itxshakil\CpanelWhm\WhmManager;
  * @method static \Itxshakil\CpanelWhm\Modules\Tokens tokens()
  * @method static \Itxshakil\CpanelWhm\Api\WhmApi api()
  * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient cache(int|\DateInterval|\DateTimeInterface $ttl, ?string $store = null)
+ * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient withoutCache()
+ * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient withoutRetries()
  * @method static \Itxshakil\CpanelWhm\Modules\CpanelUser asUser(string $user)
  * @method static \Itxshakil\CpanelWhm\Support\ConnectionConfig config()
  * @method static \Itxshakil\CpanelWhm\Support\ConnectionConfig configFor(string $name)
