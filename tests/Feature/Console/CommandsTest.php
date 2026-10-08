@@ -36,6 +36,41 @@ final class CommandsTest extends TestCase
     }
 
     #[Test]
+    public function call_prompts_for_a_secret_given_without_a_value(): void
+    {
+        $fake = Whm::fake(['passwd' => Whm::response()]);
+
+        $this->artisan('whm:call', ['function' => 'passwd', 'params' => ['user=acme', 'password']])
+            ->expectsQuestion('Value for password', 'hunter2')
+            ->doesntExpectOutputToContain('hunter2')
+            ->assertSuccessful();
+
+        $fake->assertCalled('passwd', static fn (array $p): bool => $p === ['user' => 'acme', 'password' => 'hunter2']);
+    }
+
+    #[Test]
+    public function call_warns_when_a_secret_is_typed_on_the_command_line(): void
+    {
+        Whm::fake(['passwd' => Whm::response()]);
+
+        $this->artisan('whm:call', ['function' => 'passwd', 'params' => ['user=acme', 'password=hunter2']])
+            ->expectsOutputToContain('shell history')
+            ->assertSuccessful();
+    }
+
+    #[Test]
+    public function call_fails_without_interaction_when_a_secret_has_no_value(): void
+    {
+        $fake = Whm::fake(['passwd' => Whm::response()]);
+
+        $this->artisan('whm:call', ['function' => 'passwd', 'params' => ['user=acme', 'password'], '--no-interaction' => true])
+            ->expectsOutputToContain('password needs a value')
+            ->assertFailed();
+
+        $fake->assertNothingSent();
+    }
+
+    #[Test]
     public function call_prints_redacted_json(): void
     {
         Whm::fake(['create_user_session' => Whm::response(['url' => 'https://h:2083/cpsess123/login/?session=acme:x'])]);
