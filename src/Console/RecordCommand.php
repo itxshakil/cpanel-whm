@@ -32,7 +32,14 @@ final class RecordCommand extends Command
     {
         $function = $this->stringArgument('function');
 
-        if (FunctionCatalog::has($function) && ! FunctionCatalog::isReadOnly($function)) {
+        if (! FunctionCatalog::has($function)) {
+            $this->components->error("{$function} is not a documented WHM API 1 function, so whm:record cannot tell whether it changes the server.");
+            $this->line('  <fg=gray>→ Inspect it with php artisan whm:call '.$function.' --json instead.</>');
+
+            return self::FAILURE;
+        }
+
+        if (! FunctionCatalog::isReadOnly($function)) {
             $this->components->error("{$function} changes the server. whm:record only calls read-only functions.");
 
             return self::FAILURE;
