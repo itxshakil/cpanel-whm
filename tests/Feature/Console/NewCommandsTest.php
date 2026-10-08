@@ -121,6 +121,18 @@ final class NewCommandsTest extends TestCase
     }
 
     #[Test]
+    public function record_refuses_functions_it_does_not_know(): void
+    {
+        $fake = Whm::fake();
+
+        $this->artisan('whm:record', ['function' => 'some_plugin_function'])
+            ->expectsOutputToContain('not a documented WHM API 1 function')
+            ->assertFailed();
+
+        $fake->assertNothingSent();
+    }
+
+    #[Test]
     public function record_keeps_failures_too(): void
     {
         $directory = 'build/test-fixtures-'.bin2hex(random_bytes(3));
