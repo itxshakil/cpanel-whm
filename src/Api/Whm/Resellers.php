@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\WhmGroup;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\WhmResponse;
+use SensitiveParameter;
 
 /**
  * WHM API 1: Resellers (21 functions).
@@ -282,7 +283,7 @@ final class Resellers extends WhmGroup
         bool|int|null $aclNews = null,
         bool|int|null $aclNsConfig = null,
         bool|int|null $aclParkDns = null,
-        bool|int|null $aclPasswd = null,
+        #[SensitiveParameter] bool|int|null $aclPasswd = null,
         bool|int|null $aclQuota = null,
         bool|int|null $aclRearrangeAccts = null,
         bool|int|null $aclResftp = null,
@@ -537,7 +538,7 @@ final class Resellers extends WhmGroup
         bool|int|null $aclNameserverConfig = null,
         bool|int|null $aclNews = null,
         bool|int|null $aclParkDns = null,
-        bool|int|null $aclPasswd = null,
+        #[SensitiveParameter] bool|int|null $aclPasswd = null,
         bool|int|null $aclQuota = null,
         bool|int|null $aclRearrangeAccts = null,
         bool|int|null $aclResftp = null,

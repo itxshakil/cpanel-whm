@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\UapiModule;
 use Itxshakil\CpanelWhm\Data\UapiResult;
 use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use SensitiveParameter;
 
 /**
  * UAPI Ftp module (20 functions), run as one cPanel account through WHM.
@@ -42,8 +43,8 @@ final class Ftp extends UapiModule
         bool|int|null $disallowdot = null,
         ?string $domain = null,
         ?string $homedir = null,
-        ?string $pass = null,
-        ?string $passHash = null,
+        #[SensitiveParameter] ?string $pass = null,
+        #[SensitiveParameter] ?string $passHash = null,
         ?int $quota = null,
         array $extra = [],
     ): UapiResult {
@@ -332,7 +333,7 @@ final class Ftp extends UapiModule
      * @see https://api.docs.cpanel.net/specifications/cpanel.openapi/ftp/ftp-passwd
      */
     public function passwd(
-        string $pass,
+        #[SensitiveParameter] string $pass,
         string $user,
         ?string $domain = null,
         array $extra = [],

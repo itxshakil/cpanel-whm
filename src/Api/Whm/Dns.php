@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\WhmGroup;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\WhmResponse;
+use SensitiveParameter;
 
 /**
  * WHM API 1: DNS (44 functions).
@@ -532,7 +533,7 @@ final class Dns extends WhmGroup
      */
     public function importZoneKey(
         string $domain,
-        string $keyData,
+        #[SensitiveParameter] string $keyData,
         string $keyType,
         array $extra = [],
     ): WhmResponse {

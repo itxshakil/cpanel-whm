@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\UapiModule;
 use Itxshakil\CpanelWhm\Data\UapiResult;
 use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use SensitiveParameter;
 
 /**
  * UAPI Postgresql module (14 functions), run as one cPanel account through WHM.
@@ -56,7 +57,7 @@ final class Postgresql extends UapiModule
      */
     public function createUser(
         string $name,
-        string $password,
+        #[SensitiveParameter] string $password,
         array $extra = [],
     ): UapiResult {
         return $this->invoke('create_user', [
@@ -231,7 +232,7 @@ final class Postgresql extends UapiModule
     public function renameUser(
         string $newname,
         string $oldname,
-        string $password,
+        #[SensitiveParameter] string $password,
         array $extra = [],
     ): UapiResult {
         return $this->invoke('rename_user', [
@@ -306,7 +307,7 @@ final class Postgresql extends UapiModule
      * @see https://api.docs.cpanel.net/specifications/cpanel.openapi/postgresql/postgresql-set_password
      */
     public function setPassword(
-        string $password,
+        #[SensitiveParameter] string $password,
         string $user,
         array $extra = [],
     ): UapiResult {

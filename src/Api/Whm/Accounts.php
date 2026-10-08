@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\WhmGroup;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\WhmResponse;
+use SensitiveParameter;
 
 /**
  * WHM API 1: Accounts (47 functions).
@@ -356,8 +357,8 @@ final class Accounts extends WhmGroup
         ?string $mxcheck = null,
         ?string $owner = null,
         bool|int|null $ownerself = null,
-        ?string $pass = null,
-        ?string $password = null,
+        #[SensitiveParameter] ?string $pass = null,
+        #[SensitiveParameter] ?string $password = null,
         ?string $pkgname = null,
         ?string $plan = null,
         ?int $quota = null,
@@ -623,7 +624,7 @@ final class Accounts extends WhmGroup
      * @see https://api.docs.cpanel.net/specifications/whm.openapi/passwords/accounts-get_password_strength
      */
     public function getPasswordStrength(
-        string $password,
+        #[SensitiveParameter] string $password,
         array $extra = [],
     ): WhmResponse {
         return $this->invoke('get_password_strength', [
@@ -972,7 +973,7 @@ final class Accounts extends WhmGroup
         bool|int|null $notifySslExpiry = null,
         bool|int|null $outgoingEmailSuspended = null,
         ?string $owner = null,
-        ?string $pushbulletAccessToken = null,
+        #[SensitiveParameter] ?string $pushbulletAccessToken = null,
         int|string|null $quota = null,
         ?string $removeMissingExtensions = null,
         bool|int|null $renameDatabaseObjects = null,
@@ -1177,7 +1178,7 @@ final class Accounts extends WhmGroup
         bool|int|null $notifySslExpiry = null,
         bool|int|null $outgoingEmailSuspended = null,
         ?string $owner = null,
-        ?string $pushbulletAccessToken = null,
+        #[SensitiveParameter] ?string $pushbulletAccessToken = null,
         int|string|null $quota = null,
         ?string $removeMissingExtensions = null,
         bool|int|null $renameDatabaseObjects = null,
@@ -1285,7 +1286,7 @@ final class Accounts extends WhmGroup
      * @see https://api.docs.cpanel.net/specifications/whm.openapi/passwords/sys-passwd
      */
     public function passwd(
-        string $password,
+        #[SensitiveParameter] string $password,
         string $user,
         bool|int|null $dbPassUpdate = null,
         bool|int|null $digestauth = null,
@@ -1364,7 +1365,7 @@ final class Accounts extends WhmGroup
      */
     public function setDigestAuth(
         bool|int $enabledigest,
-        string $password,
+        #[SensitiveParameter] string $password,
         string $user,
         bool|int|null $digestauth = null,
         array $extra = [],

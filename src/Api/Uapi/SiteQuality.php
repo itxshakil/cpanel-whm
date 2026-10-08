@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\UapiModule;
 use Itxshakil\CpanelWhm\Data\UapiResult;
 use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use SensitiveParameter;
 
 /**
  * UAPI SiteQuality module (13 functions), run as one cPanel account through WHM.
@@ -66,7 +67,7 @@ final class SiteQuality extends UapiModule
      */
     public function createSiteQualityUser(
         string $email,
-        ?string $password = null,
+        #[SensitiveParameter] ?string $password = null,
         array $extra = [],
     ): UapiResult {
         return $this->invoke('create_site_quality_user', [

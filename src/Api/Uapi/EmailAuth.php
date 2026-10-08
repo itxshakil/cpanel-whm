@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\UapiModule;
 use Itxshakil\CpanelWhm\Data\UapiResult;
 use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use SensitiveParameter;
 
 /**
  * UAPI EmailAuth module (12 functions), run as one cPanel account through WHM.
@@ -151,7 +152,7 @@ final class EmailAuth extends UapiModule
      */
     public function installDkimPrivateKeys(
         string $domain,
-        string $key,
+        #[SensitiveParameter] string $key,
         array $extra = [],
     ): UapiResult {
         return $this->invoke('install_dkim_private_keys', [

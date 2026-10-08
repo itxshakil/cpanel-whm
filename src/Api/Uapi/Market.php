@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\UapiModule;
 use Itxshakil\CpanelWhm\Data\UapiResult;
 use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use SensitiveParameter;
 
 /**
  * UAPI Market module (19 functions), run as one cPanel account through WHM.
@@ -62,7 +63,7 @@ final class Market extends UapiModule
      * @see https://api.docs.cpanel.net/specifications/cpanel.openapi/market/market-create_shopping_cart
      */
     public function createShoppingCart(
-        string $accessToken,
+        #[SensitiveParameter] string $accessToken,
         array $item,
         string $provider,
         string $urlAfterCheckout,
@@ -95,7 +96,7 @@ final class Market extends UapiModule
      * @see https://api.docs.cpanel.net/specifications/cpanel.openapi/market/market-create_shopping_cart_non_ssl
      */
     public function createShoppingCartNonSsl(
-        string $accessToken,
+        #[SensitiveParameter] string $accessToken,
         string $productName,
         string $urlAfterCheckout,
         ?string $domain = null,
@@ -398,7 +399,7 @@ final class Market extends UapiModule
      * @see https://api.docs.cpanel.net/specifications/cpanel.openapi/market/market-request_ssl_certificates
      */
     public function requestSslCertificates(
-        string $accessToken,
+        #[SensitiveParameter] string $accessToken,
         mixed $certificate,
         string $provider,
         mixed $identityVerification = null,
@@ -459,7 +460,7 @@ final class Market extends UapiModule
      * @see https://api.docs.cpanel.net/specifications/cpanel.openapi/market/market-set_url_after_checkout
      */
     public function setUrlAfterCheckout(
-        string $accessToken,
+        #[SensitiveParameter] string $accessToken,
         int $orderId,
         string $provider,
         string $urlAfterCheckout,
@@ -489,7 +490,7 @@ final class Market extends UapiModule
      * @see https://api.docs.cpanel.net/specifications/cpanel.openapi/market/market-validate_login_token
      */
     public function validateLoginToken(
-        string $loginToken,
+        #[SensitiveParameter] string $loginToken,
         string $provider,
         string $urlAfterLogin,
         array $extra = [],

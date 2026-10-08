@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\WhmGroup;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\WhmResponse;
+use SensitiveParameter;
 
 /**
  * WHM API 1: Backups (27 functions).
@@ -231,11 +232,11 @@ final class Backups extends WhmGroup
         string $bucketId,
         string $bucketName,
         string $clientId,
-        string $clientSecret,
+        #[SensitiveParameter] string $clientSecret,
         bool|int $disabled,
         string $host,
         string $name,
-        string $password,
+        #[SensitiveParameter] string $password,
         string $script,
         string $type,
         string $username,
@@ -244,10 +245,10 @@ final class Backups extends WhmGroup
         bool|int|null $noMountFail = null,
         bool|int|null $onlyUsedForLogs = null,
         bool|int|null $passive = null,
-        ?string $passphrase = null,
+        #[SensitiveParameter] ?string $passphrase = null,
         ?string $path = null,
         ?int $port = null,
-        ?string $privatekey = null,
+        #[SensitiveParameter] ?string $privatekey = null,
         bool|int|null $ssl = null,
         ?int $timeout = null,
         bool|int|null $uploadSystemBackup = null,
@@ -421,7 +422,7 @@ final class Backups extends WhmGroup
      */
     public function backupGenerateGoogleOauthUri(
         string $clientId,
-        string $clientSecret,
+        #[SensitiveParameter] string $clientSecret,
         array $extra = [],
     ): WhmResponse {
         return $this->invoke('backup_generate_google_oauth_uri', [

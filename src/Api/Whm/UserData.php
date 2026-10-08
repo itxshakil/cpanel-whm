@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\WhmGroup;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\WhmResponse;
+use SensitiveParameter;
 
 /**
  * WHM API 1: UserData (2 functions).
@@ -58,7 +59,7 @@ final class UserData extends WhmGroup
     public function setScopedUserdata(
         string $scope,
         ?string $json = null,
-        ?string $key = null,
+        #[SensitiveParameter] ?string $key = null,
         ?string $value = null,
         array $extra = [],
     ): WhmResponse {

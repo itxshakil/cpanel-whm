@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\UapiModule;
 use Itxshakil\CpanelWhm\Data\UapiResult;
 use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use SensitiveParameter;
 
 /**
  * UAPI Email module (96 functions), run as one cPanel account through WHM.
@@ -178,7 +179,7 @@ final class Email extends UapiModule
     public function addList(
         string $domain,
         string $list,
-        string $password,
+        #[SensitiveParameter] string $password,
         bool|int|null $private = null,
         bool|int|null $rebuildonly = null,
         array $extra = [],
@@ -270,9 +271,9 @@ final class Email extends UapiModule
      */
     public function addPop(
         string $email,
-        string $password,
+        #[SensitiveParameter] string $password,
         ?string $domain = null,
-        ?string $passwordHash = null,
+        #[SensitiveParameter] ?string $passwordHash = null,
         int|string|null $quota = null,
         bool|int|null $sendWelcomeEmail = null,
         bool|int|null $skipUpdateDb = null,
@@ -1795,7 +1796,7 @@ final class Email extends UapiModule
      */
     public function passwdList(
         string $list,
-        string $password,
+        #[SensitiveParameter] string $password,
         array $extra = [],
     ): UapiResult {
         return $this->invoke('passwd_list', [
@@ -1821,7 +1822,7 @@ final class Email extends UapiModule
      */
     public function passwdPop(
         string $email,
-        string $password,
+        #[SensitiveParameter] string $password,
         ?string $domain = null,
         array $extra = [],
     ): UapiResult {
@@ -2313,7 +2314,7 @@ final class Email extends UapiModule
      */
     public function verifyPassword(
         string $email,
-        string $password,
+        #[SensitiveParameter] string $password,
         array $extra = [],
     ): UapiResult {
         return $this->invoke('verify_password', [

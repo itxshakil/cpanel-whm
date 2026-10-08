@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\WhmGroup;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\WhmResponse;
+use SensitiveParameter;
 
 /**
  * WHM API 1: Integrations (12 functions).
@@ -76,7 +77,7 @@ final class Integrations extends WhmGroup
         string $implements,
         string $label,
         string $subscriberUniqueId,
-        string $token,
+        #[SensitiveParameter] string $token,
         string $user,
         ?string $autologinTokenUrl = null,
         ?string $base64PngImage = null,
@@ -340,7 +341,7 @@ final class Integrations extends WhmGroup
      */
     public function updateIntegrationLinkToken(
         string $app,
-        string $token,
+        #[SensitiveParameter] string $token,
         string $user,
         array $extra = [],
     ): WhmResponse {

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Itxshakil\CpanelWhm\Generator;
 
+use Itxshakil\CpanelWhm\Support\Redactor;
+
 final readonly class Parameter
 {
     /**
@@ -57,8 +59,16 @@ final readonly class Parameter
         return in_array('array', $this->types, true);
     }
 
+    /**
+     * Passwords, tokens and keys are marked so PHP hides them in stack traces.
+     */
+    public function isSensitive(): bool
+    {
+        return Redactor::isSensitiveKey($this->name);
+    }
+
     public function signature(): string
     {
-        return $this->nativeType().' $'.$this->variable.($this->required ? '' : ' = null');
+        return ($this->isSensitive() ? '#[\\SensitiveParameter] ' : '').$this->nativeType().' $'.$this->variable.($this->required ? '' : ' = null');
     }
 }

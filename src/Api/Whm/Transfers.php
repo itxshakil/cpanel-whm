@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\WhmGroup;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\WhmResponse;
+use SensitiveParameter;
 
 /**
  * WHM API 1: Transfers (15 functions).
@@ -119,12 +120,12 @@ final class Transfers extends WhmGroup
         bool|int $unrestrictedRestore,
         bool|int $useBackups,
         string $user,
-        ?string $password = null,
+        #[SensitiveParameter] ?string $password = null,
         ?int $port = null,
         ?string $rootEscalationMethod = null,
-        ?string $rootPassword = null,
+        #[SensitiveParameter] ?string $rootPassword = null,
         ?string $sshkeyName = null,
-        ?string $sshkeyPassphrase = null,
+        #[SensitiveParameter] ?string $sshkeyPassphrase = null,
         array $extra = [],
     ): WhmResponse {
         return $this->invoke('create_remote_root_transfer_session', [
@@ -165,7 +166,7 @@ final class Transfers extends WhmGroup
      */
     public function createRemoteUserTransferSession(
         string $host,
-        string $password,
+        #[SensitiveParameter] string $password,
         bool|int $unrestrictedRestore,
         array $extra = [],
     ): WhmResponse {
@@ -307,12 +308,12 @@ final class Transfers extends WhmGroup
     public function remoteBasicCredentialCheck(
         string $host,
         string $user,
-        ?string $password = null,
+        #[SensitiveParameter] ?string $password = null,
         ?int $port = null,
         ?string $rootEscalationMethod = null,
-        ?string $rootPassword = null,
+        #[SensitiveParameter] ?string $rootPassword = null,
         ?string $sshkeyName = null,
-        ?string $sshkeyPassphrase = null,
+        #[SensitiveParameter] ?string $sshkeyPassphrase = null,
         array $extra = [],
     ): WhmResponse {
         return $this->invoke('remote_basic_credential_check', [

@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\UapiModule;
 use Itxshakil\CpanelWhm\Data\UapiResult;
 use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use SensitiveParameter;
 
 /**
  * UAPI Session module (4 functions), run as one cPanel account through WHM.
@@ -88,7 +89,7 @@ final class Session extends UapiModule
     public function createWebmailSessionForMailUserCheckPassword(
         string $domain,
         string $login,
-        string $password,
+        #[SensitiveParameter] string $password,
         ?string $locale = null,
         ?string $remoteAddress = null,
         array $extra = [],

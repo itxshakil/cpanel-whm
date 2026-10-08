@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\UapiModule;
 use Itxshakil\CpanelWhm\Data\UapiResult;
 use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use SensitiveParameter;
 
 /**
  * UAPI GPG module (7 functions), run as one cPanel account through WHM.
@@ -78,7 +79,7 @@ final class Gpg extends UapiModule
      */
     public function exportSecretKey(
         string $keyId,
-        ?string $passphrase = null,
+        #[SensitiveParameter] ?string $passphrase = null,
         array $extra = [],
     ): UapiResult {
         return $this->invoke('export_secret_key', [
@@ -110,7 +111,7 @@ final class Gpg extends UapiModule
     public function generateKey(
         string $email,
         string $name,
-        string $passphrase,
+        #[SensitiveParameter] string $passphrase,
         ?string $comment = null,
         ?string $expire = null,
         ?int $keysize = null,
@@ -142,7 +143,7 @@ final class Gpg extends UapiModule
      * @see https://api.docs.cpanel.net/specifications/cpanel.openapi/gpg/gpg-import_key
      */
     public function importKey(
-        string $keyData,
+        #[SensitiveParameter] string $keyData,
         array $extra = [],
     ): UapiResult {
         return $this->invoke('import_key', [

@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\WhmGroup;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\WhmResponse;
+use SensitiveParameter;
 
 /**
  * WHM API 1: System Package Management (14 functions).
@@ -34,7 +35,7 @@ final class SystemPackageManagement extends WhmGroup
      * @see https://api.docs.cpanel.net/specifications/whm.openapi/rpm/rpmversions-delete_rpm_version
      */
     public function deleteRpmVersion(
-        string $key,
+        #[SensitiveParameter] string $key,
         string $section,
         string $value,
         array $extra = [],
@@ -62,7 +63,7 @@ final class SystemPackageManagement extends WhmGroup
      * @see https://api.docs.cpanel.net/specifications/whm.openapi/rpm/rpmversions-edit_rpm_version
      */
     public function editRpmVersion(
-        string $key,
+        #[SensitiveParameter] string $key,
         string $section,
         string $value,
         array $extra = [],
@@ -90,7 +91,7 @@ final class SystemPackageManagement extends WhmGroup
      */
     public function getRpmVersionData(
         string $section,
-        ?string $key = null,
+        #[SensitiveParameter] ?string $key = null,
         array $extra = [],
     ): WhmResponse {
         return $this->invoke('get_rpm_version_data', [

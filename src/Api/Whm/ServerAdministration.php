@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\WhmGroup;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\WhmResponse;
+use SensitiveParameter;
 
 /**
  * WHM API 1: Server Administration (81 functions).
@@ -127,7 +128,7 @@ final class ServerAdministration extends WhmGroup
      * @see https://api.docs.cpanel.net/specifications/whm.openapi/configuration-clusters/clusterserver-add_configclusterserver
      */
     public function addConfigclusterserver(
-        string $key,
+        #[SensitiveParameter] string $key,
         string $name,
         string $user,
         array $extra = [],
@@ -217,7 +218,7 @@ final class ServerAdministration extends WhmGroup
         string $service,
         string $user,
         ?string $app = null,
-        ?string $cpSecurityToken = null,
+        #[SensitiveParameter] ?string $cpSecurityToken = null,
         ?string $locale = null,
         ?string $preferredDomain = null,
         ?string $promptToken = null,
@@ -574,7 +575,7 @@ final class ServerAdministration extends WhmGroup
      */
     public function getRemoteAccessHash(
         string $host,
-        string $password,
+        #[SensitiveParameter] string $password,
         string $username,
         bool|int|null $generate = null,
         array $extra = [],
@@ -604,7 +605,7 @@ final class ServerAdministration extends WhmGroup
      * @see https://api.docs.cpanel.net/specifications/whm.openapi/server-nodes/cpanel-get_server_node_status
      */
     public function getServerNodeStatus(
-        string $apiToken,
+        #[SensitiveParameter] string $apiToken,
         string $hostname,
         string $username,
         bool|int|null $skipTlsVerification = null,
@@ -653,7 +654,7 @@ final class ServerAdministration extends WhmGroup
      * @see https://api.docs.cpanel.net/specifications/whm.openapi/services/advconfig-get_service_config_key
      */
     public function getServiceConfigKey(
-        string $key,
+        #[SensitiveParameter] string $key,
         string $service,
         array $extra = [],
     ): WhmResponse {
@@ -733,7 +734,7 @@ final class ServerAdministration extends WhmGroup
      * @see https://api.docs.cpanel.net/specifications/whm.openapi/configurations/cpanel-get_tweaksetting
      */
     public function getTweaksetting(
-        string $key,
+        #[SensitiveParameter] string $key,
         ?string $module = null,
         array $extra = [],
     ): WhmResponse {
@@ -890,7 +891,7 @@ final class ServerAdministration extends WhmGroup
      */
     public function linkServerNodeWithApiToken(
         string $alias,
-        string $apiToken,
+        #[SensitiveParameter] string $apiToken,
         string $hostname,
         string $username,
         bool|int|null $skipTlsVerification = null,
@@ -1039,7 +1040,7 @@ final class ServerAdministration extends WhmGroup
      * @see https://api.docs.cpanel.net/specifications/whm.openapi/license-management/market-purchase_a_license
      */
     public function purchaseALicense(
-        string $loginToken,
+        #[SensitiveParameter] string $loginToken,
         string $provider,
         string $urlAfterCheckout,
         bool|int|null $upgrade = null,
@@ -1222,7 +1223,7 @@ final class ServerAdministration extends WhmGroup
      * @see https://api.docs.cpanel.net/specifications/whm.openapi/notifications/icontact-send_test_pushbullet_note
      */
     public function sendTestPushbulletNote(
-        string $accessToken,
+        #[SensitiveParameter] string $accessToken,
         array $extra = [],
     ): WhmResponse {
         return $this->invoke('send_test_pushbullet_note', [
@@ -1367,7 +1368,7 @@ final class ServerAdministration extends WhmGroup
      * @see https://api.docs.cpanel.net/specifications/whm.openapi/services/advconfig-set_service_config_key
      */
     public function setServiceConfigKey(
-        string $key,
+        #[SensitiveParameter] string $key,
         string $service,
         int|string $value,
         array $extra = [],
@@ -1447,7 +1448,7 @@ final class ServerAdministration extends WhmGroup
      * @see https://api.docs.cpanel.net/specifications/whm.openapi/configurations/cpanel-set_tweaksetting
      */
     public function setTweaksetting(
-        string $key,
+        #[SensitiveParameter] string $key,
         ?string $module = null,
         ?string $value = null,
         array $extra = [],
@@ -1575,7 +1576,7 @@ final class ServerAdministration extends WhmGroup
      */
     public function unlinkServerNode(
         string $alias,
-        ?string $handleApiToken = null,
+        #[SensitiveParameter] ?string $handleApiToken = null,
         array $extra = [],
     ): WhmResponse {
         return $this->invoke('unlink_server_node', [
@@ -1621,7 +1622,7 @@ final class ServerAdministration extends WhmGroup
      */
     public function updateConfigclusterserver(
         string $name,
-        ?string $key = null,
+        #[SensitiveParameter] ?string $key = null,
         ?string $user = null,
         array $extra = [],
     ): WhmResponse {
@@ -1672,7 +1673,7 @@ final class ServerAdministration extends WhmGroup
      */
     public function updateLinkedServerNode(
         string $alias,
-        ?string $apiToken = null,
+        #[SensitiveParameter] ?string $apiToken = null,
         ?string $hostname = null,
         bool|int|null $skipTlsVerification = null,
         ?string $username = null,

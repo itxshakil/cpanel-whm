@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\UapiModule;
 use Itxshakil\CpanelWhm\Data\UapiResult;
 use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use SensitiveParameter;
 
 /**
  * UAPI SSL module (47 functions), run as one cPanel account through WHM.
@@ -596,7 +597,7 @@ final class Ssl extends UapiModule
         string $domain,
         ?string $cabundle = null,
         ?array $domainDcvMethod = null,
-        ?string $key = null,
+        #[SensitiveParameter] ?string $key = null,
         ?string $orderItemId = null,
         ?string $originatingCertificateId = null,
         ?int $parentCertExpiry = null,

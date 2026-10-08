@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\UapiModule;
 use Itxshakil\CpanelWhm\Data\UapiResult;
 use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use SensitiveParameter;
 
 /**
  * UAPI Mysql module (25 functions), run as one cPanel account through WHM.
@@ -129,7 +130,7 @@ final class Mysql extends UapiModule
      */
     public function createUser(
         string $name,
-        string $password,
+        #[SensitiveParameter] string $password,
         ?int $prefixSize = null,
         array $extra = [],
     ): UapiResult {
@@ -496,7 +497,7 @@ final class Mysql extends UapiModule
      * @see https://api.docs.cpanel.net/specifications/cpanel.openapi/mysql/mysql-set_password
      */
     public function setPassword(
-        string $password,
+        #[SensitiveParameter] string $password,
         string $user,
         array $extra = [],
     ): UapiResult {

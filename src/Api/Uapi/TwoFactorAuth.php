@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\UapiModule;
 use Itxshakil\CpanelWhm\Data\UapiResult;
 use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use SensitiveParameter;
 
 /**
  * UAPI TwoFactorAuth module (5 functions), run as one cPanel account through WHM.
@@ -110,8 +111,8 @@ final class TwoFactorAuth extends UapiModule
      * @see https://api.docs.cpanel.net/specifications/cpanel.openapi/twofactorauth/twofactorauth-set_user_configuration
      */
     public function setUserConfiguration(
-        string $secret,
-        int $tfaToken,
+        #[SensitiveParameter] string $secret,
+        #[SensitiveParameter] int $tfaToken,
         array $extra = [],
     ): UapiResult {
         return $this->invoke('set_user_configuration', [

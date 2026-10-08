@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\WhmGroup;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\WhmResponse;
+use SensitiveParameter;
 
 /**
  * WHM API 1: Databases (26 functions).
@@ -199,7 +200,7 @@ final class Databases extends WhmGroup
      */
     public function remoteMysqlCreateProfile(
         string $mysqlHost,
-        string $mysqlPass,
+        #[SensitiveParameter] string $mysqlPass,
         int $mysqlPort,
         string $mysqlUser,
         string $name,
@@ -245,11 +246,11 @@ final class Databases extends WhmGroup
         int $port,
         string $user,
         ?int $cpcloud = null,
-        ?string $password = null,
+        #[SensitiveParameter] ?string $password = null,
         ?string $rootEscalationMethod = null,
-        ?string $rootPassword = null,
+        #[SensitiveParameter] ?string $rootPassword = null,
         ?string $sshkeyName = null,
-        ?string $sshkeyPassphrase = null,
+        #[SensitiveParameter] ?string $sshkeyPassphrase = null,
         array $extra = [],
     ): WhmResponse {
         return $this->invoke('remote_mysql_create_profile_via_ssh', [
@@ -385,7 +386,7 @@ final class Databases extends WhmGroup
     public function remoteMysqlUpdateProfile(
         string $name,
         ?string $mysqlHost = null,
-        ?string $mysqlPass = null,
+        #[SensitiveParameter] ?string $mysqlPass = null,
         ?int $mysqlPort = null,
         ?string $mysqlUser = null,
         ?string $setupVia = null,
@@ -523,7 +524,7 @@ final class Databases extends WhmGroup
     public function renamePostgresqlUser(
         string $newname,
         string $oldname,
-        string $password,
+        #[SensitiveParameter] string $password,
         ?string $cpuser = null,
         array $extra = [],
     ): WhmResponse {
@@ -549,7 +550,7 @@ final class Databases extends WhmGroup
      * @see https://api.docs.cpanel.net/specifications/whm.openapi/manage-mysql-server/localmysql-set_local_mysql_root_password
      */
     public function setLocalMysqlRootPassword(
-        string $password,
+        #[SensitiveParameter] string $password,
         bool|int|null $updateConfig = null,
         array $extra = [],
     ): WhmResponse {
@@ -574,7 +575,7 @@ final class Databases extends WhmGroup
      * @see https://api.docs.cpanel.net/specifications/whm.openapi/mysql-databases/db-set_mysql_password
      */
     public function setMysqlPassword(
-        string $password,
+        #[SensitiveParameter] string $password,
         string $user,
         ?string $cpuser = null,
         array $extra = [],
@@ -601,7 +602,7 @@ final class Databases extends WhmGroup
      * @see https://api.docs.cpanel.net/specifications/whm.openapi/postgresql-databases/db-set_postgresql_password
      */
     public function setPostgresqlPassword(
-        string $password,
+        #[SensitiveParameter] string $password,
         string $user,
         ?string $cpuser = null,
         array $extra = [],

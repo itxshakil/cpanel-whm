@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\WhmGroup;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\WhmResponse;
+use SensitiveParameter;
 
 /**
  * WHM API 1: Security (5 functions).
@@ -121,7 +122,7 @@ final class Security extends WhmGroup
         ?int $ftp = null,
         ?int $list = null,
         ?int $mysql = null,
-        ?int $passwd = null,
+        #[SensitiveParameter] ?int $passwd = null,
         ?int $postgres = null,
         ?int $sshkey = null,
         ?int $virtual = null,

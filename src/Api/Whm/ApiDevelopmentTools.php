@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\WhmGroup;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\WhmResponse;
+use SensitiveParameter;
 
 /**
  * WHM API 1: API Development Tools (6 functions).
@@ -133,7 +134,7 @@ final class ApiDevelopmentTools extends WhmGroup
         string $host,
         string $parameterName,
         string $parameterValue,
-        string $password,
+        #[SensitiveParameter] string $password,
         string $username,
         ?string $tlsVerification = null,
         array $extra = [],

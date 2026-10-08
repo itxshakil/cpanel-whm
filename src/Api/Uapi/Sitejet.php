@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\UapiModule;
 use Itxshakil\CpanelWhm\Data\UapiResult;
 use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use SensitiveParameter;
 
 /**
  * UAPI Sitejet module (14 functions), run as one cPanel account through WHM.
@@ -32,7 +33,7 @@ final class Sitejet extends UapiModule
      * @see https://api.docs.cpanel.net/specifications/cpanel.openapi/sitejet/sitejet-add_api_token
      */
     public function addApiToken(
-        string $apiToken,
+        #[SensitiveParameter] string $apiToken,
         array $extra = [],
     ): UapiResult {
         return $this->invoke('add_api_token', [

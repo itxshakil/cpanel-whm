@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\UapiModule;
 use Itxshakil\CpanelWhm\Data\UapiResult;
 use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use SensitiveParameter;
 
 /**
  * UAPI UserData module (2 functions), run as one cPanel account through WHM.
@@ -60,7 +61,7 @@ final class UserData extends UapiModule
     public function setScopedUserdata(
         string $scope,
         ?string $json = null,
-        ?string $key = null,
+        #[SensitiveParameter] ?string $key = null,
         ?string $value = null,
         array $extra = [],
     ): UapiResult {

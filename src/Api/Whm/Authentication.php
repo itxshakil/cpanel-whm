@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\WhmGroup;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\WhmResponse;
+use SensitiveParameter;
 
 /**
  * WHM API 1: Authentication (38 functions).
@@ -89,7 +90,7 @@ final class Authentication extends WhmGroup
      * @see https://api.docs.cpanel.net/specifications/whm.openapi/api-token-management/tokens-api_token_get_details
      */
     public function apiTokenGetDetails(
-        string $token,
+        #[SensitiveParameter] string $token,
         array $extra = [],
     ): WhmResponse {
         return $this->invoke('api_token_get_details', [
@@ -240,7 +241,7 @@ final class Authentication extends WhmGroup
     public function convertopensshtoputty(
         string $file,
         bool|int|null $keepFile = null,
-        ?string $passphrase = null,
+        #[SensitiveParameter] ?string $passphrase = null,
         array $extra = [],
     ): WhmResponse {
         return $this->invoke('convertopensshtoputty', [
@@ -362,7 +363,7 @@ final class Authentication extends WhmGroup
         ?int $bits = null,
         ?string $comment = null,
         ?string $name = null,
-        ?string $passphrase = null,
+        #[SensitiveParameter] ?string $passphrase = null,
         array $extra = [],
     ): WhmResponse {
         return $this->invoke('generatesshkeypair', [
@@ -521,11 +522,11 @@ final class Authentication extends WhmGroup
      * @see https://api.docs.cpanel.net/specifications/whm.openapi/ssh-keys-and-connections/ssh-importsshkey
      */
     public function importsshkey(
-        string $key,
+        #[SensitiveParameter] string $key,
         string $name,
         bool|int|null $extractPrivate = null,
         bool|int|null $extractPublic = null,
-        ?string $passphrase = null,
+        #[SensitiveParameter] ?string $passphrase = null,
         array $extra = [],
     ): WhmResponse {
         return $this->invoke('importsshkey', [
@@ -851,8 +852,8 @@ final class Authentication extends WhmGroup
      * @see https://api.docs.cpanel.net/specifications/whm.openapi/two-factor-authentication/twofactorauth-twofactorauth_set_tfa_config
      */
     public function twofactorauthSetTfaConfig(
-        string $secret,
-        string $tfaToken,
+        #[SensitiveParameter] string $secret,
+        #[SensitiveParameter] string $tfaToken,
         array $extra = [],
     ): WhmResponse {
         return $this->invoke('twofactorauth_set_tfa_config', [
@@ -904,7 +905,7 @@ final class Authentication extends WhmGroup
      * @see https://api.docs.cpanel.net/specifications/whm.openapi/market-integration/market-validate_login_token
      */
     public function validateLoginToken(
-        string $loginToken,
+        #[SensitiveParameter] string $loginToken,
         string $provider,
         string $urlAfterLogin,
         array $extra = [],

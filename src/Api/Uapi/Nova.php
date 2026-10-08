@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\UapiModule;
 use Itxshakil\CpanelWhm\Data\UapiResult;
 use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use SensitiveParameter;
 
 /**
  * UAPI Nova module (11 functions), run as one cPanel account through WHM.
@@ -51,7 +52,7 @@ final class Nova extends UapiModule
      * @see https://api.docs.cpanel.net/specifications/cpanel.openapi/nova/nova-add_api_token
      */
     public function addApiToken(
-        string $apiToken,
+        #[SensitiveParameter] string $apiToken,
         array $extra = [],
     ): UapiResult {
         return $this->invoke('add_api_token', [

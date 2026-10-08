@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\UapiModule;
 use Itxshakil\CpanelWhm\Data\UapiResult;
 use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use SensitiveParameter;
 
 /**
  * UAPI DirectoryPrivacy module (6 functions), run as one cPanel account through WHM.
@@ -35,7 +36,7 @@ final class DirectoryPrivacy extends UapiModule
      */
     public function addUser(
         string $dir,
-        string $password,
+        #[SensitiveParameter] string $password,
         string $user,
         array $extra = [],
     ): UapiResult {

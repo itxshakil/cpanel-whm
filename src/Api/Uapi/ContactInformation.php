@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\UapiModule;
 use Itxshakil\CpanelWhm\Data\UapiResult;
 use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use SensitiveParameter;
 
 /**
  * UAPI ContactInformation module (5 functions), run as one cPanel account through WHM.
@@ -72,7 +73,7 @@ final class ContactInformation extends UapiModule
     public function setEmailAddresses(
         array $address,
         array $oldAddress,
-        string $password,
+        #[SensitiveParameter] string $password,
         array $extra = [],
     ): UapiResult {
         return $this->invoke('set_email_addresses', [
@@ -96,7 +97,7 @@ final class ContactInformation extends UapiModule
      * @see https://api.docs.cpanel.net/specifications/cpanel.openapi/contactinformation/contactinformation-set_pushbullet_access_token
      */
     public function setPushbulletAccessToken(
-        string $pushbulletAccessToken,
+        #[SensitiveParameter] string $pushbulletAccessToken,
         array $extra = [],
     ): UapiResult {
         return $this->invoke('set_pushbullet_access_token', [
@@ -120,7 +121,7 @@ final class ContactInformation extends UapiModule
      */
     public function unsetEmailAddresses(
         array $oldAddress,
-        string $password,
+        #[SensitiveParameter] string $password,
         array $extra = [],
     ): UapiResult {
         return $this->invoke('unset_email_addresses', [

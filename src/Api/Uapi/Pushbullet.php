@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\UapiModule;
 use Itxshakil\CpanelWhm\Data\UapiResult;
 use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use SensitiveParameter;
 
 /**
  * UAPI Pushbullet module (1 functions), run as one cPanel account through WHM.
@@ -33,7 +34,7 @@ final class Pushbullet extends UapiModule
      * @see https://api.docs.cpanel.net/specifications/cpanel.openapi/pushbullet/pushbullet-send_test_message
      */
     public function sendTestMessage(
-        string $accessToken,
+        #[SensitiveParameter] string $accessToken,
         array $extra = [],
     ): UapiResult {
         return $this->invoke('send_test_message', [

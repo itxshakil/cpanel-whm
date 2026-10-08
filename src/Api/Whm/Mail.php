@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\WhmGroup;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\WhmResponse;
+use SensitiveParameter;
 
 /**
  * WHM API 1: Mail (66 functions).
@@ -827,7 +828,7 @@ final class Mail extends WhmGroup
      */
     public function installDkimPrivateKeys(
         string $domain,
-        string $key,
+        #[SensitiveParameter] string $key,
         array $extra = [],
     ): WhmResponse {
         return $this->invoke('install_dkim_private_keys', [

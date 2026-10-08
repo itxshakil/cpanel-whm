@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\UapiModule;
 use Itxshakil\CpanelWhm\Data\UapiResult;
 use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use SensitiveParameter;
 
 /**
  * UAPI DNSSEC module (12 functions), run as one cPanel account through WHM.
@@ -259,7 +260,7 @@ final class Dnssec extends UapiModule
      */
     public function importZoneKey(
         string $domain,
-        string $keyData,
+        #[SensitiveParameter] string $keyData,
         string $keyType,
         array $extra = [],
     ): UapiResult {

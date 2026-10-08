@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\WhmGroup;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\WhmResponse;
+use SensitiveParameter;
 
 /**
  * WHM API 1: Login Security (cPHulk) (16 functions).
@@ -377,7 +378,7 @@ final class LoginSecurityCpHulk extends WhmGroup
      * @see https://api.docs.cpanel.net/specifications/whm.openapi/cphulk/cphulk-set_cphulk_config_key
      */
     public function setCphulkConfigKey(
-        string $key,
+        #[SensitiveParameter] string $key,
         int|string $value,
         array $extra = [],
     ): WhmResponse {

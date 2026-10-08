@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\UapiModule;
 use Itxshakil\CpanelWhm\Data\UapiResult;
 use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use SensitiveParameter;
 
 /**
  * UAPI Users module (1 functions), run as one cPanel account through WHM.
@@ -35,8 +36,8 @@ final class Users extends UapiModule
      * @see https://api.docs.cpanel.net/specifications/cpanel.openapi/users/users-change_password
      */
     public function changePassword(
-        string $newpass,
-        string $oldpass,
+        #[SensitiveParameter] string $newpass,
+        #[SensitiveParameter] string $oldpass,
         bool|int|null $enabledigest = null,
         bool|int|null $enablemysql = null,
         array $extra = [],

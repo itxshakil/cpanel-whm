@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\UapiModule;
 use Itxshakil\CpanelWhm\Data\UapiResult;
 use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use SensitiveParameter;
 
 /**
  * UAPI Backup module (5 functions), run as one cPanel account through WHM.
@@ -41,7 +42,7 @@ final class Backup extends UapiModule
      */
     public function fullbackupToFtp(
         string $host,
-        string $password,
+        #[SensitiveParameter] string $password,
         string $username,
         ?string $directory = null,
         ?string $email = null,
@@ -112,7 +113,7 @@ final class Backup extends UapiModule
     public function fullbackupToScpWithKey(
         string $host,
         string $keyName,
-        string $keyPassphrase,
+        #[SensitiveParameter] string $keyPassphrase,
         ?string $directory = null,
         ?string $email = null,
         ?string $homedir = null,
@@ -153,7 +154,7 @@ final class Backup extends UapiModule
      */
     public function fullbackupToScpWithPassword(
         string $host,
-        string $password,
+        #[SensitiveParameter] string $password,
         string $username,
         ?string $directory = null,
         ?string $email = null,

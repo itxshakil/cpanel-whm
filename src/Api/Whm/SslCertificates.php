@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\WhmGroup;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\WhmResponse;
+use SensitiveParameter;
 
 /**
  * WHM API 1: SSL Certificates (34 functions).
@@ -100,7 +101,7 @@ final class SslCertificates extends WhmGroup
     public function enqueueDeferredSslInstallations(
         string $cab,
         string $crt,
-        string $key,
+        #[SensitiveParameter] string $key,
         string $username,
         string $vhostName,
         array $extra = [],
@@ -266,7 +267,7 @@ final class SslCertificates extends WhmGroup
         ?string $localityName = null,
         ?string $organizationalUnitName = null,
         ?string $organizationName = null,
-        ?string $pass = null,
+        #[SensitiveParameter] ?string $pass = null,
         bool|int|null $skipCertificate = null,
         ?string $stateOrProvinceName = null,
         array $extra = [],
@@ -477,7 +478,7 @@ final class SslCertificates extends WhmGroup
      */
     public function installServiceSslCertificate(
         string $crt,
-        string $key,
+        #[SensitiveParameter] string $key,
         string $service,
         ?string $cabundle = null,
         array $extra = [],
@@ -509,7 +510,7 @@ final class SslCertificates extends WhmGroup
     public function installssl(
         string $crt,
         string $domain,
-        string $key,
+        #[SensitiveParameter] string $key,
         ?string $cab = null,
         ?string $ip = null,
         array $extra = [],
@@ -684,7 +685,7 @@ final class SslCertificates extends WhmGroup
      * @see https://api.docs.cpanel.net/specifications/whm.openapi/ssl/ssl-set_autossl_metadata_key
      */
     public function setAutosslMetadataKey(
-        string $key,
+        #[SensitiveParameter] string $key,
         bool|int $value,
         array $extra = [],
     ): WhmResponse {

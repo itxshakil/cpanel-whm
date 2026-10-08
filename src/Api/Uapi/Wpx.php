@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\UapiModule;
 use Itxshakil\CpanelWhm\Data\UapiResult;
 use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use SensitiveParameter;
 
 /**
  * UAPI WPX module (14 functions), run as one cPanel account through WHM.
@@ -36,7 +37,7 @@ final class Wpx extends UapiModule
      */
     public function changeAdminPassword(
         int $id,
-        string $password,
+        #[SensitiveParameter] string $password,
         ?string $login = null,
         array $extra = [],
     ): UapiResult {
@@ -292,7 +293,7 @@ final class Wpx extends UapiModule
      */
     public function importWebsite(
         string $domain,
-        string $sourcePassword,
+        #[SensitiveParameter] string $sourcePassword,
         string $sourceUrl,
         string $sourceUser,
         bool|int|null $overwrite = null,

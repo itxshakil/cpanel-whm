@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Api\UapiModule;
 use Itxshakil\CpanelWhm\Data\UapiResult;
 use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use SensitiveParameter;
 
 /**
  * UAPI Team module (17 functions), run as one cPanel account through WHM.
@@ -81,7 +82,7 @@ final class Team extends UapiModule
         int|string|null $expireDate = null,
         ?string $expireReason = null,
         ?string $notes = null,
-        ?string $password = null,
+        #[SensitiveParameter] ?string $password = null,
         ?string $roles = null,
         bool|int|null $servicesEmailEnabled = null,
         ?string $servicesEmailQuota = null,
@@ -176,7 +177,7 @@ final class Team extends UapiModule
         ?string $email2 = null,
         ?string $expireReason = null,
         ?string $notes = null,
-        ?string $password = null,
+        #[SensitiveParameter] ?string $password = null,
         ?string $removeRole = null,
         bool|int|null $servicesEmailEnabled = null,
         ?string $servicesEmailQuota = null,
@@ -468,7 +469,7 @@ final class Team extends UapiModule
      * @see https://api.docs.cpanel.net/specifications/cpanel.openapi/team-users/team-set_password
      */
     public function setPassword(
-        string $password,
+        #[SensitiveParameter] string $password,
         string $user,
         array $extra = [],
     ): UapiResult {
