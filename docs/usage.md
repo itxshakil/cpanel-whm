@@ -162,6 +162,8 @@ Whm::usage()->disk();                       // Collection<DiskUsage> for every a
 Whm::usage()->disk(fresh: true);            // bypass the cache; slower
 Whm::usage()->bandwidth(month: 9, year: 2026, reseller: 'res1');
 Whm::usage()->bandwidthFor('acme');         // ?BandwidthUsage, with byDomain
+Whm::usage()->all();                        // Collection<AccountUsage>, highest share of a limit first
+Whm::usage()->nearLimit(90);                // accounts at or above 90% of their disk or bandwidth limit
 ```
 
 All sizes are in bytes. WHM reports disk in KiB; the DTOs convert.

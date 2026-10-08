@@ -74,6 +74,37 @@ class Usage extends Module
     }
 
     /**
+     * This month's disk and bandwidth for every account, highest share of a
+     * limit first. Accounts without limits come last. Two calls to WHM.
+     *
+     * @return Collection<int, AccountUsage>
+     *
+     * @throws WhmException
+     */
+    public function all(bool $fresh = false): Collection
+    {
+        $disk = $this->disk($fresh)->keyBy(static fn (DiskUsage $usage): string => $usage->user);
+        $bandwidth = $this->bandwidth()->keyBy(static fn (BandwidthUsage $usage): string => $usage->user);
+
+        return $disk->keys()->merge($bandwidth->keys())->unique()
+            ->map(static fn (string $user): AccountUsage => new AccountUsage($user, $disk->get($user), $bandwidth->get($user)))
+            ->sort(static fn (AccountUsage $a, AccountUsage $b): int => [$b->highestPercent() ?? -1, $a->user] <=> [$a->highestPercent() ?? -1, $b->user])
+            ->values();
+    }
+
+    /**
+     * Accounts whose disk or bandwidth use is at or above $percent of the limit.
+     *
+     * @return Collection<int, AccountUsage>
+     *
+     * @throws WhmException
+     */
+    public function nearLimit(float $percent = 90.0, bool $fresh = false): Collection
+    {
+        return $this->all($fresh)->filter(static fn (AccountUsage $usage): bool => $usage->isNearLimit($percent))->values();
+    }
+
+    /**
      * This month's disk and bandwidth for one account.
      *
      * @throws WhmException

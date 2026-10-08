@@ -24,6 +24,7 @@ use Itxshakil\CpanelWhm\Console\RecordCommand;
 use Itxshakil\CpanelWhm\Console\SuspendCommand;
 use Itxshakil\CpanelWhm\Console\TokenCommand;
 use Itxshakil\CpanelWhm\Console\UnsuspendCommand;
+use Itxshakil\CpanelWhm\Console\UsageCommand;
 use Itxshakil\CpanelWhm\Contracts\WhmClient as WhmClientContract;
 use Itxshakil\CpanelWhm\Doctor\NetworkProbe;
 use Itxshakil\CpanelWhm\Doctor\SocketProbe;
@@ -76,6 +77,7 @@ final class CpanelWhmServiceProvider extends ServiceProvider
             PackagesCommand::class,
             DnsCommand::class,
             TokenCommand::class,
+            UsageCommand::class,
             RecordCommand::class,
         ]);
 

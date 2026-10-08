@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Itxshakil\CpanelWhm\Tests\Feature\Console;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Tests\TestCase;
@@ -86,6 +87,64 @@ final class NewCommandsTest extends TestCase
         $this->artisan('whm:token')->expectsOutputToContain('No API tokens.')->assertSuccessful();
 
         CarbonImmutable::setTestNow();
+    }
+
+    #[Test]
+    public function usage_lists_accounts_near_their_limits_and_fails(): void
+    {
+        Whm::fake([
+            'get_disk_usage' => Whm::response(['accounts' => [
+                ['user' => 'acme', 'blocks_used' => 950_000, 'blocks_limit' => 1_000_000],
+                ['user' => 'calm', 'blocks_used' => 100, 'blocks_limit' => 1_000_000],
+            ]]),
+            'showbw' => Whm::response(['acct' => [['user' => 'acme', 'maindomain' => 'acme.test', 'totalbytes' => 10, 'limit' => 0]]]),
+        ]);
+
+        self::assertSame(1, Artisan::call('whm:usage', ['--threshold' => 90]));
+        $output = Artisan::output();
+
+        self::assertMatchesRegularExpression('/\| acme +\| acme\.test +\| 0\.9 GB \/ 1\.0 GB +\| 95% +\| 10 B \/ unlimited/', $output);
+        self::assertStringNotContainsString('calm', $output);
+        self::assertStringContainsString('1 account(s) at or above 90% of their disk or bandwidth limit.', $output);
+    }
+
+    #[Test]
+    public function usage_passes_when_every_account_is_below_the_threshold(): void
+    {
+        Whm::fake([
+            'get_disk_usage' => Whm::response(['accounts' => [['user' => 'calm', 'blocks_used' => 100, 'blocks_limit' => 1_000_000]]]),
+            'showbw' => Whm::response(['acct' => []]),
+        ]);
+
+        $this->artisan('whm:usage')
+            ->expectsOutputToContain('No account is at or above 90%')
+            ->assertSuccessful();
+
+        $this->artisan('whm:usage', ['--all' => true])
+            ->expectsOutputToContain('calm')
+            ->assertSuccessful();
+    }
+
+    #[Test]
+    public function usage_prints_json(): void
+    {
+        Whm::fake([
+            'get_disk_usage' => Whm::response(['accounts' => [['user' => 'acme', 'blocks_used' => 950, 'blocks_limit' => 1000]]]),
+            'showbw' => Whm::response(['acct' => []]),
+        ]);
+
+        self::assertSame(1, Artisan::call('whm:usage', ['--json' => true]));
+
+        self::assertSame([[
+            'user' => 'acme',
+            'domain' => null,
+            'disk_bytes' => 972_800,
+            'disk_limit_bytes' => 1_024_000,
+            'disk_percent' => 95,
+            'bandwidth_bytes' => null,
+            'bandwidth_limit_bytes' => null,
+            'bandwidth_percent' => null,
+        ]], json_decode(Artisan::output(), true));
     }
 
     #[Test]

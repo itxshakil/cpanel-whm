@@ -162,4 +162,31 @@ final class DomainsAndUsageTest extends TestCase
 
         $fake->assertCalled('restartservice', static fn (array $p): bool => $p === ['service' => 'exim', 'queue_task' => 1]);
     }
+
+    #[Test]
+    public function every_account_s_usage_is_combined_and_sorted_by_the_highest_share(): void
+    {
+        $fake = Whm::fake([
+            'get_disk_usage' => Whm::response(['accounts' => [
+                ['user' => 'acme', 'blocks_used' => 950, 'blocks_limit' => 1000],
+                ['user' => 'calm', 'blocks_used' => 100, 'blocks_limit' => 1000],
+                ['user' => 'free', 'blocks_used' => 5000, 'blocks_limit' => 0],
+            ]]),
+            'showbw' => Whm::response(['acct' => [
+                ['user' => 'calm', 'maindomain' => 'calm.test', 'totalbytes' => 990, 'limit' => 1000],
+                ['user' => 'acme', 'maindomain' => 'acme.test', 'totalbytes' => 10, 'limit' => 0],
+                ['user' => 'bwonly', 'maindomain' => 'bw.test', 'totalbytes' => 1, 'limit' => 100],
+            ]]),
+        ]);
+
+        $all = Whm::usage()->all();
+
+        self::assertSame(['calm', 'acme', 'bwonly', 'free'], $all->map(static fn ($usage) => $usage->user)->all());
+        self::assertSame(99.0, $all->first()?->highestPercent());
+        self::assertSame('calm.test', $all->first()?->domain());
+        self::assertNull($all->last()?->highestPercent());
+
+        self::assertSame(['calm', 'acme'], Whm::usage()->nearLimit(90)->map(static fn ($usage) => $usage->user)->all());
+        $fake->assertCalledTimes('get_disk_usage', 2)->assertCalledTimes('showbw', 2);
+    }
 }

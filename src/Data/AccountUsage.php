@@ -16,6 +16,24 @@ final readonly class AccountUsage
     ) {}
 
     /**
+     * The higher of the disk and bandwidth shares, 0-100, or null when neither has a limit.
+     */
+    public function highestPercent(): ?float
+    {
+        $percents = array_filter([$this->disk?->percentUsed(), $this->bandwidth?->percentUsed()], is_float(...));
+
+        return $percents === [] ? null : max($percents);
+    }
+
+    /**
+     * The account's main domain, when showbw reported it.
+     */
+    public function domain(): ?string
+    {
+        return $this->bandwidth?->domain;
+    }
+
+    /**
      * Whether disk or bandwidth use is at or above $percent of its limit.
      */
     public function isNearLimit(float $percent = 90.0): bool

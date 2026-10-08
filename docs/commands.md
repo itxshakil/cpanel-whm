@@ -79,6 +79,21 @@ Lists the connection user's API tokens with their expiry and privileges. Exits w
 Schedule::command('whm:token --days=14')->weekly()->emailOutputOnFailure('ops@example.com');
 ```
 
+## whm:usage
+
+Lists accounts at or above `--threshold` percent (90 by default) of their disk or bandwidth limit this month, highest first. It exits with 1 when any account is, so it works as a scheduled alert:
+
+```bash
+php artisan whm:usage                    # flagged accounts only
+php artisan whm:usage --threshold=80 --all
+php artisan whm:usage --json             # for scripts
+php artisan whm:usage --fresh            # read disk use live instead of WHM's quota cache
+```
+
+```php
+Schedule::command('whm:usage --threshold=90')->daily()->emailOutputOnFailure('ops@example.com');
+```
+
 ## whm:record
 
 Saves a read-only function's redacted response as a fixture for `Whm::fake()`. See [testing](testing.md#record-real-responses). Refuses functions that change the server, and functions missing from cPanel's spec (plugins, for example), since it cannot tell whether they do.
