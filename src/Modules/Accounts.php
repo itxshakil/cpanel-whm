@@ -11,6 +11,7 @@ use Itxshakil\CpanelWhm\Data\NewAccount;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Enums\SearchType;
 use Itxshakil\CpanelWhm\Events\AccountCreated;
+use Itxshakil\CpanelWhm\Events\AccountModified;
 use Itxshakil\CpanelWhm\Events\AccountPackageChanged;
 use Itxshakil\CpanelWhm\Events\AccountPasswordChanged;
 use Itxshakil\CpanelWhm\Events\AccountRemoved;
@@ -19,6 +20,8 @@ use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
 use Itxshakil\CpanelWhm\Support\Filter;
+use Itxshakil\CpanelWhm\Support\Passwords;
+use Itxshakil\CpanelWhm\Support\Redactor;
 use Itxshakil\CpanelWhm\Support\UsernameRules;
 use Itxshakil\CpanelWhm\WhmResponse;
 use SensitiveParameter;
@@ -37,22 +40,27 @@ class Accounts extends Module
 
     /**
      * Create an account. The username is checked against cPanel's rules first.
+     * Without a password, a strong one is generated; CreatedAccount::$password
+     * holds the one the account was created with.
      *
      * @throws InvalidUsername
      * @throws WhmException
      */
     public function create(NewAccount $account): CreatedAccount
     {
-        $params = $account->toParams();
+        // WHM does not return a password it generates, so one is generated here
+        // and handed back on CreatedAccount.
+        $password = $account->givenPassword() ?? Passwords::generate();
+        $params = $account->withPassword($password)->toParams();
 
         $response = $this->client->call('createacct', $params, HttpMethod::Post, max(self::CREATE_TIMEOUT, $this->client->config()->timeout));
 
         $username = $params['username'] ?? '';
         $domain = $params['domain'] ?? null;
 
-        $created = CreatedAccount::fromResponse($response, is_string($username) ? $username : '', is_string($domain) ? $domain : null);
+        $created = CreatedAccount::fromResponse($response, is_string($username) ? $username : '', is_string($domain) ? $domain : null, $password);
 
-        $this->client->dispatch(new AccountCreated($this->client->config()->name, $created));
+        $this->client->dispatch(new AccountCreated($this->client->config()->name, $created->withoutPassword()));
 
         return $created;
     }
@@ -205,8 +213,13 @@ class Accounts extends Module
     public function modify(string $user, array $changes): WhmResponse
     {
         unset($changes['user']);
+        $user = UsernameRules::normalise($user);
 
-        return $this->client->call('modifyacct', ['user' => UsernameRules::normalise($user), ...$changes], HttpMethod::Post);
+        $response = $this->client->call('modifyacct', ['user' => $user, ...$changes], HttpMethod::Post);
+
+        $this->client->dispatch(new AccountModified($this->client->config()->name, $user, Redactor::redact($changes)));
+
+        return $response;
     }
 
     /**

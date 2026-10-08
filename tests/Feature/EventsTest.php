@@ -7,6 +7,7 @@ namespace Itxshakil\CpanelWhm\Tests\Feature;
 use Illuminate\Support\Facades\Event;
 use Itxshakil\CpanelWhm\Data\NewAccount;
 use Itxshakil\CpanelWhm\Events\AccountCreated;
+use Itxshakil\CpanelWhm\Events\AccountModified;
 use Itxshakil\CpanelWhm\Events\AccountPackageChanged;
 use Itxshakil\CpanelWhm\Events\AccountPasswordChanged;
 use Itxshakil\CpanelWhm\Events\AccountRemoved;
@@ -44,6 +45,19 @@ final class EventsTest extends TestCase
         Event::assertDispatched(AccountSuspended::class, static fn (AccountSuspended $e): bool => $e->reason === 'Unpaid' && $e->locked);
         Event::assertDispatched(AccountUnsuspended::class);
         Event::assertDispatched(AccountRemoved::class, static fn (AccountRemoved $e): bool => $e->user === 'acme');
+    }
+
+    #[Test]
+    public function modifying_an_account_dispatches_the_redacted_changes(): void
+    {
+        Event::fake([AccountModified::class]);
+        Whm::fake(['modifyacct' => Whm::response()]);
+
+        Whm::accounts()->modify('acme', ['CONTACTEMAIL' => 'new@acme.example', 'password' => 'oops']);
+
+        Event::assertDispatched(AccountModified::class, static fn (AccountModified $e): bool => $e->connection === 'main'
+            && $e->user === 'acme'
+            && $e->changes === ['CONTACTEMAIL' => 'new@acme.example', 'password' => '[REDACTED]']);
     }
 
     #[Test]

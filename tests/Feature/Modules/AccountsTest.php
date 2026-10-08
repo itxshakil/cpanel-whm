@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Itxshakil\CpanelWhm\Tests\Feature\Modules;
 
+use Illuminate\Support\Facades\Event;
 use Itxshakil\CpanelWhm\Data\Account;
 use Itxshakil\CpanelWhm\Data\NewAccount;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Enums\SearchType;
+use Itxshakil\CpanelWhm\Events\AccountCreated;
 use Itxshakil\CpanelWhm\Exceptions\InvalidUsername;
 use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
@@ -53,6 +55,48 @@ final class AccountsTest extends TestCase
                 'password' => 'S3cure!pass',
                 'contactemail' => 'ops@acme.example',
             ]);
+    }
+
+    #[Test]
+    public function without_a_password_a_strong_one_is_generated_sent_and_returned(): void
+    {
+        $fake = Whm::fake(['createacct' => Whm::response(['user' => 'acme'])]);
+
+        $account = Whm::accounts()->create(new NewAccount('acme', 'acme.example'));
+
+        self::assertIsString($account->password);
+        self::assertSame(24, strlen($account->password));
+        self::assertMatchesRegularExpression('/[a-z]/', $account->password);
+        self::assertMatchesRegularExpression('/[A-Z]/', $account->password);
+        self::assertMatchesRegularExpression('/\d/', $account->password);
+        self::assertMatchesRegularExpression('/[^a-zA-Z\d]/', $account->password);
+        $fake->assertCalled('createacct', static fn (array $params): bool => $params['password'] === $account->password);
+
+        self::assertNotSame($account->password, Whm::accounts()->create(new NewAccount('acme', 'acme.example'))->password);
+    }
+
+    #[Test]
+    public function a_given_password_is_returned_and_never_replaced(): void
+    {
+        $fake = Whm::fake(['createacct' => Whm::response(['user' => 'acme'])]);
+
+        self::assertSame('S3cure!pass', Whm::accounts()->create(new NewAccount('acme', 'acme.example', password: 'S3cure!pass'))->password);
+        self::assertSame('From-extra-1', Whm::accounts()->create(new NewAccount('acme', 'acme.example', extra: ['password' => 'From-extra-1']))->password);
+
+        $fake->assertCalled('createacct', static fn (array $params): bool => $params['password'] === 'From-extra-1');
+    }
+
+    #[Test]
+    public function the_created_password_stays_out_of_dumps_and_the_event(): void
+    {
+        Event::fake([AccountCreated::class]);
+        Whm::fake(['createacct' => Whm::response(['user' => 'acme'])]);
+
+        $account = Whm::accounts()->create(new NewAccount('acme', 'acme.example', password: 'S3cure!pass'));
+
+        self::assertStringNotContainsString('S3cure!pass', print_r($account, true));
+        Event::assertDispatched(AccountCreated::class, static fn (AccountCreated $event): bool => $event->account->password === null
+            && $event->account->username === 'acme');
     }
 
     #[Test]
