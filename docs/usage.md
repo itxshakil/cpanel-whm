@@ -262,6 +262,25 @@ Whm::cache(now()->addHour(), 'redis')->packages()->list();
 
 `cache()` returns a copy of the client; only read-only calls are cached, and failures never are. `verify_new_username` is never cached, DNS edits read the zone's serial uncached, and `withoutCache()` gives you an uncached copy back. Cache keys include the server and user, not just the connection name.
 
+## Batches
+
+`Whm::batch()` sends several functions in one request through WHM's `batch` function:
+
+```php
+$results = Whm::batch()
+    ->add('accountsummary', ['user' => 'acme'])
+    ->add('showbw', ['searchtype' => 'user', 'search' => 'acme'])
+    ->abortOnError()              // optional: stop at the first failure
+    ->send();
+
+$results[0]->get('acct.0.domain');   // one WhmResponse per command, in order
+$results->successful();              // every command ran and succeeded
+$results->failures();                // [index => WhmCommandFailed|WhmPermissionDenied]
+$results->throw();                   // throw the first failure, if any
+```
+
+Parameters are normalised like `Whm::call()`. A failed command does not throw from `send()`; only a failure of the batch request itself does. The batch is sent as POST and is never retried or cached, whatever its commands are. Secrets inside commands are masked in events and logs.
+
 ## Macros
 
 Every module is macroable:

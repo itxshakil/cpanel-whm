@@ -8,6 +8,7 @@ use Closure;
 use Illuminate\Http\Client\ConnectionException;
 use InvalidArgumentException;
 use Itxshakil\CpanelWhm\Contracts\Transport;
+use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Exceptions\StrayWhmCall;
 use Itxshakil\CpanelWhm\Exceptions\WhmConnectionFailed;
 use Itxshakil\CpanelWhm\Support\ConnectionConfig;
@@ -177,8 +178,22 @@ final class WhmFake implements Transport
 
     public function send(ConnectionConfig $config, WhmRequest $request): TransportResponse
     {
+        // Without a stub for batch itself, each command is answered (and
+        // recorded) as if it had been called on its own, then the batch.
+        if ($request->function === 'batch' && ! isset($this->stubs['batch'])) {
+            $response = $this->answerBatch($config, $request);
+            $this->recorded[] = $request;
+
+            return $this->withCommand($response, 'batch');
+        }
+
         $this->recorded[] = $request;
 
+        return $this->answer($config, $request);
+    }
+
+    private function answer(ConnectionConfig $config, WhmRequest $request): TransportResponse
+    {
         $stub = $this->stubs[$request->function] ?? $this->stubs['*'] ?? null;
 
         if ($stub === null) {
@@ -290,6 +305,46 @@ final class WhmFake implements Transport
         }
 
         return self::response();
+    }
+
+    private function answerBatch(ConnectionConfig $config, WhmRequest $request): TransportResponse
+    {
+        $commands = [];
+
+        foreach ($request->params as $key => $value) {
+            if (is_string($value) && preg_match('/^command(?:-(\d+))?$/', $key, $match) === 1) {
+                $commands[(int) ($match[1] ?? 0)] = $value;
+            }
+        }
+
+        ksort($commands);
+        $abortOnError = in_array($request->params['abort_on_error'] ?? 0, [1, '1', true], true);
+        $results = [];
+
+        foreach ($commands as $command) {
+            [$function, $query] = array_pad(explode('?', $command, 2), 2, '');
+            $params = [];
+
+            foreach (array_filter(explode('&', $query), static fn (string $pair): bool => $pair !== '') as $pair) {
+                [$key, $value] = array_pad(explode('=', $pair, 2), 2, '');
+                $params[rawurldecode($key)] = rawurldecode($value);
+            }
+
+            $inner = new WhmRequest($request->connection, $function, $params, HttpMethod::for($function, $params));
+            $this->recorded[] = $inner;
+
+            $answer = $this->answer($config, $inner);
+            $json = $answer->json ?? ['data' => null, 'metadata' => ['command' => $function, 'result' => 0, 'reason' => "HTTP {$answer->status}"]];
+            $results[] = $json;
+
+            $result = is_array($json['metadata'] ?? null) ? ($json['metadata']['result'] ?? 0) : 0;
+
+            if ($abortOnError && (int) (is_numeric($result) ? $result : 0) !== 1) {
+                break;
+            }
+        }
+
+        return self::response(['result' => $results]);
     }
 
     /**

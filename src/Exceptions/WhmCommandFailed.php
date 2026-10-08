@@ -11,6 +11,20 @@ use Itxshakil\CpanelWhm\WhmResponse;
  */
 class WhmCommandFailed extends WhmException
 {
+    /**
+     * Phrases WHM uses when a token's ACL does not cover a function.
+     *
+     * @var list<string>
+     */
+    private const array PERMISSION_PHRASES = [
+        'access denied',
+        'permission denied',
+        'you do not have permission',
+        'you do not have access',
+        'not have the privilege',
+        'requires the privilege',
+    ];
+
     final public function __construct(
         private readonly string $function,
         private readonly string $reason,
@@ -22,6 +36,23 @@ class WhmCommandFailed extends WhmException
     public static function from(string $function, WhmResponse $response): static
     {
         return new static($function, $response->reason(), $response);
+    }
+
+    /**
+     * WhmPermissionDenied when the reason says the token lacks a privilege,
+     * WhmCommandFailed otherwise.
+     */
+    public static function classify(string $function, WhmResponse $response): self
+    {
+        $reason = mb_strtolower($response->reason());
+
+        foreach (self::PERMISSION_PHRASES as $phrase) {
+            if (str_contains($reason, $phrase)) {
+                return WhmPermissionDenied::from($function, $response);
+            }
+        }
+
+        return self::from($function, $response);
     }
 
     public function function(): string

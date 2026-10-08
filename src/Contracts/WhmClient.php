@@ -24,6 +24,7 @@ use Itxshakil\CpanelWhm\Modules\Suspensions;
 use Itxshakil\CpanelWhm\Modules\Tokens;
 use Itxshakil\CpanelWhm\Modules\Usage;
 use Itxshakil\CpanelWhm\Support\ConnectionConfig;
+use Itxshakil\CpanelWhm\WhmBatch;
 use Itxshakil\CpanelWhm\WhmResponse;
 use SensitiveParameter;
 
@@ -103,6 +104,12 @@ interface WhmClient
      * Every documented WHM API 1 function as a typed method, grouped like cPanel's docs.
      */
     public function api(): WhmApi;
+
+    /**
+     * Several WHM API 1 functions in one request, through WHM's batch function:
+     * Whm::batch()->add('version')->add('accountsummary', ['user' => 'acme'])->send().
+     */
+    public function batch(): WhmBatch;
 
     /**
      * Run cPanel UAPI functions as this account, through WHM's uapi_cpanel.
