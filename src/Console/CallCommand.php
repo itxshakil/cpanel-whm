@@ -21,7 +21,7 @@ final class CallCommand extends Command
 
     protected $signature = 'whm:call
         {function : The WHM API 1 function, e.g. listaccts}
-        {params?* : Parameters as key=value pairs, e.g. user=acme}
+        {params?* : Parameters as key=value pairs, e.g. user=acme; give a secret as a bare key (password) to be asked for it}
         {--post : Send as a form POST (the default for functions that change something and for secrets)}
         {--json : Print the raw response as JSON}
         {--dry-run : Show the request without sending it}
@@ -34,6 +34,10 @@ final class CallCommand extends Command
     {
         $function = $this->stringArgument('function');
         $params = $this->parseParams();
+
+        if ($params === null) {
+            return self::FAILURE;
+        }
         $method = HttpMethod::for($function, $params, $this->option('post') === true ? HttpMethod::Post : null);
 
         try {
@@ -89,20 +93,52 @@ final class CallCommand extends Command
     }
 
     /**
-     * @return array<string, string>
+     * key=value pairs. A secret given as a bare key (password) is asked for
+     * with hidden input, so it stays out of shell history and the process list.
+     *
+     * @return array<string, string>|null null when a secret could not be asked for
      */
-    private function parseParams(): array
+    private function parseParams(): ?array
     {
         $params = [];
+        $typedSecrets = [];
         /** @var array<int, string> $pairs */
         $pairs = (array) $this->argument('params');
 
         foreach ($pairs as $pair) {
+            $hasValue = str_contains($pair, '=');
             [$key, $value] = array_pad(explode('=', $pair, 2), 2, '');
 
-            if ($key !== '') {
-                $params[$key] = $value;
+            if ($key === '') {
+                continue;
             }
+
+            if (! Redactor::isSensitiveKey($key)) {
+                $params[$key] = $value;
+
+                continue;
+            }
+
+            if ($hasValue) {
+                $typedSecrets[] = $key;
+                $params[$key] = $value;
+
+                continue;
+            }
+
+            if (! $this->input->isInteractive()) {
+                $this->components->error("{$key} needs a value: give it as {$key}=... or run without --no-interaction to be asked for it.");
+
+                return null;
+            }
+
+            $answer = $this->secret("Value for {$key}");
+            $params[$key] = is_string($answer) ? $answer : '';
+        }
+
+        if ($typedSecrets !== []) {
+            $keys = implode(', ', $typedSecrets);
+            $this->components->warn("{$keys} was typed on the command line, where shell history and the process list keep it. Give it as a bare key ({$typedSecrets[0]}) to be asked for it instead.");
         }
 
         return $params;
