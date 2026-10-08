@@ -14,7 +14,7 @@ use SensitiveParameter;
 final readonly class NewAccount
 {
     /**
-     * @param  string|null  $password  WHM generates a strong one when omitted
+     * @param  string|null  $password  when omitted (here and in $extra), Accounts::create() generates a strong one and returns it
      * @param  array<string, mixed>  $extra  any other createacct parameter, sent as-is
      */
     public function __construct(
@@ -41,6 +41,21 @@ final readonly class NewAccount
             'contactEmail' => $this->contactEmail,
             'dedicatedIp' => $this->dedicatedIp,
         ];
+    }
+
+    /**
+     * The password to send: the one given here or in $extra, or null.
+     */
+    public function givenPassword(): ?string
+    {
+        $fromExtra = $this->extra['password'] ?? null;
+
+        return $this->password ?? (is_string($fromExtra) && $fromExtra !== '' ? $fromExtra : null);
+    }
+
+    public function withPassword(#[SensitiveParameter] string $password): self
+    {
+        return new self($this->username, $this->domain, $this->package, $password, $this->contactEmail, $this->dedicatedIp, $this->extra);
     }
 
     /**
