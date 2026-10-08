@@ -6,7 +6,7 @@ Built from cPanel's OpenAPI documents: WHM API 1 spec 11.138.0.10, UAPI spec 11.
 
 | API | Functions in the spec | Typed method | Coverage | Hand-written, typed results |
 | --- | ---: | ---: | ---: | ---: |
-| WHM API 1 | 630 | 621 | 98.6% | 68 |
+| WHM API 1 | 630 | 621 | 98.6% | 74 |
 | UAPI (through WHM) | 693 | 680 | 98.1% | |
 
 Every function, typed or not, can also be called by name: `Whm::call()` for WHM API 1 and `Whm::asUser($user)->uapi()` for UAPI.

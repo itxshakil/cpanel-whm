@@ -37,6 +37,7 @@ use Itxshakil\CpanelWhm\Modules\Sessions;
 use Itxshakil\CpanelWhm\Modules\Ssl;
 use Itxshakil\CpanelWhm\Modules\Suspensions;
 use Itxshakil\CpanelWhm\Modules\Tokens;
+use Itxshakil\CpanelWhm\Modules\Transfers;
 use Itxshakil\CpanelWhm\Modules\Usage;
 use Itxshakil\CpanelWhm\Support\ConnectionConfig;
 use Itxshakil\CpanelWhm\Support\FunctionCatalog;
@@ -190,6 +191,11 @@ final class WhmClient implements WhmClientContract
     public function tokens(): Tokens
     {
         return $this->module(Tokens::class);
+    }
+
+    public function transfers(): Transfers
+    {
+        return $this->module(Transfers::class);
     }
 
     public function api(): WhmApi

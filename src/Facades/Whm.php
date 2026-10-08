@@ -28,6 +28,7 @@ use Itxshakil\CpanelWhm\WhmManager;
  * @method static \Itxshakil\CpanelWhm\Modules\Resellers resellers()
  * @method static \Itxshakil\CpanelWhm\Modules\Ssl ssl()
  * @method static \Itxshakil\CpanelWhm\Modules\Tokens tokens()
+ * @method static \Itxshakil\CpanelWhm\Modules\Transfers transfers()
  * @method static \Itxshakil\CpanelWhm\Api\WhmApi api()
  * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient cache(int|\DateInterval|\DateTimeInterface $ttl, ?string $store = null)
  * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient withoutCache()
