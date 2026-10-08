@@ -157,6 +157,16 @@ $mailboxes->warnings;
 Whm::asUser('acme')->uapi('Email', 'add_pop', ['email' => 'info', 'password' => $password]);
 ```
 
+Mailboxes and MySQL have typed helpers:
+
+```php
+$mailbox = Whm::asUser('acme')->email()->create('info@acme.example', quotaMegabytes: 1024);
+$mailbox->password;    // generated when you pass none
+
+Whm::asUser('acme')->mysql()->createDatabase('acme_shop');
+Whm::asUser('acme')->mysql()->grant('acme_app', 'acme_shop');
+```
+
 ### DNS, domains, usage, backups, resellers, SSL, tokens
 
 ```php

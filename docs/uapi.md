@@ -24,6 +24,44 @@ Whm::asUser('acme')->api()->email()->addPop(email: 'info', password: $password, 
 
 See [the generated API](api.md).
 
+## Email and MySQL, with typed results
+
+The two areas most apps need have hand-written helpers on top of the generated methods:
+
+```php
+$email = Whm::asUser('acme')->email();
+
+$email->list();                                  // Collection<EmailAccount>, without the main account's system mailbox
+$email->find('info@acme.example');               // ?EmailAccount
+$created = $email->create('info@acme.example', quotaMegabytes: 1024);
+$created->password;                              // generated when you pass none; show or send it once
+$email->changePassword('info@acme.example', $password);
+$email->setQuota('info@acme.example', null);     // null = unlimited
+$email->suspendLogin('info@acme.example');       // and unsuspendLogin, suspendIncoming, unsuspendIncoming
+$email->delete('info@acme.example');
+
+$email->forwarders('acme.example');              // Collection<EmailForwarder>
+$email->addForwarder('info@acme.example', 'ops@example.com');
+$email->deleteForwarder('info@acme.example', 'ops@example.com');
+
+$mysql = Whm::asUser('acme')->mysql();
+
+$mysql->databases();                             // Collection<MysqlDatabase>: name, diskUsageBytes, users
+$mysql->users();                                 // Collection<MysqlUser>: name, shortName, databases
+$mysql->createDatabase('acme_shop');
+$user = $mysql->createUser('acme_app');          // CreatedMysqlUser, with a generated password
+$mysql->grant('acme_app', 'acme_shop');          // ALL PRIVILEGES, or ['SELECT', 'INSERT', ...]
+$mysql->revoke('acme_app', 'acme_shop');
+$mysql->changePassword('acme_app', $password);
+$mysql->deleteUser('acme_app');
+$mysql->deleteDatabase('acme_shop');
+```
+
+- `EmailAccount` has `address`, `user`, `domain`, `usedBytes`, `quotaBytes` (null when unlimited), `percentUsed()`, `loginSuspended`, `incomingSuspended`, `outgoingSuspended`, `outgoingHeld`, `modifiedAt` and `raw`.
+- Mailbox addresses are always full (`info@acme.example`). An address without a domain throws `InvalidArgumentException` before anything is sent.
+- MySQL names are sent as given. When the server prefixes database names (cPanel's default), they must start with the account's username and an underscore.
+- Changes return the `UapiResult`; failures throw `UapiCallFailed` as usual. Both modules are macroable.
+
 ## Two levels of failure
 
 `uapi_cpanel` can succeed at the WHM level while the UAPI function inside it fails. The package checks both:

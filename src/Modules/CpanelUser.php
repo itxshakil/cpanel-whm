@@ -39,6 +39,22 @@ class CpanelUser extends Module
         return new UapiApi($this);
     }
 
+    /**
+     * Mailboxes and forwarders, with typed results.
+     */
+    public function email(): UserEmail
+    {
+        return new UserEmail($this);
+    }
+
+    /**
+     * MySQL databases, users and grants, with typed results.
+     */
+    public function mysql(): UserMysql
+    {
+        return new UserMysql($this);
+    }
+
     public function user(): string
     {
         return $this->user;
