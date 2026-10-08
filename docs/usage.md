@@ -2,6 +2,17 @@
 
 All examples use the facade. The same methods exist on an injected `Itxshakil\CpanelWhm\Contracts\WhmClient` and on `Whm::connection('name')`.
 
+## What methods return
+
+Every module follows the same rule:
+
+- Reads return typed objects or collections (`Account`, `Collection<Package>`, `DnsZone`, ...).
+- Creates return a typed object for what was created: `CreatedAccount`, `CreatedToken`, `LoginSession`, `InstalledCertificate`.
+- Changes that produce a value you need return that value: the new zone serial from DNS edits, the name WHM saved a package under, the pkgacct session id, the AutoSSL process id.
+- Every other change returns WHM's `WhmResponse`, so you can read `warnings()`: WHM can report success while refusing part of a request.
+
+Failures always throw a `WhmException`; no method signals failure through its return value.
+
 ## Accounts
 
 | Method | WHM function | Returns |
@@ -24,14 +35,16 @@ $created = Whm::accounts()->create(new NewAccount(
     username: 'acme',
     domain: 'acme.example',
     package: 'starter',
-    password: null,                  // WHM generates one
+    password: null,                  // a strong one is generated
     contactEmail: 'ops@acme.example',
     dedicatedIp: false,
     extra: ['owner' => 'reseller1'], // any other createacct parameter
 ));
 ```
 
-`CreatedAccount` has `username` (the one WHM assigned: it can differ from the one you asked for), `domain`, `ip`, `package`, `nameservers`, `rawOutput` (WHM's creation log) and the full `response`. Store `username`, not your input.
+`CreatedAccount` has `username` (the one WHM assigned: it can differ from the one you asked for), `domain`, `ip`, `package`, `nameservers`, `rawOutput` (WHM's creation log), the full `response` and `password`. Store `username`, not your input.
+
+Without a password (in `password:` or `extra`), a 24-character one with lowercase, uppercase, digits and symbols is generated, because WHM does not return a password it generates itself. `$created->password` is the password the account was created with, given or generated. It is masked when the object is dumped, and the `AccountCreated` event's copy has none.
 
 ### Account
 
@@ -221,11 +234,12 @@ The modules dispatch these after WHM confirms the change:
 
 | Event | Properties |
 | --- | --- |
-| `AccountCreated` | `connection`, `account` (`CreatedAccount`) |
+| `AccountCreated` | `connection`, `account` (`CreatedAccount`, without its password) |
 | `AccountRemoved` | `connection`, `user` |
 | `AccountSuspended` | `connection`, `user`, `reason`, `locked` |
 | `AccountUnsuspended` | `connection`, `user` |
 | `AccountPackageChanged` | `connection`, `user`, `package` |
+| `AccountModified` | `connection`, `user`, `changes` (the `modifyacct` parameters, secrets redacted) |
 | `AccountPasswordChanged` | `connection`, `user` (never the password) |
 | `DnsZoneChanged` | `connection`, `zone`, `serial`, `added`, `edited`, `removed` |
 
@@ -272,4 +286,4 @@ Health::checks([
 ]);
 ```
 
-The check calls `version`, reports the response time, and fails with the exception's hint when WHM can't be reached or the token is refused.
+The check calls `version` once, without retries, so the response time is one request's. On failure the short summary names the cause (`Token rejected`, `Missing privilege`, `Unreachable`, `HTTP 502`, `Not configured` or `WHM error`) and the message carries the exception's hint.

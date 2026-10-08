@@ -106,6 +106,7 @@ use Itxshakil\CpanelWhm\Support\Filter;
 $created = Whm::accounts()->create(new NewAccount('acme', 'acme.example', package: 'starter'));
 $created->username;      // what WHM assigned
 $created->nameservers;   // ['ns1.example.com', 'ns2.example.com']
+$created->password;      // the one you gave, or a strong generated one
 
 Whm::accounts()->list();                                         // Collection<Account>
 Whm::accounts()->list(Filter::where('domain', 'contains', 'acme'));
@@ -276,7 +277,7 @@ Unfaked calls throw `StrayWhmCall`, so a test can never reach a real server. The
 
 ## Events, retries and caching
 
-The modules dispatch `AccountCreated`, `AccountRemoved`, `AccountSuspended`, `AccountUnsuspended`, `AccountPackageChanged`, `AccountPasswordChanged` and `DnsZoneChanged` once WHM confirms the change: a ready-made feed for an audit log.
+The modules dispatch `AccountCreated`, `AccountRemoved`, `AccountSuspended`, `AccountUnsuspended`, `AccountPackageChanged`, `AccountModified`, `AccountPasswordChanged` and `DnsZoneChanged` once WHM confirms the change: a ready-made feed for an audit log.
 
 Read-only calls are retried after a connection error or HTTP 5xx, and `Whm::cache(300)->packages()->list()` caches them. Calls that change something are never retried or cached.
 
