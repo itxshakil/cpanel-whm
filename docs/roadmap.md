@@ -14,7 +14,6 @@ The functions without a typed method take a JSON body or a file upload; see [cov
 
 - Typed result objects for more generated functions, starting with the ones people ask for.
 - Account transfers (`Transfers` group) as a hand-written module.
-- Email and database helpers on `asUser()` with typed results.
 
 ## Before 1.0
 
