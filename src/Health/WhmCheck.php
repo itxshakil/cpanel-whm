@@ -5,7 +5,12 @@ declare(strict_types=1);
 namespace Itxshakil\CpanelWhm\Health;
 
 use Itxshakil\CpanelWhm\Data\ApiToken;
+use Itxshakil\CpanelWhm\Exceptions\InvalidConfiguration;
+use Itxshakil\CpanelWhm\Exceptions\WhmAuthenticationFailed;
+use Itxshakil\CpanelWhm\Exceptions\WhmConnectionFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use Itxshakil\CpanelWhm\Exceptions\WhmHttpError;
+use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
 use Itxshakil\CpanelWhm\WhmManager;
 use Spatie\Health\Checks\Check;
 use Spatie\Health\Checks\Result;
@@ -68,7 +73,8 @@ class WhmCheck extends Check
         $started = hrtime(true);
 
         try {
-            $client = $manager->connection($connection);
+            // One attempt: a retry would hide a flaky server and stretch the timing.
+            $client = $manager->connection($connection)->withoutRetries();
             $version = $client->server()->version();
             $elapsedMs = (int) round((hrtime(true) - $started) / 1_000_000);
 
@@ -85,7 +91,7 @@ class WhmCheck extends Check
                 }
             }
         } catch (WhmException $whmException) {
-            return $result->shortSummary('Unreachable')
+            return $result->shortSummary(self::summaryFor($whmException))
                 ->failed(trim($whmException->getMessage().' '.($whmException->hint() ?? '')));
         }
 
@@ -95,5 +101,17 @@ class WhmCheck extends Check
         }
 
         return $result->shortSummary("{$version}, {$elapsedMs} ms")->ok();
+    }
+
+    private static function summaryFor(WhmException $exception): string
+    {
+        return match (true) {
+            $exception instanceof WhmAuthenticationFailed => 'Token rejected',
+            $exception instanceof WhmPermissionDenied => 'Missing privilege',
+            $exception instanceof WhmConnectionFailed => 'Unreachable',
+            $exception instanceof WhmHttpError => "HTTP {$exception->status()}",
+            $exception instanceof InvalidConfiguration => 'Not configured',
+            default => 'WHM error',
+        };
     }
 }

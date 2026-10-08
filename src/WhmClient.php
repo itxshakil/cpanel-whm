@@ -132,6 +132,11 @@ final class WhmClient implements WhmClientContract
             : new self($this->config, $this->transport, $this->events, $this->cache, null, $this->cacheStore, $this->cachePrefix);
     }
 
+    public function withoutRetries(): static
+    {
+        return new self($this->config->withoutRetries(), $this->transport, $this->events, $this->cache, $this->cacheTtl, $this->cacheStore, $this->cachePrefix);
+    }
+
     public function dispatch(object $event): void
     {
         $this->events?->dispatch($event);

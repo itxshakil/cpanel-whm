@@ -63,6 +63,12 @@ interface WhmClient
     public function withoutCache(): static;
 
     /**
+     * A copy of this client that makes one attempt per call, for probes such
+     * as health checks that time a single request.
+     */
+    public function withoutRetries(): static;
+
+    /**
      * Dispatch one of the package's events (AccountCreated, ...) through Laravel.
      */
     public function dispatch(object $event): void;
