@@ -31,6 +31,8 @@ See [the generated API](api.md).
 - WHM refused the call (bad user, no privilege): `WhmCommandFailed` / `WhmPermissionDenied`.
 - The UAPI function failed (`data.uapi.status = 0`): `UapiCallFailed`, with `errors()`, `module()`, `function()` and the full `result()`.
 
+The same check runs for `Whm::call('uapi_cpanel', ...)` and for WHM's `cpanel` function (`Whm::api()->apiDevelopmentTools()->cpanel(...)`), which reports a failed UAPI or cPanel API 2 function as `UapiCallFailed` too.
+
 ```php
 try {
     Whm::asUser('acme')->uapi('Email', 'add_pop', ['email' => 'info', 'password' => $password]);

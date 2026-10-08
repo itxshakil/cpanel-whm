@@ -235,7 +235,7 @@ They are a good fit for an audit log:
 Event::listen(AccountSuspended::class, fn ($e) => Activity::log("Suspended {$e->user}: {$e->reason}"));
 ```
 
-The low-level `WhmRequestSending`, `WhmResponseReceived` and `WhmRequestFailed` fire for every call.
+The low-level `WhmRequestSending`, `WhmResponseReceived` and `WhmRequestFailed` fire for every call. They carry redacted copies of the request and response: passwords, new API tokens and login URLs are masked, so they are safe for Telescope, queued listeners and logs.
 
 ## Retries and caching
 
@@ -246,7 +246,7 @@ Whm::cache(300)->accounts()->list();        // cached for 5 minutes
 Whm::cache(now()->addHour(), 'redis')->packages()->list();
 ```
 
-`cache()` returns a copy of the client; only read-only calls are cached, and failures never are.
+`cache()` returns a copy of the client; only read-only calls are cached, and failures never are. `verify_new_username` is never cached, DNS edits read the zone's serial uncached, and `withoutCache()` gives you an uncached copy back. Cache keys include the server and user, not just the connection name.
 
 ## Macros
 

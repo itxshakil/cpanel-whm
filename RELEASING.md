@@ -4,6 +4,7 @@
 
 1. On your machine: `composer install`, then `composer qa`. Fix anything it finds.
 2. From a test Laravel app with the package installed from a path repository, run `php artisan whm:install` against a real WHM server, then `whm:doctor`, `whm:accounts`, `whm:account`, `whm:login` and `Whm::asUser(...)->uapi(...)` against a disposable account.
+   Also make a UAPI call fail on purpose through `Whm::api()->apiDevelopmentTools()->cpanel(...)` (UAPI and cPanel API 2) and confirm it throws `UapiCallFailed`: cPanel's spec does not document that response, so its shape is unverified.
 3. Create `github.com/itxshakil/cpanel-whm` (public, no README, licence or .gitignore, since they're already here), push `main`, and wait for every CI job to go green: Pint, PHPStan, the Composer validation and the PHP × Laravel matrix (prefer-lowest and highest).
 4. In the repo settings, add the topics: `laravel`, `laravel-package`, `cpanel`, `whm`, `whm-api`, `uapi`, `web-hosting`, `php`.
 5. Create these labels so the labeler and release-drafter work: `client`, `modules`, `console`, `testing`, `config`, `events`, `tests`, `documentation`, `ci`, `tooling`, `dependencies`, `meta`, `breaking-change`, `skip-changelog`, `question`.

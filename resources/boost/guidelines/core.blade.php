@@ -7,7 +7,7 @@
 - Listen to `AccountCreated`, `AccountSuspended`, `DnsZoneChanged` and the other events in `Itxshakil\CpanelWhm\Events` instead of wrapping module calls.
 - Use `Whm::cache($seconds)` for read-only calls that pages repeat, such as package lists.
 - Store the username from `CreatedAccount::$username`: WHM may rename the account.
-- Send passwords with `HttpMethod::Post` when using `Whm::call()`; typed methods already do.
+- `Whm::call()` picks the HTTP method cPanel documents and always sends secrets as POST; don't pass `HttpMethod::Get` to override it for writes.
 - Catch `Itxshakil\CpanelWhm\Exceptions\WhmException` (or a subclass) around WHM calls; never let failures surface as generic errors. `WhmCommandFailed::reason()` holds WHM's message, `UapiCallFailed::errors()` the UAPI errors.
 - In tests, always use `Whm::fake([...])` with `Whm::response()`, `Whm::failure()`, `Whm::uapi()` or `Whm::fixture()` (from `php artisan whm:record`), and assert with `assertCalled()` / `assertNotCalled()`. Unfaked calls throw `StrayWhmCall`.
 - Diagnose connection problems with `php artisan whm:doctor`.

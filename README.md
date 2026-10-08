@@ -3,10 +3,10 @@
 [![CI](https://github.com/itxshakil/cpanel-whm/actions/workflows/ci.yml/badge.svg)](https://github.com/itxshakil/cpanel-whm/actions/workflows/ci.yml)
 [![Latest version](https://img.shields.io/packagist/v/itxshakil/cpanel-whm.svg)](https://packagist.org/packages/itxshakil/cpanel-whm)
 [![Total downloads](https://img.shields.io/packagist/dt/itxshakil/cpanel-whm.svg)](https://packagist.org/packages/itxshakil/cpanel-whm)
-[![PHPStan level max](https://img.shields.io/badge/PHPStan-level%20max-brightgreen.svg)](phpstan.neon.dist)
-[![WHM API coverage](https://img.shields.io/badge/WHM%20API%201-98.6%25%20typed-brightgreen.svg)](docs/coverage.md)
-[![UAPI coverage](https://img.shields.io/badge/UAPI-98.1%25%20typed-brightgreen.svg)](docs/coverage.md)
-[![License](https://img.shields.io/packagist/l/itxshakil/cpanel-whm.svg)](LICENSE.md)
+[![PHPStan level max](https://img.shields.io/badge/PHPStan-level%20max-brightgreen.svg)](https://github.com/itxshakil/cpanel-whm/blob/main/phpstan.neon.dist)
+[![WHM API coverage](https://img.shields.io/badge/WHM%20API%201-98.6%25%20typed-brightgreen.svg)](https://github.com/itxshakil/cpanel-whm/blob/main/docs/coverage.md)
+[![UAPI coverage](https://img.shields.io/badge/UAPI-98.1%25%20typed-brightgreen.svg)](https://github.com/itxshakil/cpanel-whm/blob/main/docs/coverage.md)
+[![License](https://img.shields.io/packagist/l/itxshakil/cpanel-whm.svg)](https://github.com/itxshakil/cpanel-whm/blob/main/LICENSE.md)
 
 **Create, suspend and manage cPanel accounts from Laravel through the WHM API: typed methods for almost every documented WHM API 1 and UAPI function, typed results for the everyday ones, clear errors, a fake for your tests, and a `whm:doctor` command that tells you exactly why a connection doesn't work.**
 
@@ -32,7 +32,7 @@ It's for hosting resellers, agencies and anyone building their own hosting billi
 | | |
 | --- | --- |
 | **Hand-written modules, typed results** | accounts, suspensions, packages, quotas, login sessions, server, DNS, domains, disk and bandwidth usage, backups and restores, resellers, SSL, API tokens (68 WHM functions) |
-| **Generated, typed methods** | 621 of 630 WHM API 1 functions with `Whm::api()`, 680 of 693 UAPI functions with `Whm::asUser($user)->api()` ([coverage](docs/coverage.md)) |
+| **Generated, typed methods** | 621 of 630 WHM API 1 functions with `Whm::api()`, 680 of 693 UAPI functions with `Whm::asUser($user)->api()` ([coverage](https://github.com/itxshakil/cpanel-whm/blob/main/docs/coverage.md)) |
 | **Anything else** | `Whm::call('function', [...])` and `Whm::asUser($user)->uapi('Module', 'function')` |
 
 ---
@@ -177,7 +177,7 @@ Whm::ssl()->autoSslProblems('acme');
 Whm::tokens()->expiringWithin(14);
 ```
 
-See [usage](docs/usage.md) for every module.
+See [usage](https://github.com/itxshakil/cpanel-whm/blob/main/docs/usage.md) for every module.
 
 ### Every other function, typed
 
@@ -190,7 +190,7 @@ Whm::asUser('acme')->api()->email()->addPop(email: 'info', password: $password, 
 Whm::asUser('acme')->api()->mysql()->createDatabase(name: 'acme_shop');
 ```
 
-`php artisan whm:functions zone` finds the method for any function. See [the generated API](docs/api.md).
+`php artisan whm:functions zone` finds the method for any function. See [the generated API](https://github.com/itxshakil/cpanel-whm/blob/main/docs/api.md).
 
 ### Any function by name
 
@@ -205,6 +205,8 @@ $response->warnings();               // warnings WHM attached to a "successful" 
 
 Whm::call('modifyacct', $params, HttpMethod::Post);
 ```
+
+Without a method, `Whm::call()` uses the one cPanel documents for the function, and any call with a password, token or key is sent as POST.
 
 `php artisan whm:functions --server --missing` shows what your server offers beyond the spec (plugin functions, for example).
 
@@ -223,12 +225,12 @@ Everything extends `Itxshakil\CpanelWhm\Exceptions\WhmException`, and each has a
 
 | Exception | When |
 | --- | --- |
-| `WhmConnectionFailed` | DNS, refused connection, TLS failure or timeout. Nothing reached WHM. |
+| `WhmConnectionFailed` | DNS, refused connection, TLS failure or timeout. `mayHaveReachedServer()` says whether WHM may have acted before it stopped answering. |
 | `WhmAuthenticationFailed` | HTTP 401/403: the token was rejected. |
 | `WhmHttpError` | Another HTTP error, or an answer that isn't JSON (wrong port or a proxy). |
 | `WhmCommandFailed` | WHM ran the function and reported failure. Has `reason()`, `function()`, `response()`, `rawOutput()`. |
 | `WhmPermissionDenied` | Like `WhmCommandFailed`, but the token's ACL doesn't allow the function. |
-| `UapiCallFailed` | The UAPI function inside `uapi_cpanel` failed. Has `errors()`. |
+| `UapiCallFailed` | The UAPI function inside `uapi_cpanel` (or `cpanel`) failed. Has `errors()`. |
 | `InvalidUsername` | A username broke a cPanel rule (checked before sending). |
 | `InvalidConfiguration` | Missing host or token, unknown connection, or a cPanel port. |
 
@@ -251,7 +253,7 @@ public function test_an_overdue_invoice_suspends_the_account(): void
 }
 ```
 
-Unfaked calls throw `StrayWhmCall`, so a test can never reach a real server. There are also `Whm::sequence()`, `Whm::connectionError()`, `Whm::httpError(401)`, `Whm::uapi([...])`, `Whm::uapiFailure('...')` and `Whm::fixture('tests/Fixtures/whm/listaccts.json')` (saved with `php artisan whm:record`), closures, and `assertCalledTimes` / `assertSentCount` / `assertNothingSent`. See [docs/testing.md](docs/testing.md).
+Unfaked calls throw `StrayWhmCall`, so a test can never reach a real server. There are also `Whm::sequence()`, `Whm::connectionError()`, `Whm::httpError(401)`, `Whm::uapi([...])`, `Whm::uapiFailure('...')` and `Whm::fixture('tests/Fixtures/whm/listaccts.json')` (saved with `php artisan whm:record`), closures, and `assertCalledTimes` / `assertSentCount` / `assertNothingSent`. See [docs/testing.md](https://github.com/itxshakil/cpanel-whm/blob/main/docs/testing.md).
 
 ## Artisan commands
 
@@ -259,7 +261,7 @@ Unfaked calls throw `StrayWhmCall`, so a test can never reach a real server. The
 | --- | --- |
 | `whm:install` | Set up the connection interactively, then run the doctor |
 | `whm:doctor` (`whm:test`) | Check a connection step by step (`--connection`, `--all`, `--json`) |
-| `whm:call {function} {key=value…}` | Run any function (`--post`, `--json`, `--dry-run`); destructive functions ask first |
+| `whm:call {function} {key=value…}` | Run any function (`--json`, `--dry-run`, `--post`); secrets always go as POST, destructive functions ask first |
 | `whm:functions {search?}` | Find the method for any function (`--uapi`, `--curated`, `--server --missing`) |
 | `whm:accounts` | List accounts (`--search`, `--by`, `--package`, `--suspended`) |
 | `whm:account {user}` | One account's summary |
@@ -278,26 +280,26 @@ The modules dispatch `AccountCreated`, `AccountRemoved`, `AccountSuspended`, `Ac
 
 Read-only calls are retried after a connection error or HTTP 5xx, and `Whm::cache(300)->packages()->list()` caches them. Calls that change something are never retried or cached.
 
-Set `WHM_LOG_CHANNEL=stack` to log every call: function, connection, duration and outcome. Parameters are redacted (passwords, tokens and login URLs never reach the log). `WhmRequestSending`, `WhmResponseReceived` and `WhmRequestFailed` fire for every call.
+Set `WHM_LOG_CHANNEL=stack` to log every call: function, connection, duration and outcome. Parameters are redacted (passwords, tokens and login URLs never reach the log). `WhmRequestSending`, `WhmResponseReceived` and `WhmRequestFailed` fire for every call, with secrets already masked.
 
 With spatie/laravel-health, add `WhmCheck::new()->failWhenTokenExpiresWithin(7)` to your checks.
 
 ## Documentation
 
-- [Configuration](docs/configuration.md)
-- [The modules: accounts, DNS, domains, usage, backups, resellers, SSL, tokens, ...](docs/usage.md)
-- [The generated API for every other function](docs/api.md)
-- [UAPI through WHM](docs/uapi.md)
-- [whm:doctor and the other commands](docs/commands.md)
-- [Errors](docs/errors.md)
-- [Testing](docs/testing.md)
-- [API coverage](docs/coverage.md)
-- [Roadmap](docs/roadmap.md)
+- [Configuration](https://github.com/itxshakil/cpanel-whm/blob/main/docs/configuration.md)
+- [The modules: accounts, DNS, domains, usage, backups, resellers, SSL, tokens, ...](https://github.com/itxshakil/cpanel-whm/blob/main/docs/usage.md)
+- [The generated API for every other function](https://github.com/itxshakil/cpanel-whm/blob/main/docs/api.md)
+- [UAPI through WHM](https://github.com/itxshakil/cpanel-whm/blob/main/docs/uapi.md)
+- [whm:doctor and the other commands](https://github.com/itxshakil/cpanel-whm/blob/main/docs/commands.md)
+- [Errors](https://github.com/itxshakil/cpanel-whm/blob/main/docs/errors.md)
+- [Testing](https://github.com/itxshakil/cpanel-whm/blob/main/docs/testing.md)
+- [API coverage](https://github.com/itxshakil/cpanel-whm/blob/main/docs/coverage.md)
+- [Roadmap](https://github.com/itxshakil/cpanel-whm/blob/main/docs/roadmap.md)
 
 ## Security
 
-Only API tokens are supported. The token is sent in the `Authorization` header and nowhere else. Report vulnerabilities privately; see [SECURITY.md](SECURITY.md).
+Only API tokens are supported. The token is sent in the `Authorization` header and nowhere else. Report vulnerabilities privately; see [SECURITY.md](https://github.com/itxshakil/cpanel-whm/blob/main/SECURITY.md).
 
 ## License
 
-MIT. See [LICENSE.md](LICENSE.md).
+MIT. See [LICENSE.md](https://github.com/itxshakil/cpanel-whm/blob/main/LICENSE.md).

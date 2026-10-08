@@ -10,7 +10,8 @@ try {
 } catch (WhmCommandFailed $e) {
     // WHM ran createacct and said no: $e->reason(), $e->rawOutput()
 } catch (WhmConnectionFailed $e) {
-    // nothing reached WHM: safe to retry later
+    // $e->mayHaveReachedServer(): WHM stopped answering after the call was sent,
+    // so check whether the account exists before creating it again.
 } catch (WhmException $e) {
     report($e);
 }
@@ -18,12 +19,12 @@ try {
 
 | Exception | Meaning | Retry? |
 | --- | --- | --- |
-| `WhmConnectionFailed` | DNS, refused connection, TLS failure or timeout | Reads, yes. Writes: check first (a timeout can happen after WHM acted). |
+| `WhmConnectionFailed` | DNS, refused connection, TLS failure or timeout. `mayHaveReachedServer()` is true when the call was sent and WHM stopped answering (a read timeout, an empty reply). | Reads, yes. Writes: only when `mayHaveReachedServer()` is false; otherwise check first. |
 | `WhmAuthenticationFailed` (extends `WhmHttpError`) | HTTP 401/403 | No: fix the token. |
 | `WhmHttpError` | Other HTTP errors; `notJson` when the host answers with HTML | Only for 5xx. |
 | `WhmCommandFailed` | `metadata.result = 0` | Depends on `reason()`. |
 | `WhmPermissionDenied` (extends `WhmCommandFailed`) | The token's ACL doesn't allow the function | No: grant the privilege. |
-| `UapiCallFailed` | UAPI status 0 inside a successful `uapi_cpanel` | Depends on `errors()`. |
+| `UapiCallFailed` | The cPanel function failed inside a successful `uapi_cpanel` or `cpanel` call, including raw `Whm::call()` | Depends on `errors()`. |
 | `InvalidUsername` | A local username rule failed | No. |
 | `InvalidConfiguration` | Missing host/token, unknown connection, cPanel port | No. |
 | `StrayWhmCall` | `Whm::fake()` got a call it has no answer for | Test setup. |

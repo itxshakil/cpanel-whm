@@ -39,7 +39,7 @@ Each returns a `UapiResult`; a UAPI failure throws `UapiCallFailed`.
 - **Flags** documented as 0/1 accept `true` / `false`.
 - **Lists** become WHM's repeated parameters: `zone: ['a.test', 'b.test']` sends `zone=a.test&zone-1=b.test`.
 - **`extra:`** takes anything else, sent as given: wildcard parameters such as `copymysqldb-*`, or a parameter newer than the spec.
-- Functions that change something are sent as **POST**, so passwords and keys stay out of URLs and server logs. Read-only ones are GET and can be [retried and cached](usage.md#retries-and-caching).
+- Functions that change something are sent as **POST**, so passwords and keys stay out of URLs and server logs. Read-only ones are GET and can be [retried and cached](usage.md#retries-and-caching). A call that carries a secret (a password, token, passphrase or key) is always POST, read-only or not.
 
 Docblocks carry cPanel's summary, each parameter's description, `@deprecated` where cPanel deprecated a function, and a link to its documentation page.
 

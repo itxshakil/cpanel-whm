@@ -32,12 +32,12 @@ In code: `Whm::ping()` / `Whm::ping('ca-1')` returns a `ConnectionReport` (`pass
 
 ```bash
 php artisan whm:call listaccts searchtype=domain search=acme
-php artisan whm:call passwd user=acme password=secret --post
+php artisan whm:call passwd user=acme password=secret
 php artisan whm:call listips --json
 php artisan whm:call createacct username=acme domain=acme.example --dry-run
 ```
 
-Rows are printed as a table when the answer holds one list (like `acct` or `pkg`), otherwise as key/value pairs. Output is redacted. `--dry-run` prints the request with secrets masked and sends nothing. Destructive functions (`removeacct`, `terminatereseller`, `killdns`, `killpkg`, `removezonerecord`, `mass_edit_dns_zone`, `backup_destination_delete`, `api_token_revoke`, `delete_domain`, `resetzone`, `unsetupreseller`, `restore_queue_clear_all_tasks`, `reboot`) ask you to type the function name unless you pass `--force`.
+Rows are printed as a table when the answer holds one list (like `acct` or `pkg`), otherwise as key/value pairs. Output is redacted. Calls use the HTTP method cPanel documents for the function (POST for anything that changes the server and for undocumented functions), and any call with a secret parameter is sent as POST; `--post` forces POST. `--dry-run` prints the request with secrets masked and sends nothing. Destructive functions (`removeacct`, `terminatereseller`, `killdns`, `killpkg`, `removezonerecord`, `mass_edit_dns_zone`, `backup_destination_delete`, `api_token_revoke`, `delete_domain`, `resetzone`, `unsetupreseller`, `restore_queue_clear_all_tasks`, `reboot`) ask you to type the function name unless you pass `--force`.
 
 ## whm:functions
 
