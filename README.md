@@ -31,7 +31,7 @@ It's for hosting resellers, agencies and anyone building their own hosting billi
 
 | | |
 | --- | --- |
-| **Hand-written modules, typed results** | accounts, suspensions, packages, quotas, login sessions, server, DNS, domains, disk and bandwidth usage, backups and restores, resellers, SSL, API tokens (68 WHM functions) |
+| **Hand-written modules, typed results** | accounts, suspensions, packages, quotas, login sessions, server, DNS, domains, disk and bandwidth usage, backups and restores, resellers, SSL, API tokens, transfers (74 WHM functions) |
 | **Generated, typed methods** | 621 of 630 WHM API 1 functions with `Whm::api()`, 680 of 693 UAPI functions with `Whm::asUser($user)->api()` ([coverage](https://github.com/itxshakil/cpanel-whm/blob/main/docs/coverage.md)) |
 | **Anything else** | `Whm::call('function', [...])` and `Whm::asUser($user)->uapi('Module', 'function')` |
 

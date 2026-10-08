@@ -220,6 +220,37 @@ Whm::tokens()->revoke('old-token');
 
 These manage the tokens of the connection's own user. `php artisan whm:token` warns before one expires.
 
+## Transfers
+
+Move accounts from another server with WHM's transfer system, as WHM's Transfer Tool does:
+
+```php
+use Itxshakil\CpanelWhm\Data\RemoteServer;
+use Itxshakil\CpanelWhm\Data\TransferOptions;
+
+$server = new RemoteServer('old.example.com', password: $rootPassword);   // or sshKeyName: 'migration'
+
+$session = Whm::transfers()->migrate($server, ['acme', 'shop']);            // create, enqueue each, start
+
+Whm::transfers()->state($session->id);           // TransferState: TransferInProgress, ..., Completed, Failed
+Whm::transfers()->state($session->id)->isFinished();
+```
+
+Step by step, with options:
+
+```php
+$session = Whm::transfers()->createSession($server, new TransferOptions(lowPriority: true, transferThreads: 2));
+Whm::transfers()->enqueueAccount($session->id, 'acme', localUser: 'acme2', options: ['skipbwdata' => true]);
+Whm::transfers()->start($session->id);           // the transfer process id
+Whm::transfers()->pause($session->id);
+Whm::transfers()->abort($session->id);
+```
+
+- `RemoteServer` takes exactly one login method: `password` or `sshKeyName` (a key already stored in WHM, with `sshKeyPassphrase` if it has one). For a non-root `user`, add `rootPassword` and `rootEscalation: 'su'` or `'sudo'`. Secrets are masked in dumps, events and logs.
+- `TransferOptions` sets every flag cPanel requires, with the Transfer Tool's defaults.
+- Creating a session connects to and analyses the remote server, so it waits up to 300 seconds.
+- `state()` returns `TransferState::Unknown` for a state newer than this package.
+
 ## Everything else: Whm::api()
 
 Every other documented function has a generated, typed method. See [the generated API](api.md).

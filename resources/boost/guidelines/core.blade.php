@@ -2,7 +2,7 @@
 
 - Use the `Itxshakil\CpanelWhm\Facades\Whm` facade, or inject `Itxshakil\CpanelWhm\Contracts\WhmClient`. Never call the WHM API with `Http::` directly.
 - For mailboxes and MySQL as an account, use `Whm::asUser($user)->email()` and `->mysql()` (typed results, generated passwords) before the generated UAPI methods.
-- Prefer the hand-written modules, which return typed objects: `Whm::accounts()`, `suspensions()`, `packages()`, `quotas()`, `sessions()`, `server()`, `dns()`, `domains()`, `usage()`, `backups()`, `resellers()`, `ssl()`, `tokens()`.
+- Prefer the hand-written modules, which return typed objects: `Whm::accounts()`, `suspensions()`, `packages()`, `quotas()`, `sessions()`, `server()`, `dns()`, `domains()`, `usage()`, `backups()`, `resellers()`, `ssl()`, `tokens()`, `transfers()`.
 - For any other WHM function use the generated API with named arguments: `Whm::api()->dns()->addZoneKey(domain: ..., algoNum: 13, keyType: 'simple')`. For UAPI: `Whm::asUser($user)->api()->email()->addPop(email: ..., password: ...)`. Run `php artisan whm:functions <search>` (add `--uapi` for UAPI) to find the method. `Whm::call('function', [...])` is the last resort.
 - Edit DNS with `Whm::dns()->add()/update()/remove()` and `DnsRecord::a()/mx()/txt()`; records to update or remove must come from `Whm::dns()->zone()`.
 - Listen to `AccountCreated`, `AccountSuspended`, `DnsZoneChanged` and the other events in `Itxshakil\CpanelWhm\Events` instead of wrapping module calls.

@@ -22,6 +22,7 @@ use Itxshakil\CpanelWhm\Modules\Sessions;
 use Itxshakil\CpanelWhm\Modules\Ssl;
 use Itxshakil\CpanelWhm\Modules\Suspensions;
 use Itxshakil\CpanelWhm\Modules\Tokens;
+use Itxshakil\CpanelWhm\Modules\Transfers;
 use Itxshakil\CpanelWhm\Modules\Usage;
 use Itxshakil\CpanelWhm\Support\ConnectionConfig;
 use Itxshakil\CpanelWhm\WhmBatch;
@@ -99,6 +100,8 @@ interface WhmClient
     public function ssl(): Ssl;
 
     public function tokens(): Tokens;
+
+    public function transfers(): Transfers;
 
     /**
      * Every documented WHM API 1 function as a typed method, grouped like cPanel's docs.

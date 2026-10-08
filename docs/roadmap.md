@@ -5,7 +5,7 @@
 | | WHM API 1 | UAPI |
 | --- | --- | --- |
 | Typed method (generated) | 621 of 630 (98.6%) | 680 of 693 (98.1%) |
-| Hand-written, typed results | 68 functions | through `asUser()` |
+| Hand-written, typed results | 74 functions | through `asUser()` |
 | Callable at all | every function, with `Whm::call()` | every function, with `uapi()` |
 
 The functions without a typed method take a JSON body or a file upload; see [coverage](coverage.md).
@@ -13,7 +13,6 @@ The functions without a typed method take a JSON body or a file upload; see [cov
 ## Next
 
 - Typed result objects for more generated functions, starting with the ones people ask for.
-- Account transfers (`Transfers` group) as a hand-written module.
 
 ## Before 1.0
 

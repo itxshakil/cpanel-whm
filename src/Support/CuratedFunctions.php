@@ -83,6 +83,12 @@ final class CuratedFunctions
         'api_token_list' => 'tokens()->list() / tokens()->expiringWithin()',
         'api_token_create' => 'tokens()->create()',
         'api_token_revoke' => 'tokens()->revoke()',
+        'create_remote_root_transfer_session' => 'transfers()->createSession() / transfers()->migrate()',
+        'enqueue_transfer_item' => 'transfers()->enqueueAccount()',
+        'start_transfer_session' => 'transfers()->start()',
+        'get_transfer_session_state' => 'transfers()->state()',
+        'pause_transfer_session' => 'transfers()->pause()',
+        'abort_transfer_session' => 'transfers()->abort()',
     ];
 
     /**
