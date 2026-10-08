@@ -40,6 +40,38 @@ final class HealthCheckTest extends TestCase
     }
 
     #[Test]
+    public function the_summary_names_what_failed(): void
+    {
+        $cases = [
+            'Token rejected' => Whm::httpError(401),
+            'Missing privilege' => Whm::failure('Access denied'),
+            'Unreachable' => Whm::connectionError(),
+            'HTTP 502' => Whm::httpError(502),
+            'WHM error' => Whm::failure('Something else went wrong.'),
+        ];
+
+        foreach ($cases as $summary => $response) {
+            Whm::fake(['version' => $response]);
+
+            $result = WhmCheck::new()->run();
+
+            self::assertSame(Status::failed()->value, $result->status->value, $summary);
+            self::assertSame($summary, $result->getShortSummary());
+        }
+    }
+
+    #[Test]
+    public function the_check_makes_one_attempt_so_its_timing_is_one_request(): void
+    {
+        config()->set('cpanel-whm.connections.main.retry', ['times' => 2, 'sleep_ms' => 0]);
+        $fake = Whm::fake(['version' => Whm::connectionError()]);
+
+        WhmCheck::new()->run();
+
+        $fake->assertCalledTimes('version', 1);
+    }
+
+    #[Test]
     public function a_slow_server_warns(): void
     {
         Whm::fake(['version' => static function () {

@@ -108,6 +108,17 @@ final readonly class ConnectionConfig
         );
     }
 
+    /**
+     * The same connection with no retries: one attempt per call.
+     */
+    public function withoutRetries(): self
+    {
+        return new self(
+            $this->name, $this->scheme, $this->host, $this->port, $this->user, $this->token,
+            $this->verifyTls, $this->timeout, $this->connectTimeout, 0, $this->retryDelayMs,
+        );
+    }
+
     public function baseUrl(): string
     {
         return "{$this->scheme}://{$this->host}:{$this->port}";
