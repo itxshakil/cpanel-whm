@@ -32,12 +32,12 @@ In code: `Whm::ping()` / `Whm::ping('ca-1')` returns a `ConnectionReport` (`pass
 
 ```bash
 php artisan whm:call listaccts searchtype=domain search=acme
-php artisan whm:call passwd user=acme password=secret
+php artisan whm:call passwd user=acme password        # asks for the password, hidden
 php artisan whm:call listips --json
 php artisan whm:call createacct username=acme domain=acme.example --dry-run
 ```
 
-Rows are printed as a table when the answer holds one list (like `acct` or `pkg`), otherwise as key/value pairs. Output is redacted. Calls use the HTTP method cPanel documents for the function (POST for anything that changes the server and for undocumented functions), and any call with a secret parameter is sent as POST; `--post` forces POST. `--dry-run` prints the request with secrets masked and sends nothing. Destructive functions (`removeacct`, `terminatereseller`, `killdns`, `killpkg`, `removezonerecord`, `mass_edit_dns_zone`, `backup_destination_delete`, `api_token_revoke`, `delete_domain`, `resetzone`, `unsetupreseller`, `restore_queue_clear_all_tasks`, `reboot`) ask you to type the function name unless you pass `--force`.
+Rows are printed as a table when the answer holds one list (like `acct` or `pkg`), otherwise as key/value pairs. Output is redacted. Give a secret parameter as a bare key (`password`) and the command asks for it with hidden input; one typed as `password=...` works but prints a warning, since shell history and the process list keep it. Calls use the HTTP method cPanel documents for the function (POST for anything that changes the server and for undocumented functions), and any call with a secret parameter is sent as POST; `--post` forces POST. `--dry-run` prints the request with secrets masked and sends nothing. Destructive functions (`removeacct`, `terminatereseller`, `killdns`, `killpkg`, `removezonerecord`, `mass_edit_dns_zone`, `backup_destination_delete`, `api_token_revoke`, `delete_domain`, `resetzone`, `unsetupreseller`, `restore_queue_clear_all_tasks`, `reboot`) ask you to type the function name unless you pass `--force`.
 
 ## whm:functions
 
@@ -81,7 +81,7 @@ Schedule::command('whm:token --days=14')->weekly()->emailOutputOnFailure('ops@ex
 
 ## whm:record
 
-Saves a read-only function's redacted response as a fixture for `Whm::fake()`. See [testing](testing.md#record-real-responses). Refuses functions that change the server.
+Saves a read-only function's redacted response as a fixture for `Whm::fake()`. See [testing](testing.md#record-real-responses). Refuses functions that change the server, and functions missing from cPanel's spec (plugins, for example), since it cannot tell whether they do.
 
 ## whm:accounts, whm:account, whm:login
 
