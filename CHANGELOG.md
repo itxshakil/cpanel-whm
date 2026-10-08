@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-08
+
+### Added
+- `CreatedAccount::$password`: the password the account was created with. Without one, `create()` generates a strong 24-character password, since WHM does not return a password it generates.
+- `AccountModified` event from `Accounts::modify()`, with the changes redacted.
+- `WhmClient::withoutRetries()`.
+
+### Changed
+- `create()` without a password sends a generated one instead of leaving it to WHM.
+- `whm:call` asks for a secret given as a bare key (`password`) with hidden input, and warns when one is typed inline.
+- `WhmCheck` names the failure (`Token rejected`, `Missing privilege`, `Unreachable`, `HTTP <status>`, `Not configured`, `WHM error`) and times a single attempt.
+
+### Fixed
+- `whm:record` refuses functions missing from cPanel's spec.
+
 ## [0.1.0] - 2026-10-08
 
 First release, extracted from a production hosting platform's WHM client.
