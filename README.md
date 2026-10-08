@@ -271,6 +271,7 @@ Unfaked calls throw `StrayWhmCall`, so a test can never reach a real server. The
 | `whm:packages` | Packages and their limits (`--json`) |
 | `whm:dns {domain?}` | Zones, or one zone's records with line numbers (`--type`) |
 | `whm:token` | API tokens and their expiry; fails when one expires within `--days` |
+| `whm:usage` | Accounts near their disk or bandwidth limit; fails when one is at or above `--threshold` |
 | `whm:record {function} {key=value…}` | Save a redacted real response as a test fixture |
 
 `php artisan about` also shows a cPanel WHM section.

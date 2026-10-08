@@ -16,7 +16,6 @@ The functions without a typed method take a JSON body or a file upload; see [cov
 - `Whm::batch()` for WHM's `batch` function.
 - Account transfers (`Transfers` group) as a hand-written module.
 - Email and database helpers on `asUser()` with typed results.
-- A `whm:usage` command (accounts near their disk or bandwidth limit).
 
 ## Before 1.0
 
