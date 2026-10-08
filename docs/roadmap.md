@@ -1,6 +1,6 @@
 # Roadmap
 
-## Where 0.2 stands
+## Where 0.3 stands
 
 | | WHM API 1 | UAPI |
 | --- | --- | --- |

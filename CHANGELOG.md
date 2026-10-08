@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-08
+
+### Added
+- `whm:usage`: accounts at or above `--threshold` percent of their disk or bandwidth limit, highest first; exits 1 when any is (`--all`, `--json`, `--fresh`).
+- `Whm::usage()->all()` and `nearLimit()`; `AccountUsage::highestPercent()` and `domain()`.
+- `Whm::batch()`: several WHM functions in one request, with `BatchResults` (`successful()`, `failures()`, `throw()`, indexing, iteration). `Whm::fake()` answers batches command by command.
+- `Whm::asUser($user)->email()`: mailboxes (list, find, create, password, quota, suspend, delete) and forwarders, with `EmailAccount`, `EmailForwarder` and `CreatedEmailAccount`.
+- `Whm::asUser($user)->mysql()`: databases, users and grants, with `MysqlDatabase`, `MysqlUser` and `CreatedMysqlUser`.
+- `Whm::transfers()`: move accounts from another server (`createSession()`, `enqueueAccount()`, `start()`, `state()`, `pause()`, `abort()`, `migrate()`), with `RemoteServer`, `TransferOptions` and the `TransferState` enum.
+
+### Changed
+- Secret parameters inside query strings, such as a batch command, are redacted.
+- Permission failures are classified by `WhmCommandFailed::classify()`, shared by single calls and batches.
+- The `WhmClient` contract gains `batch()` and `transfers()`.
+
 ## [0.2.0] - 2026-10-08
 
 ### Added
