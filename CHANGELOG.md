@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Generated methods for parameters the spec documents as JSON (`format: json`), such as `massEditDnsZone(add:, edit:)`, encode arrays to JSON strings, one per item; strings still pass through. Ten parameters across WHM and UAPI are affected.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
