@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `UserMysql::grant()` refuses an empty privilege list (blank entries are ignored) instead of sending `privileges=''`; use `revoke()` to take privileges away.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
