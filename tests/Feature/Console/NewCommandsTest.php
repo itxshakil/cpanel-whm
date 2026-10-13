@@ -155,13 +155,18 @@ final class NewCommandsTest extends TestCase
 
         $this->artisan('whm:record', ['function' => 'api_token_list', '--path' => $directory])
             ->expectsOutputToContain('Saved')
+            ->expectsOutputToContain("Whm::fixture('{$directory}/api_token_list.json')")
             ->assertSuccessful();
 
         $path = base_path($directory.'/api_token_list.json');
         self::assertFileExists($path);
         self::assertStringNotContainsString('LEAKED?', (string) file_get_contents($path));
 
+        // Both the absolute path (with this OS's separators) and the relative one from the hint replay.
         Whm::fake(['api_token_list' => Whm::fixture($path)]);
+        self::assertSame('app', Whm::tokens()->list()->first()?->name);
+
+        Whm::fake(['api_token_list' => Whm::fixture($directory.'/api_token_list.json')]);
         self::assertSame('app', Whm::tokens()->list()->first()?->name);
 
         File::deleteDirectory(base_path($directory));
@@ -175,6 +180,20 @@ final class NewCommandsTest extends TestCase
         $this->artisan('whm:record', ['function' => 'removeacct', 'params' => ['user=acme']])
             ->expectsOutputToContain('only calls read-only functions')
             ->assertFailed();
+
+        $fake->assertNothingSent();
+    }
+
+    #[Test]
+    public function record_refuses_names_and_paths_that_leave_the_project(): void
+    {
+        $fake = Whm::fake(['version' => Whm::response(['version' => '11.138.0.10'])]);
+
+        foreach ([['--name' => '../../composer'], ['--name' => 'sub/dir'], ['--name' => '..'], ['--path' => '../outside'], ['--path' => 'tests/../../outside'], ['--path' => '/etc'], ['--path' => 'C:\\temp']] as $options) {
+            $this->artisan('whm:record', ['function' => 'version', ...$options])
+                ->expectsOutputToContain(array_key_first($options))
+                ->assertFailed();
+        }
 
         $fake->assertNothingSent();
     }
