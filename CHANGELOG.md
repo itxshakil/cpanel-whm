@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `Whm::featureLists()`: `list()`, `features()`, `create()`, `update()` (refuses an empty change, which WHM would read as "turn everything off") and `delete()`.
+- `Accounts::changePrimaryDomain()`, `rename()` (checks the new username first) and `changeIp()` (`setsiteip`), each dispatching `AccountModified`.
+- The `WhmClient` contract gains `featureLists()`.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

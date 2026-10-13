@@ -29,6 +29,7 @@ use Itxshakil\CpanelWhm\Modules\Backups;
 use Itxshakil\CpanelWhm\Modules\CpanelUser;
 use Itxshakil\CpanelWhm\Modules\Dns;
 use Itxshakil\CpanelWhm\Modules\Domains;
+use Itxshakil\CpanelWhm\Modules\FeatureLists;
 use Itxshakil\CpanelWhm\Modules\Packages;
 use Itxshakil\CpanelWhm\Modules\Quotas;
 use Itxshakil\CpanelWhm\Modules\Resellers;
@@ -191,6 +192,11 @@ final class WhmClient implements WhmClientContract
     public function tokens(): Tokens
     {
         return $this->module(Tokens::class);
+    }
+
+    public function featureLists(): FeatureLists
+    {
+        return $this->module(FeatureLists::class);
     }
 
     public function transfers(): Transfers
