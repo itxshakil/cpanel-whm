@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `WhmFake` no longer imports PHPUnit: its assertions use PHPUnit when it is installed and throw `FakeAssertionFailed` otherwise, so a production (`--no-dev`) install analyses cleanly. `phpunit/phpunit` is listed under `suggest`.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

@@ -90,7 +90,8 @@
     "minimum-stability": "stable",
     "prefer-stable": true,
     "suggest": {
-        "spatie/laravel-health": "Adds WhmCheck, a health check for every WHM connection (^1.34)."
+        "spatie/laravel-health": "Adds WhmCheck, a health check for every WHM connection (^1.34).",
+        "phpunit/phpunit": "Whm::fake()'s assertions report through PHPUnit when it is installed (^11.5|^12.0)."
     },
     "scripts-descriptions": {
         "generate": "Regenerate src/Api and the function catalog from cPanel's OpenAPI specs.",
