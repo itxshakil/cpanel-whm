@@ -321,7 +321,7 @@ WHM_RETRY_SLEEP_MS=250   # base back-off; attempt n waits n × this
 
 If your queued jobs already retry, consider `WHM_RETRY_TIMES=0` so a failing read isn't retried at two levels. `WhmCheck` always makes a single attempt.
 
-Set `WHM_LOG_CHANNEL=stack` to log every call: function, connection, duration and outcome. Parameters are redacted (passwords, tokens and login URLs never reach the log). `WhmRequestSending`, `WhmResponseReceived` and `WhmRequestFailed` fire for every call, with secrets already masked.
+Set `WHM_LOG_CHANNEL=stack` to log every call: function, connection, duration and outcome. Parameters are redacted (passwords, tokens and login URLs never reach the log). Add `WHM_LOG_RESPONSES=true` to log WHM's redacted answers too, and set `log_levels` to choose the level per outcome. `WhmRequestSending`, `WhmResponseReceived` and `WhmRequestFailed` fire for every call, with secrets already masked.
 
 With spatie/laravel-health, add `WhmCheck::new()->failWhenTokenExpiresWithin(7)` to your checks.
 

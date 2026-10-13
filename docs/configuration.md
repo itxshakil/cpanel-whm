@@ -85,9 +85,13 @@ Used by `Whm::cache($ttl)`. Keys include the connection, the function and its pa
 
 ```php
 'log_channel' => env('WHM_LOG_CHANNEL'),
+'log_responses' => (bool) env('WHM_LOG_RESPONSES', false),
+'log_levels' => ['success' => 'info', 'command_failed' => 'warning', 'error' => 'warning'],
 ```
 
-When set, every call is logged to that channel at `info` (failures at `warning`) with the function, connection, duration and redacted parameters. Response bodies are not logged.
+When `log_channel` is set, every call is logged to that channel with the function, connection, duration and redacted parameters. The level depends on the outcome: `success`, `command_failed` (WHM or UAPI answered and said no) or `error` (an HTTP or connection error). Change them in `log_levels`, e.g. `debug` for successes and `error` for errors.
+
+With `WHM_LOG_RESPONSES=true` each entry also carries WHM's answer (the reason, warnings, data, or UAPI's errors), redacted the same way as the parameters. It's off by default because answers can be large and hold customer data.
 
 ## whm:doctor requirements
 

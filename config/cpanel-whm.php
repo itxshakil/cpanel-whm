@@ -66,9 +66,22 @@ return [
     | connection, duration, outcome). Parameters are redacted: passwords,
     | tokens and login URLs never reach the log.
     |
+    | log_responses adds WHM's answer to each entry (redacted the same way),
+    | which is where the reason, the warnings and UAPI's errors are. The
+    | levels apply to a success, to WHM or UAPI saying no, and to HTTP or
+    | connection errors.
+    |
     */
 
     'log_channel' => env('WHM_LOG_CHANNEL'),
+
+    'log_responses' => (bool) env('WHM_LOG_RESPONSES', false),
+
+    'log_levels' => [
+        'success' => 'info',
+        'command_failed' => 'warning',
+        'error' => 'warning',
+    ],
 
     /*
     |--------------------------------------------------------------------------
