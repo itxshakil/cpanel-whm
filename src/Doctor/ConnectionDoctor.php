@@ -119,7 +119,7 @@ final readonly class ConnectionDoctor
             return CheckResult::pass(self::DNS, "{$config->host} is an IP address, no lookup needed");
         }
 
-        $addresses = $this->probe->resolve($config->host);
+        $addresses = $this->probe->resolve($config->bareHost());
 
         if ($addresses === []) {
             return CheckResult::fail(self::DNS, "{$config->host} does not resolve", 'Check the spelling of WHM_HOST and that the name has an A record.');
@@ -131,7 +131,7 @@ final readonly class ConnectionDoctor
     private function network(ConnectionConfig $config): CheckResult
     {
         try {
-            $milliseconds = $this->probe->connect($config->host, $config->port, $config->connectTimeout);
+            $milliseconds = $this->probe->connect($config->bareHost(), $config->port, $config->connectTimeout);
         } catch (ProbeFailed $probeFailed) {
             return CheckResult::fail(
                 self::NETWORK,
@@ -150,7 +150,7 @@ final readonly class ConnectionDoctor
         }
 
         try {
-            $certificate = $this->probe->certificate($config->host, $config->port, $config->connectTimeout);
+            $certificate = $this->probe->certificate($config->bareHost(), $config->port, $config->connectTimeout);
         } catch (ProbeFailed $probeFailed) {
             return CheckResult::fail(self::TLS, "TLS handshake failed: {$probeFailed->getMessage()}", "Check that port {$config->port} serves WHM over HTTPS.");
         }

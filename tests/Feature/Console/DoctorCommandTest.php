@@ -39,6 +39,21 @@ final class DoctorCommandTest extends TestCase
     }
 
     #[Test]
+    public function an_ipv6_host_needs_no_lookup_and_is_probed_without_brackets(): void
+    {
+        config()->set('cpanel-whm.connections.main.host', 'https://[2001:db8::1]:2087');
+        Whm::purge();
+        $this->healthyServer();
+        $this->probe($probe = new FakeProbe);
+
+        $report = Whm::ping();
+
+        self::assertTrue($report->passed());
+        self::assertStringContainsString('is an IP address', (string) $report->check('DNS')?->message);
+        self::assertSame(['2001:db8::1', '2001:db8::1'], $probe->hosts);
+    }
+
+    #[Test]
     public function the_report_is_printed_and_the_exit_code_is_0(): void
     {
         $this->healthyServer();

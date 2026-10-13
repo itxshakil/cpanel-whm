@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `whm:doctor` works with an IPv6 host such as `https://[2001:db8::1]:2087`: the address is recognised as an IP, and the network and TLS probes use it without brackets. `ConnectionConfig::bareHost()` returns the host in that form.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

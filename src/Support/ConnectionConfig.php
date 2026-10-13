@@ -136,7 +136,18 @@ final readonly class ConnectionConfig
 
     public function isIpAddress(): bool
     {
-        return filter_var($this->host, FILTER_VALIDATE_IP) !== false;
+        return filter_var($this->bareHost(), FILTER_VALIDATE_IP) !== false;
+    }
+
+    /**
+     * The host without the brackets an IPv6 address carries in a URL
+     * ([2001:db8::1] becomes 2001:db8::1), for DNS lookups and TLS peer names.
+     */
+    public function bareHost(): string
+    {
+        return str_starts_with($this->host, '[') && str_ends_with($this->host, ']')
+            ? substr($this->host, 1, -1)
+            : $this->host;
     }
 
     /**

@@ -24,6 +24,14 @@ final class SocketProbe implements NetworkProbe
         return $addresses === false ? [] : $addresses;
     }
 
+    /**
+     * Stream URLs need an IPv6 address in brackets, unlike lookups and peer names.
+     */
+    public static function address(string $host, int $port): string
+    {
+        return filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false ? "[{$host}]:{$port}" : "{$host}:{$port}";
+    }
+
     public function connect(string $host, int $port, int $timeoutSeconds): float
     {
         $startedAt = hrtime(true);
@@ -31,7 +39,7 @@ final class SocketProbe implements NetworkProbe
         $errorMessage = '';
 
         $socket = $this->quietly(static function () use ($host, $port, $timeoutSeconds, &$errorCode, &$errorMessage): mixed {
-            return stream_socket_client("tcp://{$host}:{$port}", $errorCode, $errorMessage, $timeoutSeconds);
+            return stream_socket_client('tcp://'.self::address($host, $port), $errorCode, $errorMessage, $timeoutSeconds);
         });
 
         if (! is_resource($socket)) {
@@ -77,7 +85,7 @@ final class SocketProbe implements NetworkProbe
         $errorCode = 0;
         $errorMessage = '';
         $socket = $this->quietly(static function () use ($host, $port, $timeoutSeconds, $context, &$errorCode, &$errorMessage): mixed {
-            return stream_socket_client("ssl://{$host}:{$port}", $errorCode, $errorMessage, $timeoutSeconds, STREAM_CLIENT_CONNECT, $context);
+            return stream_socket_client('ssl://'.self::address($host, $port), $errorCode, $errorMessage, $timeoutSeconds, STREAM_CLIENT_CONNECT, $context);
         });
 
         if (! is_resource($socket)) {
