@@ -10,8 +10,11 @@ use Itxshakil\CpanelWhm\Data\NewAccount;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Enums\SearchType;
 use Itxshakil\CpanelWhm\Events\AccountCreated;
+use Itxshakil\CpanelWhm\Events\AccountRemoved;
+use Itxshakil\CpanelWhm\Exceptions\AccountNotFound;
 use Itxshakil\CpanelWhm\Exceptions\InvalidUsername;
 use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
+use Itxshakil\CpanelWhm\Exceptions\WhmConnectionFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
 use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Modules\Accounts;
@@ -19,6 +22,7 @@ use Itxshakil\CpanelWhm\Support\Filter;
 use Itxshakil\CpanelWhm\Tests\Fixtures\Responses;
 use Itxshakil\CpanelWhm\Tests\TestCase;
 use Itxshakil\CpanelWhm\WhmRequest;
+use Itxshakil\CpanelWhm\WhmResponse;
 use PHPUnit\Framework\Attributes\Test;
 
 final class AccountsTest extends TestCase
@@ -55,6 +59,53 @@ final class AccountsTest extends TestCase
                 'password' => 'S3cure!pass',
                 'contactemail' => 'ops@acme.example',
             ]);
+    }
+
+    #[Test]
+    public function create_or_recover_returns_an_account_whm_made_before_the_timeout(): void
+    {
+        Event::fake([AccountCreated::class]);
+        $fake = Whm::fake([
+            'createacct' => Whm::connectionError('cURL error 28: Operation timed out after 120000 milliseconds with 0 bytes received'),
+            'accountsummary' => Whm::response(['acct' => [Responses::account(['user' => 'acme', 'domain' => 'acme.example'])]]),
+        ]);
+
+        $account = Whm::accounts()->createOrRecover(new NewAccount(username: 'acme', domain: 'Acme.Example'));
+
+        self::assertTrue($account->recovered);
+        self::assertSame('acme', $account->username);
+        self::assertSame('acme.example', $account->domain);
+
+        // The password handed back is the one createacct was sent.
+        $sent = $fake->recorded('createacct')[0]->params['password'] ?? null;
+        self::assertIsString($sent);
+        self::assertSame($sent, $account->password);
+
+        Event::assertDispatched(AccountCreated::class, static fn (AccountCreated $event): bool => $event->account->recovered && $event->account->password === null);
+    }
+
+    #[Test]
+    public function create_or_recover_rethrows_when_retrying_is_safe_or_the_name_is_someone_elses(): void
+    {
+        $timedOut = Whm::connectionError('cURL error 28: Operation timed out after 120000 milliseconds with 0 bytes received');
+
+        $cases = [
+            'never reached WHM' => [Whm::connectionError('cURL error 7: Failed to connect'), Whm::response(['acct' => [Responses::account(['user' => 'acme', 'domain' => 'acme.example'])]])],
+            'nothing was created' => [$timedOut, Whm::accountNotFound('acme')],
+            'another domain owns the name' => [$timedOut, Whm::response(['acct' => [Responses::account(['user' => 'acme', 'domain' => 'other.example'])]])],
+        ];
+
+        foreach ($cases as $case => [$createacct, $accountsummary]) {
+            Event::fake([AccountCreated::class]);
+            Whm::fake(['createacct' => $createacct, 'accountsummary' => $accountsummary]);
+
+            try {
+                Whm::accounts()->createOrRecover(new NewAccount(username: 'acme', domain: 'acme.example'));
+                self::fail("Expected WhmConnectionFailed: {$case}");
+            } catch (WhmConnectionFailed) {
+                Event::assertNotDispatched(AccountCreated::class);
+            }
+        }
     }
 
     #[Test]
@@ -262,6 +313,43 @@ final class AccountsTest extends TestCase
     }
 
     #[Test]
+    public function a_missing_account_throws_account_not_found_however_whm_words_it(): void
+    {
+        $reasons = [
+            'You do not have a user named "ghost".',
+            'Account does not exist.',
+            'The user ghost does not exist.',
+            'No such user: ghost',
+        ];
+
+        foreach ($reasons as $reason) {
+            Whm::fake(['suspendacct' => Whm::failure($reason)]);
+
+            try {
+                Whm::suspensions()->suspend('ghost');
+                self::fail("Expected AccountNotFound for: {$reason}");
+            } catch (AccountNotFound $accountNotFound) {
+                self::assertSame('suspendacct', $accountNotFound->function());
+                self::assertSame($reason, $accountNotFound->reason());
+                self::assertStringContainsString('find()', $accountNotFound->hint());
+            }
+        }
+
+        Whm::fake(['accountsummary' => Whm::accountNotFound('ghost')]);
+        self::assertNull(Whm::accounts()->find('ghost'));
+    }
+
+    #[Test]
+    public function other_missing_things_are_not_mistaken_for_a_missing_account(): void
+    {
+        foreach (['The package "gold" does not exist.', 'The domain does not exist.', 'You do not have permission to do that.'] as $reason) {
+            $exception = WhmCommandFailed::classify('changepackage', WhmResponse::fromArray(['metadata' => ['result' => 0, 'reason' => $reason]]));
+
+            self::assertNotInstanceOf(AccountNotFound::class, $exception, $reason);
+        }
+    }
+
+    #[Test]
     public function username_availability_checks_local_rules_then_whm(): void
     {
         $fake = Whm::fake(['verify_new_username' => Whm::sequence(Whm::response(), Whm::failure('This username is taken.'))]);
@@ -309,6 +397,25 @@ final class AccountsTest extends TestCase
             ->assertCalled('passwd', static fn (array $p, WhmRequest $r): bool => $p['db_pass_update'] === 1 && $r->method === HttpMethod::Post)
             ->assertCalled('changepackage', static fn (array $p): bool => $p === ['user' => 'acme', 'pkg' => 'pro'])
             ->assertCalled('modifyacct', static fn (array $p): bool => $p === ['user' => 'acme', 'CONTACTEMAIL' => 'new@acme.example']);
+    }
+
+    #[Test]
+    public function remove_if_exists_treats_an_already_removed_account_as_done(): void
+    {
+        Event::fake([AccountRemoved::class]);
+        $fake = Whm::fake(['removeacct' => Whm::sequence(Whm::response(), Whm::accountNotFound('acme'), Whm::failure('Disk quota exceeded.'))]);
+
+        self::assertTrue(Whm::accounts()->removeIfExists('acme', keepDns: true));
+        self::assertFalse(Whm::accounts()->removeIfExists('acme'));
+
+        Event::assertDispatchedTimes(AccountRemoved::class, 1);
+        $fake->assertCalled('removeacct', static fn (array $p): bool => $p === ['user' => 'acme', 'keepdns' => 1]);
+
+        // Any other failure still throws.
+        $this->expectException(WhmCommandFailed::class);
+        $this->expectExceptionMessage('Disk quota exceeded.');
+
+        Whm::accounts()->removeIfExists('acme');
     }
 
     #[Test]
