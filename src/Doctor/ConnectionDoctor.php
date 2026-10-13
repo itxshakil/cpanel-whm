@@ -8,7 +8,9 @@ use Illuminate\Contracts\Config\Repository;
 use Itxshakil\CpanelWhm\Contracts\WhmClient;
 use Itxshakil\CpanelWhm\Enums\CheckStatus;
 use Itxshakil\CpanelWhm\Exceptions\InvalidConfiguration;
+use Itxshakil\CpanelWhm\Exceptions\WhmAuthenticationFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
 use Itxshakil\CpanelWhm\Support\ConnectionConfig;
 use Itxshakil\CpanelWhm\WhmManager;
 
@@ -27,6 +29,8 @@ final readonly class ConnectionDoctor
 
     public const string TLS = 'TLS';
 
+    public const string API = 'API';
+
     public const string AUTH = 'Auth';
 
     public const string PRIVILEGES = 'Privileges';
@@ -41,7 +45,7 @@ final readonly class ConnectionDoctor
      * @var list<string>
      */
     public const array ORDER = [
-        self::CONFIG, self::DNS, self::NETWORK, self::TLS, self::AUTH,
+        self::CONFIG, self::DNS, self::NETWORK, self::TLS, self::API, self::AUTH,
         self::PRIVILEGES, self::FUNCTIONS, self::VERSION, self::LATENCY,
     ];
 
@@ -88,17 +92,21 @@ final readonly class ConnectionDoctor
 
         try {
             $version = $client->server()->version();
+        } catch (WhmAuthenticationFailed|WhmPermissionDenied $whmException) {
+            // WHM answered and refused the token: the API itself is fine.
+            $results[] = CheckResult::pass(self::API, 'WHM answered');
+            $results[] = CheckResult::fail(self::AUTH, $whmException->getMessage(), $whmException->hint());
+
+            return $this->finish($connection, $target, $results);
         } catch (WhmException $whmException) {
-            $results[] = CheckResult::fail(
-                self::AUTH,
-                $whmException->getMessage(),
-                $whmException->hint(),
-            );
+            // A timeout, an HTTP 5xx or a proxy's HTML page says nothing about the token.
+            $results[] = CheckResult::fail(self::API, $whmException->getMessage(), $whmException->hint());
 
             return $this->finish($connection, $target, $results);
         }
 
         $latencyMs = (hrtime(true) - $startedAt) / 1_000_000;
+        $results[] = CheckResult::pass(self::API, 'WHM answered');
         $results[] = CheckResult::pass(self::AUTH, "token accepted for {$config->user}");
 
         foreach ([$this->privileges($client), $this->functions($client)] as $result) {
@@ -152,12 +160,27 @@ final readonly class ConnectionDoctor
         }
 
         try {
-            $certificate = $this->probe->certificate($config->host, $config->port, $config->connectTimeout);
+            $certificate = $this->probe->certificate($config->host, $config->port, $config->connectTimeout, $config->verifyTls ? $config->caBundle : null);
         } catch (ProbeFailed $probeFailed) {
             return CheckResult::fail(self::TLS, "TLS handshake failed: {$probeFailed->getMessage()}", "Check that port {$config->port} serves WHM over HTTPS.");
         }
 
         $expiry = $certificate->validTo?->format('Y-m-d');
+        $pinHint = $certificate->publicKeyPin !== null ? " Its public key pin is {$certificate->publicKeyPin}." : '';
+
+        if ($config->pinnedPublicKey !== null && $certificate->publicKeyPin !== null) {
+            if (! in_array($certificate->publicKeyPin, explode(';', $config->pinnedPublicKey), true)) {
+                return CheckResult::fail(
+                    self::TLS,
+                    "the certificate's public key doesn't match WHM_PINNED_PUBLIC_KEY",
+                    "The server's key changed, or something is intercepting the connection.{$pinHint} Update the pin only once you know why.",
+                );
+            }
+
+            if (! $certificate->trusted) {
+                return CheckResult::pass(self::TLS, 'certificate not trusted by a CA, but its public key matches the pin');
+            }
+        }
 
         if (! $certificate->trusted) {
             $why = $certificate->error ?? 'the certificate is not trusted';
@@ -166,9 +189,9 @@ final readonly class ConnectionDoctor
                 ? CheckResult::fail(
                     self::TLS,
                     "certificate not trusted: {$why}",
-                    "Install a valid certificate for {$config->host} (AutoSSL covers the server hostname), or set WHM_VERIFY_TLS=false if you connect by IP and accept the risk.",
+                    "Install a valid certificate for {$config->host} (AutoSSL covers the server hostname), set WHM_CA_BUNDLE to the CA that signed it, or set WHM_VERIFY_TLS=false and pin its key with WHM_PINNED_PUBLIC_KEY if you connect by IP.{$pinHint}",
                 )
-                : CheckResult::warn(self::TLS, 'certificate not trusted; verification is off (WHM_VERIFY_TLS=false)', 'Prefer a hostname with a valid certificate so the token cannot be intercepted.');
+                : CheckResult::warn(self::TLS, 'certificate not trusted; verification is off (WHM_VERIFY_TLS=false)', "Pin the certificate's key with WHM_PINNED_PUBLIC_KEY so the token cannot be intercepted.{$pinHint}");
         }
 
         if ($certificate->validTo !== null && $certificate->validTo->lessThan(now()->addDays(self::CERTIFICATE_WARNING_DAYS))) {
