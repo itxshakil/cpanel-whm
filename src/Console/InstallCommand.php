@@ -82,6 +82,13 @@ final class InstallCommand extends Command
         ]);
         $whm->purge();
 
+        // The doctor below checks the values set in memory a few lines up. A
+        // cached config would keep the app, its queue workers and scheduler on
+        // the old ones, so a passing check would be misleading without this.
+        if ($this->laravel->configurationIsCached()) {
+            $this->components->warn('The configuration is cached, so the app will not see the new WHM settings yet. Run php artisan config:clear (or config:cache again) after this.');
+        }
+
         if ($this->option('no-doctor') === true) {
             return self::SUCCESS;
         }
