@@ -56,6 +56,19 @@ final class WhmClient implements WhmClientContract
     private const array NEVER_CACHED = ['verify_new_username'];
 
     /**
+     * Functions that routinely outlast the default timeout: createacct sets up
+     * DNS, mail and DKIM, and terminatereseller removes every account a reseller
+     * owns. A call that times out may still be running on the server, so every
+     * path gets these floors, not just the modules.
+     *
+     * @var array<string, int>
+     */
+    public const array MINIMUM_TIMEOUTS = [
+        'createacct' => 120,
+        'terminatereseller' => 600,
+    ];
+
+    /**
      * @var array<class-string, object>
      */
     private array $modules = [];
@@ -80,6 +93,11 @@ final class WhmClient implements WhmClientContract
         $params = Params::normalise($params);
         $method = HttpMethod::for($function, $params, $method);
         $readOnly = FunctionCatalog::isReadOnly($function);
+
+        // An explicit $timeout is the caller's choice and wins.
+        if ($timeout === null && isset(self::MINIMUM_TIMEOUTS[$function])) {
+            $timeout = max(self::MINIMUM_TIMEOUTS[$function], $this->config->timeout);
+        }
 
         if ($readOnly && $this->cacheTtl !== null && $this->cache instanceof CacheFactory && ! in_array($function, self::NEVER_CACHED, true)) {
             // The server and user are part of the key, so two apps or tenants that

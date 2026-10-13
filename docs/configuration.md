@@ -25,7 +25,7 @@ Publish the config with `php artisan vendor:publish --tag=cpanel-whm-config` (or
 | `user` | The user the token belongs to: `root` or a reseller. |
 | `token` | A WHM API token. Passwords and the access hash (deprecated in cPanel & WHM 64) are not supported. |
 | `verify_tls` | Keep `true`. Set `false` only for a server reached by IP with a self-signed certificate; `whm:doctor` warns about it. |
-| `timeout` | Seconds per call. `createacct` always gets at least 120 seconds, because it sets up DNS, mail and DKIM. |
+| `timeout` | Seconds per call. Without an explicit timeout, `createacct` gets at least 120 seconds (it sets up DNS, mail and DKIM) and `terminatereseller` at least 600, through the modules, `Whm::call()`, `Whm::api()` and `whm:call` alike. |
 | `connect_timeout` | Seconds to open the connection. |
 
 Add more servers as more entries and pick one with `Whm::connection('name')` or `--connection=name`.

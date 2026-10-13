@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `createacct` (120 s) and `terminatereseller` (600 s) get their minimum timeouts on every path, including `Whm::call()`, `Whm::api()` and `whm:call`, not just through the modules. An explicit timeout still wins (`WhmClient::MINIMUM_TIMEOUTS`).
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
