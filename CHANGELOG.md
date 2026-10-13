@@ -37,6 +37,7 @@ All notable changes to this project are documented here. The format follows
 - The Release workflow runs the full CI (lint, PHPStan, Composer validation and the test matrix) on the tagged commit before validating the install.
 - Cache keys sort the parameters, so the same read with its parameters in another order hits the same cache entry.
 - HTTP error messages take WHM's reason from `data.reason` when `metadata.reason` is empty, as `WhmResponse::reason()` does.
+- Docs: the README has a "Retries" section naming the default (two retries for read-only calls), the worst-case wait, `WHM_RETRY_TIMES=0` and `withoutRetries()`.
 
 ### Fixed
 - `whm:record` prints a replay hint with the path relative to the project root, so it can be committed.
