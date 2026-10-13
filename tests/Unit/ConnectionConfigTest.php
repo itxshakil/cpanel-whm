@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace Itxshakil\CpanelWhm\Tests\Unit;
 
+use DateTimeImmutable;
 use Itxshakil\CpanelWhm\Exceptions\InvalidConfiguration;
 use Itxshakil\CpanelWhm\Support\ConnectionConfig;
+use LogicException;
+use Monolog\Formatter\NormalizerFormatter;
+use Monolog\Level;
+use Monolog\LogRecord;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -133,6 +138,30 @@ final class ConnectionConfigTest extends TestCase
         $this->expectExceptionMessage('wrong format');
 
         ConnectionConfig::fromArray('main', ['host' => '203.0.113.5', 'token' => 'abc', 'pinned_public_key' => 'AB:CD:EF']);
+    }
+
+    #[Test]
+    public function the_token_stays_out_of_json_and_log_context(): void
+    {
+        $config = ConnectionConfig::fromArray('main', ['host' => 'server.example.com', 'token' => 'SECRET-TOKEN']);
+
+        $json = json_encode($config, JSON_THROW_ON_ERROR);
+        $logged = json_encode((new NormalizerFormatter)->format(new LogRecord(new DateTimeImmutable, 'app', Level::Info, 'whm', ['config' => $config])), JSON_THROW_ON_ERROR);
+
+        self::assertStringNotContainsString('SECRET-TOKEN', $json);
+        self::assertStringContainsString('server.example.com', $json);
+        self::assertStringNotContainsString('SECRET-TOKEN', $logged);
+    }
+
+    #[Test]
+    public function a_connection_refuses_to_be_serialized(): void
+    {
+        $config = ConnectionConfig::fromArray('main', ['host' => 'server.example.com', 'token' => 'SECRET-TOKEN']);
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('Whm::connection($name)');
+
+        serialize($config);
     }
 
     #[Test]

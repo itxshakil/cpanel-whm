@@ -6,12 +6,18 @@ namespace Itxshakil\CpanelWhm\Support;
 
 use DateTimeZone;
 use Itxshakil\CpanelWhm\Exceptions\InvalidConfiguration;
+use JsonSerializable;
+use LogicException;
 use SensitiveParameter;
 
 /**
  * One validated WHM connection. Built from config/cpanel-whm.php.
+ *
+ * The token is public for the transport, so every way of turning this into
+ * text has to leave it out: dumps (__debugInfo), JSON and log context
+ * (jsonSerialize) and serialize(), which refuses.
  */
-final readonly class ConnectionConfig
+final readonly class ConnectionConfig implements JsonSerializable
 {
     /**
      * Ports that serve cPanel or Webmail. WHM API 1 cannot be called on them.
@@ -67,6 +73,31 @@ final readonly class ConnectionConfig
             'timezone' => $this->timezone,
             'allowInsecureHttp' => $this->allowInsecureHttp,
         ];
+    }
+
+    /**
+     * Monolog and json_encode() use this, so a config in log context or a
+     * JSON response never carries the token.
+     *
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return $this->__debugInfo();
+    }
+
+    /**
+     * A serialized connection would put the token into a queue payload, a cache
+     * entry or a session. Jobs should keep the connection name and resolve it
+     * with Whm::connection($name) when they run.
+     *
+     * @return array<string, mixed>
+     *
+     * @throws LogicException
+     */
+    public function __serialize(): array
+    {
+        throw new LogicException("WHM connection [{$this->name}] holds an API token and can't be serialized. Store the connection name and call Whm::connection(\$name) where it is needed.");
     }
 
     /**

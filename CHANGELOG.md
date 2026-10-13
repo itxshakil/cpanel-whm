@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Security
+- `ConnectionConfig` leaves the API token out of `json_encode()` and log context, and refuses `serialize()`, so the token can't reach logs, queue payloads, the cache or the session.
+
 ### Fixed
 - The path labeler and the PR-title autolabeler run one after the other in one job, one run per PR at a time. As separate workflows they raced, and the path labeler could drop the `type: …` label, so release-drafter filed the PR under the wrong section.
 
