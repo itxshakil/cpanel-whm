@@ -35,6 +35,15 @@ final class ParamsTest extends TestCase
     }
 
     #[Test]
+    public function nulls_in_a_list_leave_no_gap_in_the_numbering(): void
+    {
+        self::assertSame(
+            ['zone' => 'a.test', 'zone-1' => 'c.test', 'user' => 'acme'],
+            Params::normalise(['zone' => [null, 'a.test', null, 'c.test'], 'user' => 'acme']),
+        );
+    }
+
+    #[Test]
     public function empty_lists_are_not_sent(): void
     {
         self::assertSame(['user' => 'acme'], Params::normalise(['remove' => [], 'user' => 'acme']));
