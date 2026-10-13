@@ -55,6 +55,7 @@ All notable changes to this project are documented here. The format follows
 - `DnsRecord::txt()` splits long text into strings of at most 255 bytes, the DNS limit, instead of 255 characters, and never cuts a multibyte character in half.
 - `Ssl::install()` throws `WhmCommandFailed` with `statusmsg` when `installssl` reports `data.status = 0`, instead of returning a normal-looking result.
 - Job status polls (`get_pkgacct_session_state`, `get_transfer_session_state`, `restore_queue_state`) are never cached, so `backupStatus()`, `transfers()->state()` and `backups()->queue()` on a `Whm::cache()` client see the job finish.
+- `Passwords::generate()` throws `InvalidArgumentException` below `Passwords::MIN_LENGTH` (12) instead of quietly returning a 4-character password.
 
 ## [0.3.0] - 2026-10-08
 
