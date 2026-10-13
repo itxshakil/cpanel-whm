@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `Whm::dns()->nameservers()` (get_nameserver_config) and `Whm::server()->accountLimits()` (get_current_users_count and get_maximum_users), returning `AccountLimits` with `remaining()` and `isFull()`.
+- `Whm::asUser($user)->subdomains()` (list, add, delete, with `Subdomain` objects) and `->backups()` (the account's backup dates, and a full backup into its home directory).
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
