@@ -93,10 +93,13 @@ final class InstallCommand extends Command
 
         foreach ($values as $key => $value) {
             $line = $key.'='.$this->quote($value);
-            $pattern = '/^'.preg_quote($key, '/').'=.*$/m';
+
+            // phpdotenv also reads "export KEY=" and "KEY = value"; missing those
+            // would append a second line that the first one silently overrides.
+            $pattern = '/^([ \t]*(?:export[ \t]+)?)'.preg_quote($key, '/').'[ \t]*=.*$/m';
 
             $contents = preg_match($pattern, $contents) === 1
-                ? (string) preg_replace($pattern, str_replace(['\\', '$'], ['\\\\', '\\$'], $line), $contents)
+                ? (string) preg_replace_callback($pattern, static fn (array $match): string => $match[1].$line, $contents, 1)
                 : rtrim($contents, "\n").($contents === '' ? '' : "\n").$line."\n";
         }
 

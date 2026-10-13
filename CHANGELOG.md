@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `whm:install` replaces existing `.env` lines written as `export KEY=…` or `KEY = …` instead of appending a second line that the first one overrides.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
