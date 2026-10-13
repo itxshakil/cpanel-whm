@@ -49,6 +49,50 @@ final class GeneratedApiTest extends TestCase
     }
 
     #[Test]
+    public function json_parameters_take_arrays_and_send_one_json_string_per_item(): void
+    {
+        $fake = Whm::fake(['mass_edit_dns_zone' => Whm::response(['new_serial' => 2])]);
+
+        Whm::api()->dns()->massEditDnsZone(
+            serial: 1,
+            zone: 'acme.test',
+            add: [['dname' => 'www', 'ttl' => 300, 'record_type' => 'A', 'data' => ['203.0.113.9']], '{"dname":"mail"}'],
+        );
+
+        $fake->assertCalled('mass_edit_dns_zone', static fn (array $p): bool => $p['add'] === '{"dname":"www","ttl":300,"record_type":"A","data":["203.0.113.9"]}'
+            && $p['add-1'] === '{"dname":"mail"}');
+    }
+
+    #[Test]
+    public function slow_functions_get_their_long_timeout_on_every_path(): void
+    {
+        $fake = Whm::fake(['*' => Whm::response()]);
+
+        Whm::call('createacct', ['username' => 'acme', 'domain' => 'acme.test']);
+        Whm::api()->accounts()->createacct(username: 'acme', domain: 'acme.test');
+        Whm::call('terminatereseller', ['user' => 'res1']);
+        Whm::call('createacct', ['username' => 'acme'], timeout: 45);
+
+        $timeouts = array_map(static fn (WhmRequest $request): ?int => $request->timeout, $fake->recorded());
+
+        // An explicit timeout is the caller's choice and wins.
+        self::assertSame([120, 120, 600, 45], $timeouts);
+    }
+
+    #[Test]
+    public function extra_adds_parameters_but_never_replaces_a_typed_argument(): void
+    {
+        $fake = Whm::fake(['createacct' => Whm::response(), 'uapi_cpanel' => Whm::uapi([])]);
+
+        Whm::api()->accounts()->createacct(username: 'acme', domain: 'acme.test', extra: ['username' => 'other', 'plan' => 'gold']);
+        Whm::asUser('acme')->api()->email()->listPops(regex: 'info', extra: ['regex' => 'sales', 'skip_main' => 1]);
+
+        // A typed argument that was given wins; one left as null can still come from extra.
+        $fake->assertCalled('createacct', static fn (array $p): bool => $p['username'] === 'acme' && $p['plan'] === 'gold')
+            ->assertCalled('uapi_cpanel', static fn (array $p): bool => $p['regex'] === 'info' && $p['skip_main'] === 1);
+    }
+
+    #[Test]
     public function uapi_functions_run_as_the_account(): void
     {
         $fake = Whm::fake(['uapi_cpanel' => Whm::sequence(Whm::uapi([['email' => 'info@acme.test']]), Whm::uapiFailure('The account does not exist.'))]);

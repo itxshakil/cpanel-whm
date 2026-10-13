@@ -95,11 +95,55 @@ final class ConnectionConfigTest extends TestCase
     }
 
     #[Test]
+    public function a_ca_bundle_and_a_pinned_key_are_read_and_survive_copies(): void
+    {
+        $pin = 'sha256//'.base64_encode(str_repeat('k', 32));
+        $config = ConnectionConfig::fromArray('main', ['host' => 'server.example.com', 'token' => 'abc', 'ca_bundle' => __FILE__, 'pinned_public_key' => "{$pin};{$pin}"]);
+
+        self::assertSame(__FILE__, $config->caBundle);
+        self::assertSame("{$pin};{$pin}", $config->pinnedPublicKey);
+        self::assertSame(__FILE__, $config->withoutRetries()->caBundle);
+        self::assertSame("{$pin};{$pin}", $config->withoutRetryDelay()->pinnedPublicKey);
+    }
+
+    #[Test]
+    public function a_missing_ca_bundle_is_refused(): void
+    {
+        $this->expectException(InvalidConfiguration::class);
+        $this->expectExceptionMessage("doesn't exist");
+
+        ConnectionConfig::fromArray('main', ['host' => 'server.example.com', 'token' => 'abc', 'ca_bundle' => '/nowhere/ca.pem']);
+    }
+
+    #[Test]
+    public function a_pin_in_the_wrong_format_is_refused(): void
+    {
+        $this->expectException(InvalidConfiguration::class);
+        $this->expectExceptionMessage('wrong format');
+
+        ConnectionConfig::fromArray('main', ['host' => '203.0.113.5', 'token' => 'abc', 'pinned_public_key' => 'AB:CD:EF']);
+    }
+
+    #[Test]
     public function timeouts_are_at_least_one_second(): void
     {
         $config = ConnectionConfig::fromArray('main', ['host' => 'server.example.com', 'token' => 'abc', 'timeout' => 0, 'connect_timeout' => '5']);
 
         self::assertSame(1, $config->timeout);
         self::assertSame(5, $config->connectTimeout);
+    }
+
+    #[Test]
+    public function a_timezone_is_optional_validated_and_kept_by_copies(): void
+    {
+        self::assertNull(ConnectionConfig::fromArray('main', ['host' => 'server.example.com', 'token' => 'abc'])->timezone);
+
+        $config = ConnectionConfig::fromArray('main', ['host' => 'server.example.com', 'token' => 'abc', 'timezone' => 'America/Toronto']);
+        self::assertSame('America/Toronto', $config->withoutRetries()->withoutRetryDelay()->timezone);
+
+        $this->expectException(InvalidConfiguration::class);
+        $this->expectExceptionMessage('unknown timezone [Mars/Olympus]');
+
+        ConnectionConfig::fromArray('main', ['host' => 'server.example.com', 'token' => 'abc', 'timezone' => 'Mars/Olympus']);
     }
 }
