@@ -126,12 +126,20 @@ final class CpanelWhmServiceProvider extends ServiceProvider
 
     private function registerLogging(): void
     {
-        $channel = $this->app->make(Repository::class)->get('cpanel-whm.log_channel');
+        $config = $this->app->make(Repository::class);
+        $channel = $config->get('cpanel-whm.log_channel');
 
         if (! is_string($channel) || $channel === '') {
             return;
         }
 
-        (new RequestLogger($this->app->make(LogManager::class), $channel))->subscribe($this->app->make(Dispatcher::class));
+        $levels = $config->get('cpanel-whm.log_levels');
+
+        (new RequestLogger(
+            $this->app->make(LogManager::class),
+            $channel,
+            (bool) $config->get('cpanel-whm.log_responses', false),
+            is_array($levels) ? $levels : [],
+        ))->subscribe($this->app->make(Dispatcher::class));
     }
 }

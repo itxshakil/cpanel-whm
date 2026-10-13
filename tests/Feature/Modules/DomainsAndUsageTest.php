@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Itxshakil\CpanelWhm\Tests\Feature\Modules;
 
+use InvalidArgumentException;
+use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
 use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
@@ -47,6 +49,16 @@ final class DomainsAndUsageTest extends TestCase
     }
 
     #[Test]
+    public function a_token_without_the_privilege_is_not_read_as_an_unowned_domain(): void
+    {
+        Whm::fake(['getdomainowner' => Whm::failure('Permission denied: you do not have access to getdomainowner.')]);
+
+        $this->expectException(WhmPermissionDenied::class);
+
+        Whm::domains()->owner('acme.test');
+    }
+
+    #[Test]
     public function subdomains_and_aliases_are_created_and_deleted(): void
     {
         $fake = Whm::fake([
@@ -65,6 +77,21 @@ final class DomainsAndUsageTest extends TestCase
             ->assertCalled('create_parked_domain_for_user', static fn (array $p): bool => $p === ['username' => 'acme', 'domain' => 'acme.store', 'web_vhost_domain' => 'acme.test'])
             ->assertCalled('create_parked_domain_for_user', static fn (array $p): bool => $p['web_vhost_domain'] === 'blog.acme.test')
             ->assertCalledTimes('accountsummary', 1);
+    }
+
+    #[Test]
+    public function an_alias_for_a_missing_account_is_refused_with_a_clear_error(): void
+    {
+        $fake = Whm::fake(['accountsummary' => Whm::failure('Account does not exist.')]);
+
+        try {
+            Whm::domains()->createAlias('ghost', 'ghost.store');
+            self::fail('Expected InvalidArgumentException');
+        } catch (InvalidArgumentException $invalidArgumentException) {
+            self::assertStringContainsString('no cPanel account [ghost]', $invalidArgumentException->getMessage());
+        }
+
+        $fake->assertNotCalled('create_parked_domain_for_user');
     }
 
     #[Test]
@@ -115,6 +142,29 @@ final class DomainsAndUsageTest extends TestCase
     }
 
     #[Test]
+    public function accounts_and_domains_deleted_this_month_are_left_out(): void
+    {
+        // acme was removed and created again this month; shop.acme.test too.
+        Whm::fake(['showbw' => Whm::response(['acct' => [
+            ['user' => 'acme', 'totalbytes' => 10, 'limit' => 100, 'bwusage' => [
+                ['domain' => 'acme.test', 'usage' => 10, 'deleted' => 0],
+                ['domain' => 'shop.acme.test', 'usage' => 4, 'deleted' => 0],
+                ['domain' => 'shop.acme.test', 'usage' => 900, 'deleted' => 1],
+            ]],
+            ['user' => 'acme', 'totalbytes' => 900, 'limit' => 100, 'deleted' => 1],
+        ]]), 'get_disk_usage' => Whm::response(['accounts' => []])]);
+
+        self::assertSame(10, Whm::usage()->bandwidthFor('acme')?->usedBytes);
+        self::assertSame(['acme.test' => 10, 'shop.acme.test' => 4], Whm::usage()->bandwidthFor('acme')?->byDomain);
+        self::assertCount(1, Whm::usage()->bandwidth());
+        self::assertSame(10, Whm::usage()->all()->sole()->bandwidth?->usedBytes);
+
+        $all = Whm::usage()->bandwidth(includeDeleted: true);
+        self::assertCount(2, $all);
+        self::assertTrue($all[1]->deleted);
+    }
+
+    #[Test]
     public function account_usage_combines_disk_and_bandwidth(): void
     {
         Whm::fake([
@@ -138,6 +188,8 @@ final class DomainsAndUsageTest extends TestCase
             'servicestatus' => Whm::response(['service' => [
                 ['name' => 'httpd', 'display_name' => 'Apache', 'enabled' => 1, 'installed' => 1, 'running' => 1, 'monitored' => 1],
                 ['name' => 'exim', 'enabled' => 1, 'installed' => 1, 'running' => 0, 'monitored' => 1],
+                // cPanel leaves "running" out for services it doesn't monitor.
+                ['name' => 'cpdavd', 'enabled' => 1, 'installed' => 1, 'monitored' => 0],
             ]]),
             'restartservice' => Whm::response(['service' => 'exim']),
             'getdiskusage' => Whm::response(['partition' => [
@@ -153,6 +205,8 @@ final class DomainsAndUsageTest extends TestCase
         self::assertSame('exim', $services[1]->displayName);
         self::assertTrue($services[1]->isDown());
         self::assertFalse($services[0]->isDown());
+        self::assertNull($services[2]->running);
+        self::assertFalse($services[2]->isDown());
 
         Whm::server()->restartService('exim', queue: true);
 
@@ -188,5 +242,20 @@ final class DomainsAndUsageTest extends TestCase
 
         self::assertSame(['calm', 'acme'], Whm::usage()->nearLimit(90)->map(static fn ($usage) => $usage->user)->all());
         $fake->assertCalledTimes('get_disk_usage', 2)->assertCalledTimes('showbw', 2);
+    }
+
+    #[Test]
+    public function an_unlimited_account_is_never_near_its_limit_even_at_zero_percent(): void
+    {
+        Whm::fake([
+            'get_disk_usage' => Whm::response(['accounts' => [
+                ['user' => 'free', 'blocks_used' => 5000, 'blocks_limit' => 0],
+                ['user' => 'tiny', 'blocks_used' => 0, 'blocks_limit' => 1000],
+            ]]),
+            'showbw' => Whm::response(['acct' => []]),
+        ]);
+
+        // A limited account at 0% is "at or above 0%"; an unlimited one has no share at all.
+        self::assertSame(['tiny'], Whm::usage()->nearLimit(0)->map(static fn ($usage) => $usage->user)->all());
     }
 }

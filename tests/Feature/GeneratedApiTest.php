@@ -34,6 +34,27 @@ final class GeneratedApiTest extends TestCase
     }
 
     #[Test]
+    public function one_method_can_be_forced_for_every_call_but_secrets_stay_post(): void
+    {
+        $fake = Whm::fake(['*' => Whm::response()]);
+
+        Whm::withHttpMethod(HttpMethod::Post)->api()->dns()->parseDnsZone(zone: 'example.com');
+        Whm::withHttpMethod(HttpMethod::Get)->withoutRetries()->suspensions()->suspend('acme');
+        Whm::withHttpMethod(HttpMethod::Get)->accounts()->changePassword('acme', 'hunter2');
+        Whm::withHttpMethod(HttpMethod::Post)->timeout(5)->api()->dns()->parseDnsZone(zone: 'example.net');
+        Whm::api()->dns()->parseDnsZone(zone: 'example.org');
+
+        $method = static fn (string $function, array $match): ?HttpMethod => collect($fake->recorded($function))
+            ->first(static fn (WhmRequest $r): bool => array_intersect_assoc($match, $r->params) === $match)?->method;
+
+        self::assertSame(HttpMethod::Post, $method('parse_dns_zone', ['zone' => 'example.com']));
+        self::assertSame(HttpMethod::Get, $method('suspendacct', ['user' => 'acme']));
+        self::assertSame(HttpMethod::Post, $method('passwd', ['user' => 'acme']));
+        self::assertSame(HttpMethod::Get, $method('parse_dns_zone', ['zone' => 'example.org']));
+        self::assertSame(HttpMethod::Post, $method('parse_dns_zone', ['zone' => 'example.net']));
+    }
+
+    #[Test]
     public function changes_are_sent_as_post_with_flags_lists_and_extras(): void
     {
         $fake = Whm::fake(['*' => Whm::response()]);
@@ -46,6 +67,50 @@ final class GeneratedApiTest extends TestCase
             && $r->method === HttpMethod::Post)
             ->assertCalled('export_zone_files', static fn (array $p): bool => $p === ['zone' => 'a.test', 'zone-1' => 'b.test'])
             ->assertCalled('createacct', static fn (array $p): bool => $p == ['username' => 'acme', 'domain' => 'acme.test', 'customip' => '203.0.113.5']);
+    }
+
+    #[Test]
+    public function json_parameters_take_arrays_and_send_one_json_string_per_item(): void
+    {
+        $fake = Whm::fake(['mass_edit_dns_zone' => Whm::response(['new_serial' => 2])]);
+
+        Whm::api()->dns()->massEditDnsZone(
+            serial: 1,
+            zone: 'acme.test',
+            add: [['dname' => 'www', 'ttl' => 300, 'record_type' => 'A', 'data' => ['203.0.113.9']], '{"dname":"mail"}'],
+        );
+
+        $fake->assertCalled('mass_edit_dns_zone', static fn (array $p): bool => $p['add'] === '{"dname":"www","ttl":300,"record_type":"A","data":["203.0.113.9"]}'
+            && $p['add-1'] === '{"dname":"mail"}');
+    }
+
+    #[Test]
+    public function slow_functions_get_their_long_timeout_on_every_path(): void
+    {
+        $fake = Whm::fake(['*' => Whm::response()]);
+
+        Whm::call('createacct', ['username' => 'acme', 'domain' => 'acme.test']);
+        Whm::api()->accounts()->createacct(username: 'acme', domain: 'acme.test');
+        Whm::call('terminatereseller', ['user' => 'res1']);
+        Whm::call('createacct', ['username' => 'acme'], timeout: 45);
+
+        $timeouts = array_map(static fn (WhmRequest $request): ?int => $request->timeout, $fake->recorded());
+
+        // An explicit timeout is the caller's choice and wins.
+        self::assertSame([120, 120, 600, 45], $timeouts);
+    }
+
+    #[Test]
+    public function extra_adds_parameters_but_never_replaces_a_typed_argument(): void
+    {
+        $fake = Whm::fake(['createacct' => Whm::response(), 'uapi_cpanel' => Whm::uapi([])]);
+
+        Whm::api()->accounts()->createacct(username: 'acme', domain: 'acme.test', extra: ['username' => 'other', 'plan' => 'gold']);
+        Whm::asUser('acme')->api()->email()->listPops(regex: 'info', extra: ['regex' => 'sales', 'skip_main' => 1]);
+
+        // A typed argument that was given wins; one left as null can still come from extra.
+        $fake->assertCalled('createacct', static fn (array $p): bool => $p['username'] === 'acme' && $p['plan'] === 'gold')
+            ->assertCalled('uapi_cpanel', static fn (array $p): bool => $p['regex'] === 'info' && $p['skip_main'] === 1);
     }
 
     #[Test]
