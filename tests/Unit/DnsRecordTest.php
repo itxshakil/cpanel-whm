@@ -33,6 +33,21 @@ final class DnsRecordTest extends TestCase
     }
 
     #[Test]
+    public function multibyte_txt_values_are_split_by_bytes_without_cutting_a_character(): void
+    {
+        // 200 two-byte characters: 400 bytes, more than one 255-byte string.
+        $text = str_repeat('é', 200);
+        $record = DnsRecord::txt('@', $text);
+
+        self::assertSame([254, 146], array_map(strlen(...), $record->data));
+        self::assertTrue(array_reduce($record->data, static fn (bool $valid, string $chunk): bool => $valid && mb_check_encoding($chunk, 'UTF-8'), true));
+        self::assertSame($text, $record->value());
+
+        // Exactly 255 bytes stays one string.
+        self::assertCount(1, DnsRecord::txt('@', str_repeat('a', 255))->data);
+    }
+
+    #[Test]
     public function names_resolve_against_the_zone(): void
     {
         self::assertSame('www.example.com', DnsRecord::a('www', '1.2.3.4')->fqdn('example.com'));

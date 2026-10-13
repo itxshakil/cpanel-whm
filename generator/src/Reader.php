@@ -198,12 +198,22 @@ final readonly class Reader
             $names[$name] = true;
             $variables[$variable] = true;
 
+            $schema = $this->spec->resolve($parameter['schema']);
+            $json = ($schema['format'] ?? null) === 'json' || data_get($schema, 'items.format') === 'json';
+            $types = $this->types->map($parameter['schema']);
+
+            // A single JSON-string parameter also takes the array it encodes.
+            if ($json && $types === ['string']) {
+                $types = ['array', 'string'];
+            }
+
             $parameters[] = new Parameter(
                 name: $name,
                 variable: $variable,
                 required: $parameter['required'],
-                types: $this->types->map($parameter['schema']),
+                types: $types,
                 description: Text::firstSentence($parameter['description']),
+                json: $json,
             );
         }
 

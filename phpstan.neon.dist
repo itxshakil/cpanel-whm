@@ -8,5 +8,6 @@ parameters:
         - generator/src
         - tests/Fixtures
         - tests/TestCase.php
+        - tests/Live
     tmpDir: build/phpstan
     checkMissingCallableSignature: true

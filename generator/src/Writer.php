@@ -157,6 +157,11 @@ final class Writer
 
         foreach ($parameters as $parameter) {
             $description = $parameter->description !== '' ? '  '.$parameter->description : '';
+
+            if ($parameter->json) {
+                $description .= ' Sent as JSON: an array is encoded for you, a string is sent as it is.';
+            }
+
             $doc[] = " * @param  {$parameter->docType()}  \${$parameter->variable}{$description}";
         }
 
@@ -182,7 +187,10 @@ final class Writer
         $signature = array_map(static fn (Parameter $p): string => '        '.$p->signature().',', $parameters);
         $signature[] = '        array $extra = [],';
 
-        $params = array_map(static fn (Parameter $p): string => '            '.Text::quote($p->name).' => $'.$p->variable.',', $parameters);
+        $params = array_map(
+            static fn (Parameter $p): string => '            '.Text::quote($p->name).' => '.($p->json ? 'self::json($'.$p->variable.')' : '$'.$p->variable).',',
+            $parameters,
+        );
         $paramsCode = $params === [] ? '[]' : "[\n".implode("\n", $params)."\n        ]";
 
         $function = Text::quote($operation->function);
@@ -405,11 +413,11 @@ final class Writer
             "| WHM API 1 | {$whmTotal} | {$whmGenerated} | {$percent($whmGenerated, $whmTotal)}% | {$whmCurated} |",
             "| UAPI (through WHM) | {$uapiTotal} | {$uapiGenerated} | {$percent($uapiGenerated, $uapiTotal)}% | |",
             '',
-            'Every function, typed or not, can also be called by name: `Whm::call()` for WHM API 1 and `Whm::asUser($user)->uapi()` for UAPI.',
+            'Any function that takes form fields can also be called by name: `Whm::call()` for WHM API 1 and `Whm::asUser($user)->uapi()` for UAPI. That covers every typed function, but not all of the ones below.',
             '',
             '## Functions without a typed method',
             '',
-            'These take a JSON body or a file upload, which WHM\'s form API cannot carry. Use `Whm::call()` with the parameters the documentation lists, where the function accepts them as form fields.',
+            'These take a JSON body or a file upload, which WHM\'s form API cannot carry, so they may not be callable through this package at all. Where a function also accepts its parameters as form fields, call it by name: `Whm::call()` for a WHM function, `Whm::asUser($user)->uapi()` for a UAPI one. A file upload can\'t go through either.',
             '',
             '| Function | Why |',
             '| --- | --- |',

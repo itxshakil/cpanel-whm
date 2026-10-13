@@ -78,6 +78,13 @@ final class GeneratorTest extends TestCase
         self::assertTrue($operations['listaccts']->deprecated);
         self::assertSame('LoginSecurityCpHulk', $operations['flush_cphulk_login_history_for_ips']->group);
         self::assertSame('array<array-key, mixed>', $operations['flush_cphulk_login_history_for_ips']->parameters[0]->docType());
+
+        // format: json, on the value or on each item, marks a parameter the generated method encodes.
+        [$ip, $rules, $settings] = $operations['flush_cphulk_login_history_for_ips']->parameters;
+        self::assertFalse($ip->json);
+        self::assertTrue($rules->json);
+        self::assertTrue($settings->json);
+        self::assertSame('array|string|null $settings = null', $settings->signature());
         self::assertSame('Other', $operations['addzonerecord']->group);
         self::assertSame(['zone', 'ttl'], array_map(static fn ($p): string => $p->name, $operations['addzonerecord']->parameters));
         // "TTL" would also be $ttl: it gets no typed argument, but it is recorded rather than lost.
@@ -108,6 +115,12 @@ final class GeneratorTest extends TestCase
         self::assertStringContainsString('], $extra, HttpMethod::Post);', $accounts);
         self::assertStringContainsString('@deprecated', $accounts);
         self::assertStringContainsString("return \$this->invoke('listaccts', [\n            'search' => \$search,\n        ], \$extra);", $accounts);
+
+        $cphulk = (string) file_get_contents($root.'/src/Api/Whm/LoginSecurityCpHulk.php');
+        self::assertStringContainsString("'rules' => self::json(\$rules),", $cphulk);
+        self::assertStringContainsString("'settings' => self::json(\$settings),", $cphulk);
+        self::assertStringContainsString("'ip' => \$ip,", $cphulk);
+        self::assertStringContainsString('Sent as JSON', $cphulk);
 
         foreach ($written as $file) {
             if (str_ends_with($file, '.php')) {
