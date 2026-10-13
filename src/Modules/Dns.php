@@ -155,23 +155,41 @@ class Dns extends Module
             throw new InvalidArgumentException("The zone {$domain} has no SOA serial; pass one to edit().");
         }
 
-        try {
-            $response = $this->client->call('mass_edit_dns_zone', [
-                'zone' => $domain,
-                'serial' => $serial,
-                'add' => array_map(static fn (DnsRecord $record): string => $record->toMassEditJson(), $add),
-                'edit' => array_map(static fn (DnsRecord $record): string => self::requireLine($record)->toMassEditJson(true), $update),
-                'remove' => array_map(static fn (DnsRecord|int $record): int => is_int($record) ? $record : (int) self::requireLine($record)->lineIndex, $remove),
-            ], HttpMethod::Post);
-        } catch (JsonException $jsonException) {
-            throw new InvalidArgumentException('A DNS record could not be encoded: '.$jsonException->getMessage(), 0, $jsonException);
-        }
+        $response = $this->client->call('mass_edit_dns_zone', [
+            'zone' => $domain,
+            'serial' => $serial,
+            'add' => array_map(static fn (DnsRecord $record): string => self::encode($record), $add),
+            'edit' => array_map(static fn (DnsRecord $record): string => self::encode(self::requireLine($record), true), $update),
+            'remove' => array_map(static fn (DnsRecord|int $record): int => is_int($record) ? $record : (int) self::requireLine($record)->lineIndex, $remove),
+        ], HttpMethod::Post);
 
         $newSerial = Value::int($response->get('new_serial'));
 
         $this->client->dispatch(new DnsZoneChanged($this->client->config()->name, $domain, $newSerial, count($add), count($update), count($remove)));
 
         return $newSerial;
+    }
+
+    /**
+     * Zone data can be arbitrary bytes (cPanel sends it base64-encoded), but
+     * mass_edit_dns_zone takes JSON, which can't carry bytes that aren't UTF-8.
+     * Such a record can still be removed, since removal only sends its line.
+     */
+    private static function encode(DnsRecord $record, bool $withLineIndex = false): string
+    {
+        try {
+            return $record->toMassEditJson($withLineIndex);
+        } catch (JsonException $jsonException) {
+            $line = $record->lineIndex === null ? '' : " (line {$record->lineIndex})";
+
+            throw new InvalidArgumentException(
+                "The {$record->type} record for {$record->name}{$line} could not be encoded: {$jsonException->getMessage()}. "
+                .'mass_edit_dns_zone only accepts UTF-8 text. To replace a record holding binary data, remove it by line index '
+                .'with Whm::dns()->remove($domain, $lineIndex) and add a new one.',
+                0,
+                $jsonException,
+            );
+        }
     }
 
     private static function requireLine(DnsRecord $record): DnsRecord

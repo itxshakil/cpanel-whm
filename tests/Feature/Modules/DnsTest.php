@@ -94,6 +94,26 @@ final class DnsTest extends TestCase
     }
 
     #[Test]
+    public function a_record_holding_binary_data_can_be_removed_and_its_update_error_says_how(): void
+    {
+        $fake = Whm::fake(['mass_edit_dns_zone' => Whm::response(['new_serial' => 2])]);
+        $binary = new DnsRecord('legacy', 'TXT', ["\xFF\xFEbinary"], 300, 14);
+
+        try {
+            Whm::dns()->edit('example.com', update: [$binary], serial: 1);
+            self::fail('Expected InvalidArgumentException');
+        } catch (InvalidArgumentException $invalidArgumentException) {
+            self::assertStringContainsString('TXT record for legacy (line 14)', $invalidArgumentException->getMessage());
+            self::assertStringContainsString('remove it by line index', $invalidArgumentException->getMessage());
+        }
+
+        $fake->assertNotCalled('mass_edit_dns_zone');
+
+        self::assertSame(2, Whm::dns()->edit('example.com', remove: [$binary], serial: 1));
+        $fake->assertCalled('mass_edit_dns_zone', static fn (array $params): bool => $params['remove'] === 14);
+    }
+
+    #[Test]
     public function an_empty_edit_sends_nothing(): void
     {
         $fake = Whm::fake();

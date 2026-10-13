@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Adding or updating a DNS record whose data isn't valid UTF-8 now names the record and its line, and explains that it can be removed by line index and added again, instead of a bare "could not be encoded".
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
