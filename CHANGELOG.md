@@ -50,6 +50,7 @@ All notable changes to this project are documented here. The format follows
 - A null inside a list parameter no longer leaves a gap in WHM's repeated parameters (`name`, `name-1`, …), which could hide the values after it.
 - `whm:doctor --all --json` always prints a list, also when only one connection is configured.
 - `whm:install` replaces existing `.env` lines written as `export KEY=…` or `KEY = …` instead of appending a second line that the first one overrides.
+- DNS updates and removals send the serial of the `zone()` read their records came from (`DnsRecord::$zoneSerial`), instead of the current serial, so an edit made from a stale read is refused rather than changing the wrong line. Records from different reads can't be edited together.
 
 ## [0.3.0] - 2026-10-08
 
