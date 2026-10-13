@@ -282,7 +282,7 @@ They are a good fit for an audit log:
 Event::listen(AccountSuspended::class, fn ($e) => Activity::log("Suspended {$e->user}: {$e->reason}"));
 ```
 
-The low-level `WhmRequestSending`, `WhmResponseReceived` and `WhmRequestFailed` fire for every call. They carry redacted copies of the request and response: passwords, new API tokens and login URLs are masked, so they are safe for Telescope, queued listeners and logs.
+The low-level `WhmRequestSending`, `WhmResponseReceived` and `WhmRequestFailed` fire for every call. `WhmRequestSending` fires once per attempt, so a retried read sends it more than once; `WhmRequestFailed` fires once, for the error the caller gets, never for an attempt a retry made up for. They carry redacted copies of the request and response: passwords, new API tokens and login URLs are masked, so they are safe for Telescope, queued listeners and logs.
 
 ## Retries and caching
 
