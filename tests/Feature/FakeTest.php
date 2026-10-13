@@ -14,6 +14,7 @@ use Itxshakil\CpanelWhm\WhmRequest;
 use OutOfBoundsException;
 use PHPUnit\Framework\AssertionFailedError;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\Finder\Finder;
 
 final class FakeTest extends TestCase
 {
@@ -173,6 +174,16 @@ final class FakeTest extends TestCase
         $this->expectExceptionMessage('called with matching parameters');
 
         $fake->assertCalled('listips', static fn (array $params): bool => $params === ['a' => 2]);
+    }
+
+    #[Test]
+    public function nothing_in_src_imports_phpunit_which_production_installs_lack(): void
+    {
+        // src/ is autoloaded in production, where PHPUnit is a missing dev dependency.
+        // The fake reaches it only behind class_exists(), never through an import.
+        foreach ((new Finder)->files()->in(dirname(__DIR__, 2).'/src')->name('*.php') as $file) {
+            self::assertDoesNotMatchRegularExpression('/^use PHPUnit\\\\/m', $file->getContents(), $file->getRelativePathname());
+        }
     }
 
     #[Test]

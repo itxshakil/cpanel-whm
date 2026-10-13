@@ -77,6 +77,7 @@ All notable changes to this project are documented here. The format follows
 - `createacct` (120 s) and `terminatereseller` (600 s) get their minimum timeouts on every path, including `Whm::call()`, `Whm::api()` and `whm:call`, not just through the modules. An explicit timeout still wins (`WhmClient::MINIMUM_TIMEOUTS`).
 - Generated methods for parameters the spec documents as JSON (`format: json`), such as `massEditDnsZone(add:, edit:)`, encode arrays to JSON strings, one per item; strings still pass through. Ten parameters across WHM and UAPI are affected.
 - The generator records parameters it can't give a typed argument because their PHP name is taken: `bin/generate` warns about them and `docs/coverage.md` lists them (none in spec 11.138.0.10).
+- `WhmFake` no longer imports PHPUnit: its assertions use PHPUnit when it is installed and throw `FakeAssertionFailed` otherwise, so a production (`--no-dev`) install analyses cleanly. `phpunit/phpunit` is listed under `suggest`.
 
 ## [0.3.0] - 2026-10-08
 

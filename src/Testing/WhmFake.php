@@ -14,7 +14,6 @@ use Itxshakil\CpanelWhm\Exceptions\WhmConnectionFailed;
 use Itxshakil\CpanelWhm\Support\ConnectionConfig;
 use Itxshakil\CpanelWhm\Transport\TransportResponse;
 use Itxshakil\CpanelWhm\WhmRequest;
-use PHPUnit\Framework\Assert as PHPUnit;
 
 /**
  * The transport behind Whm::fake(). It answers with the responses you give it
@@ -246,8 +245,8 @@ final class WhmFake implements Transport
      */
     public function assertCalled(string $function, ?Closure $callback = null): self
     {
-        PHPUnit::assertNotEmpty(
-            $this->matching($function, $callback),
+        self::assertThat(
+            $this->matching($function, $callback) !== [],
             $callback === null
                 ? "Expected WHM function [{$function}] to be called, but it was not."
                 : "Expected WHM function [{$function}] to be called with matching parameters, but no call matched.",
@@ -261,8 +260,8 @@ final class WhmFake implements Transport
      */
     public function assertNotCalled(string $function, ?Closure $callback = null): self
     {
-        PHPUnit::assertEmpty(
-            $this->matching($function, $callback),
+        self::assertThat(
+            $this->matching($function, $callback) === [],
             "Expected WHM function [{$function}] not to be called, but it was.",
         );
 
@@ -278,8 +277,8 @@ final class WhmFake implements Transport
      */
     public function assertUapiCalled(string $user, string $module, string $function, ?Closure $callback = null): self
     {
-        PHPUnit::assertNotEmpty(
-            $this->matchingUapi($user, $module, $function, $callback),
+        self::assertThat(
+            $this->matchingUapi($user, $module, $function, $callback) !== [],
             "Expected UAPI {$module}::{$function} to be called as [{$user}]".($callback instanceof Closure ? ' with matching parameters' : '').', but no call matched.',
         );
 
@@ -291,8 +290,8 @@ final class WhmFake implements Transport
      */
     public function assertUapiNotCalled(string $user, string $module, string $function, ?Closure $callback = null): self
     {
-        PHPUnit::assertEmpty(
-            $this->matchingUapi($user, $module, $function, $callback),
+        self::assertThat(
+            $this->matchingUapi($user, $module, $function, $callback) === [],
             "Expected UAPI {$module}::{$function} not to be called as [{$user}], but it was.",
         );
 
@@ -303,14 +302,14 @@ final class WhmFake implements Transport
     {
         $count = count($this->recorded($function));
 
-        PHPUnit::assertSame($times, $count, "Expected WHM function [{$function}] to be called {$times} time(s), but it was called {$count} time(s).");
+        self::assertThat($count === $times, "Expected WHM function [{$function}] to be called {$times} time(s), but it was called {$count} time(s).");
 
         return $this;
     }
 
     public function assertSentCount(int $count): self
     {
-        PHPUnit::assertCount($count, $this->recorded, "Expected {$count} WHM call(s), but ".count($this->recorded).' were made.');
+        self::assertThat(count($this->recorded) === $count, "Expected {$count} WHM call(s), but ".count($this->recorded).' were made.');
 
         return $this;
     }
@@ -318,6 +317,27 @@ final class WhmFake implements Transport
     public function assertNothingSent(): self
     {
         return $this->assertSentCount(0);
+    }
+
+    /**
+     * Report through PHPUnit when it is installed, so a failure shows as a test
+     * failure and the assertion is counted. This class lives in src/ and is
+     * autoloaded in production too, where PHPUnit usually isn't installed, so
+     * it is never required: without it a failure throws a plain exception.
+     *
+     * @throws FakeAssertionFailed
+     */
+    private static function assertThat(bool $condition, string $message): void
+    {
+        if (class_exists(\PHPUnit\Framework\Assert::class)) {
+            \PHPUnit\Framework\Assert::assertTrue($condition, $message);
+
+            return;
+        }
+
+        if (! $condition) {
+            throw new FakeAssertionFailed($message);
+        }
     }
 
     /**
