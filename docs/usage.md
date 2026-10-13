@@ -46,6 +46,8 @@ $created = Whm::accounts()->create(new NewAccount(
 
 Without a password (in `password:` or `extra`), a 24-character one with lowercase, uppercase, digits and symbols is generated, because WHM does not return a password it generates itself. `$created->password` is the password the account was created with, given or generated. It is masked when the object is dumped, and the `AccountCreated` event's copy has none.
 
+To send exactly what you give, with no local username rules, no domain lowercasing and no generated password, use `(new NewAccount(...))->asGiven()`. WHM then does its own validation, and without a password it generates one you won't get back (`$created->password` is null).
+
 ### Account
 
 `Account` has `username`, `domain`, `package`, `ip`, `email` (null when WHM says `*unknown*`), `owner`, `suspended`, `suspendReason`, `diskUsed`, `diskLimit` (as WHM formats them, e.g. `120M`), `createdAt` and `raw` (everything WHM returned).

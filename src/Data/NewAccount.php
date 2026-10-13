@@ -16,6 +16,8 @@ final readonly class NewAccount
     /**
      * @param  string|null  $password  when omitted (here and in $extra), Accounts::create() generates a strong one and returns it
      * @param  array<string, mixed>  $extra  any other createacct parameter, sent as-is
+     * @param  bool  $asGiven  send exactly what was given: no local username rules, no domain
+     *                         lowercasing and no generated password; WHM does its own checks
      */
     public function __construct(
         public string $username,
@@ -26,7 +28,18 @@ final readonly class NewAccount
         public ?string $contactEmail = null,
         public bool $dedicatedIp = false,
         public array $extra = [],
+        public bool $asGiven = false,
     ) {}
+
+    /**
+     * A copy that Accounts::create() sends exactly as given, for apps that
+     * choose usernames and passwords themselves and rely on WHM's validation.
+     * Without a password, WHM generates one and CreatedAccount::$password is null.
+     */
+    public function asGiven(): self
+    {
+        return new self($this->username, $this->domain, $this->package, $this->password, $this->contactEmail, $this->dedicatedIp, $this->extra, asGiven: true);
+    }
 
     /**
      * @return array<string, mixed>
@@ -55,7 +68,7 @@ final readonly class NewAccount
 
     public function withPassword(#[SensitiveParameter] string $password): self
     {
-        return new self($this->username, $this->domain, $this->package, $password, $this->contactEmail, $this->dedicatedIp, $this->extra);
+        return new self($this->username, $this->domain, $this->package, $password, $this->contactEmail, $this->dedicatedIp, $this->extra, $this->asGiven);
     }
 
     /**
@@ -66,8 +79,8 @@ final readonly class NewAccount
     public function toParams(): array
     {
         $params = [
-            'username' => UsernameRules::assertValid($this->username),
-            'domain' => $this->domain !== null ? mb_strtolower(trim($this->domain)) : null,
+            'username' => $this->asGiven ? $this->username : UsernameRules::assertValid($this->username),
+            'domain' => $this->domain === null || $this->asGiven ? $this->domain : mb_strtolower(trim($this->domain)),
             'plan' => $this->package,
             'password' => $this->password,
             'contactemail' => $this->contactEmail,

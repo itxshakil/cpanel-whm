@@ -49,9 +49,9 @@ class Accounts extends Module
     public function create(NewAccount $account): CreatedAccount
     {
         // WHM does not return a password it generates, so one is generated here
-        // and handed back on CreatedAccount.
-        $password = $account->givenPassword() ?? Passwords::generate();
-        $params = $account->withPassword($password)->toParams();
+        // and handed back on CreatedAccount. An as-given account leaves that to WHM.
+        $password = $account->givenPassword() ?? ($account->asGiven ? null : Passwords::generate());
+        $params = ($password === null ? $account : $account->withPassword($password))->toParams();
 
         $response = $this->client->call('createacct', $params, HttpMethod::Post, max(self::CREATE_TIMEOUT, $this->client->config()->timeout));
 

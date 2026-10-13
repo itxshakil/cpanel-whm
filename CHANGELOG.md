@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `NewAccount::asGiven()`: `accounts()->create()` sends the account exactly as given, skipping the local username rules, domain lowercasing and password generation, while still returning a typed `CreatedAccount`.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
