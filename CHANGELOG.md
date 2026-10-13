@@ -7,11 +7,24 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- `AccountNotFound` (extends `WhmCommandFailed`): thrown by every call when WHM says the named account doesn't exist, including the "You do not have a user named …" wording of `suspendacct`, `modifyacct` and `removeacct`. `Whm::accountNotFound()` fakes it.
+- `Accounts::removeIfExists()`: removes an account, or returns false when it is already gone, so a retried job doesn't fail.
+- `Accounts::createOrRecover()`: like `create()`, but after a timeout that may have reached WHM it looks the account up and returns it (`CreatedAccount::$recovered`), with the password the request carried, when it exists with the requested domain.
 - `WhmClient::flushCache()` (and `Whm::flushCache()`): forget every cached read for the server.
 
 ### Changed
+- Parameters: backed enums are sent as their value and `Stringable` objects as their string. A nested array, a date or any other object throws `InvalidArgumentException` before anything is sent, instead of reaching WHM as `name[key]=…` and being ignored.
 - A successful call that changes something drops that server's cached reads, so `Whm::cache()` never returns data from before your own change. Cache keys gained a generation segment.
 - The `WhmClient` contract gains `flushCache()`.
+
+### Fixed
+- `whm:record` prints a replay hint with the path relative to the project root, so it can be committed.
+- `Whm::fixture()` treats Windows (`C:\…`, `C:/…`) and UNC paths as absolute.
+- `whm:doctor` has a new `API` check before `Auth`. Timeouts, HTTP errors and non-JSON answers fail `API`; only a rejected token or a missing privilege fails `Auth`.
+- `Resellers::setLimits()` can turn account and resource limits off again with `limitAccounts: false` and `limitResources: false`.
+- `BatchResults::failures()`, `successful()` and `throw()` report a `uapi_cpanel` or `cpanel` command whose cPanel function failed as `UapiCallFailed`, as a single call does. The check now lives in `UapiCallFailed::fromInnerCall()`.
+- `Domains::owner()` throws `WhmPermissionDenied` instead of returning null when the token lacks the privilege.
+- `composer.json` requires `ext-openssl`, which `whm:doctor`'s TLS check and HTTPS calls need.
 
 ## [0.3.0] - 2026-10-08
 

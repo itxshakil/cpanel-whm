@@ -12,8 +12,6 @@ use Illuminate\Contracts\Events\Dispatcher;
 use Itxshakil\CpanelWhm\Api\WhmApi;
 use Itxshakil\CpanelWhm\Contracts\Transport;
 use Itxshakil\CpanelWhm\Contracts\WhmClient as WhmClientContract;
-use Itxshakil\CpanelWhm\Data\UapiResult;
-use Itxshakil\CpanelWhm\Data\Value;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Events\WhmRequestFailed;
 use Itxshakil\CpanelWhm\Events\WhmRequestSending;
@@ -355,45 +353,17 @@ final class WhmClient implements WhmClientContract
     }
 
     /**
-     * uapi_cpanel and cpanel run a cPanel function inside a WHM call. WHM
-     * reports success when it ran the function, even if the function itself
-     * failed, so that inner status is checked here for every caller.
+     * The inner cPanel function of uapi_cpanel and cpanel is checked for every
+     * caller, including raw Whm::call().
      *
      * @throws UapiCallFailed
      */
     private function guardInnerCall(WhmRequest $request, WhmResponse $response): void
     {
-        [$moduleKey, $functionKey, $candidates] = match ($request->function) {
-            'uapi_cpanel' => ['cpanel.module', 'cpanel.function', ['uapi']],
-            // UAPI answers under result, cPanel API 2 under cpanelresult (event.result).
-            'cpanel' => ['cpanel_jsonapi_module', 'cpanel_jsonapi_func', ['uapi', 'result', 'cpanelresult']],
-            default => [null, null, []],
-        };
+        $failure = UapiCallFailed::fromInnerCall($request->function, $request->params, $response);
 
-        foreach ($candidates as $path) {
-            $inner = $response->get($path);
-
-            if (! is_array($inner)) {
-                continue;
-            }
-
-            $status = $inner['status'] ?? data_get($inner, 'event.result');
-
-            if ($status === null || Value::bool($status)) {
-                continue;
-            }
-
-            $result = UapiResult::fromArray($inner);
-
-            if ($result->errors === [] && is_string($inner['error'] ?? null) && $inner['error'] !== '') {
-                $result = new UapiResult(false, $result->data, [$inner['error']], $result->warnings, $result->messages, $result->metadata);
-            }
-
-            throw new UapiCallFailed(
-                Value::string($request->params[$moduleKey] ?? null) ?? '',
-                Value::string($request->params[$functionKey] ?? null) ?? '',
-                $result,
-            );
+        if ($failure instanceof UapiCallFailed) {
+            throw $failure;
         }
     }
 
