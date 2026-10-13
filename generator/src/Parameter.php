@@ -10,6 +10,8 @@ final readonly class Parameter
 {
     /**
      * @param  list<string>  $types  PHP types without null: array, bool, float, int, string or mixed
+     * @param  bool  $json  the spec documents the value (or each item) as a JSON string; an array
+     *                      passed for it is encoded by the generated method
      */
     public function __construct(
         public string $name,
@@ -17,6 +19,7 @@ final readonly class Parameter
         public bool $required,
         public array $types,
         public string $description,
+        public bool $json = false,
     ) {}
 
     public function isMixed(): bool
