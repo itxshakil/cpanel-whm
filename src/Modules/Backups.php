@@ -144,12 +144,16 @@ class Backups extends Module
      */
     public function backupAccount(string $user, bool $compress = true, bool $skipHomeDir = false, ?string $directory = null, array $options = []): ?string
     {
+        // $options first: it adds parameters, but can't replace the normalised user
+        // or the arguments given here.
         $response = $this->client->call('start_background_pkgacct', [
-            'user' => UsernameRules::normalise($user),
-            'compressionsetting' => $compress ? 'compress' : null,
-            'skiphomedir' => $skipHomeDir,
-            'tarroot' => $directory,
             ...$options,
+            ...array_filter([
+                'user' => UsernameRules::normalise($user),
+                'compressionsetting' => $compress ? 'compress' : null,
+                'skiphomedir' => $skipHomeDir,
+                'tarroot' => $directory,
+            ], static fn (mixed $value): bool => $value !== null),
         ], HttpMethod::Post);
 
         return Value::string($response->get('session_id'));
