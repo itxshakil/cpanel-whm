@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- `whm:doctor` (and `Whm::ping()`) fails a plain `http://` connection, since every call sends the token unencrypted. Set `allow_insecure_http => true` on the connection to accept it with a warning. The Config line says `TLS n/a (http)` for such connections.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

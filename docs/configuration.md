@@ -27,6 +27,7 @@ Publish the config with `php artisan vendor:publish --tag=cpanel-whm-config` (or
 | `verify_tls` | Keep `true`. Set `false` only for a server reached by IP with a self-signed certificate; `whm:doctor` warns about it. |
 | `timeout` | Seconds per call. `createacct` always gets at least 120 seconds, because it sets up DNS, mail and DKIM. |
 | `connect_timeout` | Seconds to open the connection. |
+| `allow_insecure_http` | Optional, default `false`. A plain `http://` host sends the token unencrypted, so `whm:doctor` fails it. Set `true` only when the network between the app and WHM is private; the doctor then warns instead. |
 
 Add more servers as more entries and pick one with `Whm::connection('name')` or `--connection=name`.
 

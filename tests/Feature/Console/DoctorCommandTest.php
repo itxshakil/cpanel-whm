@@ -143,15 +143,32 @@ final class DoctorCommandTest extends TestCase
     }
 
     #[Test]
-    public function plain_http_is_warned_about(): void
+    public function plain_http_fails_the_check(): void
     {
         $this->healthyServer();
         config()->set('cpanel-whm.connections.main.host', 'http://203.0.113.5');
 
         $report = Whm::ping();
 
+        self::assertFalse($report->passed());
+        self::assertSame(CheckStatus::Fail, $report->check('TLS')?->status);
         self::assertStringContainsString('unencrypted', (string) $report->check('TLS')?->message);
+        self::assertStringContainsString('allow_insecure_http', (string) $report->check('TLS')?->hint);
+        self::assertStringContainsString('TLS n/a (http)', (string) $report->check('Config')?->message);
         self::assertStringContainsString('IP address', (string) $report->check('DNS')?->message);
+    }
+
+    #[Test]
+    public function plain_http_only_warns_when_the_connection_opts_in(): void
+    {
+        $this->healthyServer();
+        config()->set('cpanel-whm.connections.main.host', 'http://203.0.113.5');
+        config()->set('cpanel-whm.connections.main.allow_insecure_http', true);
+
+        $report = Whm::ping();
+
+        self::assertTrue($report->passed());
+        self::assertSame(CheckStatus::Warn, $report->check('TLS')?->status);
     }
 
     #[Test]
