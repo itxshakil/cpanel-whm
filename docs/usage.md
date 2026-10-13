@@ -293,7 +293,7 @@ Whm::cache(300)->accounts()->list();        // cached for 5 minutes
 Whm::cache(now()->addHour(), 'redis')->packages()->list();
 ```
 
-`cache()` returns a copy of the client; only read-only calls are cached, and failures never are. `verify_new_username` is never cached, DNS edits read the zone's serial uncached, and `withoutCache()` gives you an uncached copy back. Cache keys include the server and user, not just the connection name.
+`cache()` returns a copy of the client; only read-only calls are cached, and failures never are. `verify_new_username` and the job status polls (`get_pkgacct_session_state`, `get_transfer_session_state`, `restore_queue_state`) are never cached, DNS edits read the zone's serial uncached, and `withoutCache()` gives you an uncached copy back. Cache keys include the server and user, not just the connection name.
 
 ## Batches
 

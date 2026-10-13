@@ -108,6 +108,29 @@ final class RetryAndCacheTest extends TestCase
     }
 
     #[Test]
+    public function job_status_polls_are_never_cached(): void
+    {
+        $fake = Whm::fake([
+            'get_pkgacct_session_state' => Whm::sequence(Whm::response(['state' => 'INPROGRESS']), Whm::response(['state' => 'COMPLETE'])),
+            'get_transfer_session_state' => Whm::response(['state_name' => 'RUNNING']),
+            'restore_queue_state' => Whm::response(),
+        ]);
+
+        $cached = Whm::cache(300);
+
+        self::assertSame('INPROGRESS', $cached->backups()->backupStatus('sess1'));
+        self::assertSame('COMPLETE', $cached->backups()->backupStatus('sess1'));
+        $cached->transfers()->state('t1');
+        $cached->transfers()->state('t1');
+        $cached->backups()->queue();
+        $cached->backups()->queue();
+
+        $fake->assertCalledTimes('get_pkgacct_session_state', 2)
+            ->assertCalledTimes('get_transfer_session_state', 2)
+            ->assertCalledTimes('restore_queue_state', 2);
+    }
+
+    #[Test]
     public function the_cache_key_includes_the_server_and_user(): void
     {
         $fake = Whm::fake(['listpkgs' => Whm::response(['pkg' => []])]);

@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Job status polls (`get_pkgacct_session_state`, `get_transfer_session_state`, `restore_queue_state`) are never cached, so `backupStatus()`, `transfers()->state()` and `backups()->queue()` on a `Whm::cache()` client see the job finish.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
