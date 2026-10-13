@@ -21,7 +21,7 @@ try {
 | --- | --- | --- |
 | `WhmConnectionFailed` | DNS, refused connection, TLS failure or timeout. `mayHaveReachedServer()` is true when the call was sent and WHM stopped answering (a read timeout, an empty reply). | Reads, yes. Writes: only when `mayHaveReachedServer()` is false; otherwise check first. |
 | `WhmAuthenticationFailed` (extends `WhmHttpError`) | HTTP 401/403 | No: fix the token. |
-| `WhmHttpError` | Other HTTP errors; `notJson` when the host answers with HTML | Only for 5xx. |
+| `WhmHttpError` | Other HTTP errors; `notJson` when the host answers with HTML. `status()`, and `body()` with the start of the response (up to 2,000 characters, secrets masked) | Only for 5xx. |
 | `WhmCommandFailed` | `metadata.result = 0` | Depends on `reason()`. |
 | `WhmPermissionDenied` (extends `WhmCommandFailed`) | The token's ACL doesn't allow the function | No: grant the privilege. |
 | `UapiCallFailed` | The cPanel function failed inside a successful `uapi_cpanel` or `cpanel` call, including raw `Whm::call()` | Depends on `errors()`. |

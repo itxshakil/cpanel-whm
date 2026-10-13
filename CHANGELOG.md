@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `WhmHttpError::body()`: the start of the response body (up to 2,000 characters), with secrets masked, for error pages and JSON errors.
+
+### Changed
+- HTTP error messages take WHM's reason from `data.reason` when `metadata.reason` is empty, as `WhmResponse::reason()` does.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
