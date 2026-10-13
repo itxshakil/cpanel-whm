@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Itxshakil\CpanelWhm\Tests\Feature\Console;
 
+use Illuminate\Support\Facades\Artisan;
 use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Tests\Fixtures\Responses;
 use Itxshakil\CpanelWhm\Tests\TestCase;
@@ -79,6 +80,17 @@ final class CommandsTest extends TestCase
             ->expectsOutputToContain('cpsess[REDACTED]')
             ->doesntExpectOutputToContain('cpsess123')
             ->assertSuccessful();
+    }
+
+    #[Test]
+    public function call_json_output_is_only_json_even_after_a_warning(): void
+    {
+        Whm::fake(['passwd' => Whm::response(['app' => 'passwd'])]);
+
+        $exitCode = Artisan::call('whm:call', ['function' => 'passwd', 'params' => ['user=acme', 'password=hunter2'], '--json' => true]);
+
+        self::assertSame(0, $exitCode);
+        self::assertIsArray(json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR));
     }
 
     #[Test]
