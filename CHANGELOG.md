@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `AccountNotFound` (extends `WhmCommandFailed`): thrown by every call when WHM says the named account doesn't exist, including the "You do not have a user named …" wording of `suspendacct`, `modifyacct` and `removeacct`. `Whm::accountNotFound()` fakes it.
+
 ### Changed
 - Parameters: backed enums are sent as their value and `Stringable` objects as their string. A nested array, a date or any other object throws `InvalidArgumentException` before anything is sent, instead of reaching WHM as `name[key]=…` and being ignored.
 

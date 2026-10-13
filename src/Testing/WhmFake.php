@@ -73,6 +73,15 @@ final class WhmFake implements Transport
     }
 
     /**
+     * WHM's answer when the named cPanel account doesn't exist, worded the way
+     * suspendacct, modifyacct and removeacct word it.
+     */
+    public static function accountNotFound(string $user = 'acme'): TransportResponse
+    {
+        return self::failure("You do not have a user named \"{$user}\".");
+    }
+
+    /**
      * An HTTP error, e.g. 401 for a rejected token.
      */
     public static function httpError(int $status = 500, string $body = ''): TransportResponse

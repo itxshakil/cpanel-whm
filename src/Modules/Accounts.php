@@ -15,6 +15,7 @@ use Itxshakil\CpanelWhm\Events\AccountModified;
 use Itxshakil\CpanelWhm\Events\AccountPackageChanged;
 use Itxshakil\CpanelWhm\Events\AccountPasswordChanged;
 use Itxshakil\CpanelWhm\Events\AccountRemoved;
+use Itxshakil\CpanelWhm\Exceptions\AccountNotFound;
 use Itxshakil\CpanelWhm\Exceptions\InvalidUsername;
 use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
@@ -102,7 +103,10 @@ class Accounts extends Module
     {
         try {
             $response = $this->client->call('accountsummary', ['user' => UsernameRules::normalise($user)]);
+        } catch (AccountNotFound) {
+            return null;
         } catch (WhmCommandFailed $whmCommandFailed) {
+            // accountsummary is about one account, so any "does not exist" means that one.
             if ($this->isMissingAccount($whmCommandFailed->reason())) {
                 return null;
             }
