@@ -31,7 +31,7 @@ It's for hosting resellers, agencies and anyone building their own hosting billi
 
 | | |
 | --- | --- |
-| **Hand-written modules, typed results** | accounts, suspensions, packages, quotas, login sessions, server, DNS, domains, disk and bandwidth usage, backups and restores, resellers, SSL, API tokens, transfers (74 WHM functions) |
+| **Hand-written modules, typed results** | accounts, suspensions, packages, quotas, login sessions, server, DNS, domains, disk and bandwidth usage, backups and restores, resellers, SSL, API tokens, transfers (77 WHM functions) |
 | **Generated, typed methods** | 621 of 630 WHM API 1 functions with `Whm::api()`, 680 of 693 UAPI functions with `Whm::asUser($user)->api()` ([coverage](https://github.com/itxshakil/cpanel-whm/blob/main/docs/coverage.md)) |
 | **Anything else** | `Whm::call('function', [...])` and `Whm::asUser($user)->uapi('Module', 'function')` |
 
@@ -58,6 +58,8 @@ Most WHM clients for PHP were written for Laravel 5, log in with a password or t
 - PHP 8.3 or newer
 - Laravel 12.69+ or 13.30+
 - cPanel & WHM with an API token (WHM › Development › Manage API Tokens)
+
+The typed API is generated from cPanel & WHM 11.138's API specification, and that is the version the package is developed against. `whm:doctor` warns below 11.110 (`doctor.minimum_version`), the oldest version we expect to work. Older servers may answer for most functions, but they aren't tested. A function your server doesn't have yet fails with WHM's own error, and `php artisan whm:functions --server --missing` lists the differences.
 
 ## Installation
 
@@ -173,7 +175,11 @@ Whm::asUser('acme')->mysql()->grant('acme_app', 'acme_shop');
 use Itxshakil\CpanelWhm\Data\DnsRecord;
 
 Whm::dns()->add('acme.example', DnsRecord::a('shop', '203.0.113.20'), DnsRecord::txt('@', 'v=spf1 -all'));
-Whm::dns()->update('acme.example', Whm::dns()->zone('acme.example')->first('www', 'A')->withData('203.0.113.30'));
+$www = Whm::dns()->zone('acme.example')->first('www', 'A');   // null when there's no such record
+
+if ($www !== null) {
+    Whm::dns()->update('acme.example', $www->withData('203.0.113.30'));
+}
 
 Whm::domains()->createSubdomain('blog.acme.example', 'public_html/blog');
 Whm::domains()->owner('acme.example');                         // "acme"
@@ -217,7 +223,19 @@ $response->warnings();               // warnings WHM attached to a "successful" 
 Whm::call('modifyacct', $params, HttpMethod::Post);
 ```
 
-Without a method, `Whm::call()` uses the one cPanel documents for the function, and any call with a password, token or key is sent as POST.
+#### GET or POST
+
+Every call picks its HTTP method the same way, typed or by name:
+
+1. A call carrying a secret (a password, token, passphrase or key) is always **POST**, so the secret never lands in a URL, an access log or a proxy log.
+2. Otherwise a method you asked for wins: `Whm::call($function, $params, HttpMethod::Post)`, or `Whm::withHttpMethod(...)` for every call made through that client.
+3. Otherwise functions cPanel marks read-only (`x-readonly` in its spec) are **GET**, and everything else is **POST**, including functions the spec doesn't list, such as plugins.
+
+```php
+Whm::withHttpMethod(HttpMethod::Post)->accounts()->list();   // e.g. a WAF that only allows POST to /json-api
+```
+
+Retries and caching follow whether the function is read-only, not the method, so forcing a method never makes a change retried.
 
 `php artisan whm:functions --server --missing` shows what your server offers beyond the spec (plugin functions, for example).
 
@@ -248,6 +266,7 @@ Everything extends `Itxshakil\CpanelWhm\Exceptions\WhmException`, and each has a
 | `WhmHttpError` | Another HTTP error, or an answer that isn't JSON (wrong port or a proxy). |
 | `WhmCommandFailed` | WHM ran the function and reported failure. Has `reason()`, `function()`, `response()`, `rawOutput()`. |
 | `WhmPermissionDenied` | Like `WhmCommandFailed`, but the token's ACL doesn't allow the function. |
+| `AccountNotFound` | Like `WhmCommandFailed`, but the named cPanel account doesn't exist. |
 | `UapiCallFailed` | The UAPI function inside `uapi_cpanel` (or `cpanel`) failed. Has `errors()`. |
 | `InvalidUsername` | A username broke a cPanel rule (checked before sending). |
 | `InvalidConfiguration` | Missing host or token, unknown connection, or a cPanel port. |
@@ -299,9 +318,48 @@ The modules dispatch `AccountCreated`, `AccountRemoved`, `AccountSuspended`, `Ac
 
 Read-only calls are retried after a connection error or HTTP 5xx, and `Whm::cache(300)->packages()->list()` caches them. Calls that change something are never retried or cached.
 
-Set `WHM_LOG_CHANNEL=stack` to log every call: function, connection, duration and outcome. Parameters are redacted (passwords, tokens and login URLs never reach the log). `WhmRequestSending`, `WhmResponseReceived` and `WhmRequestFailed` fire for every call, with secrets already masked.
+### Retries
+
+Retries are **on by default**: a read-only call that fails with a connection error or an HTTP 5xx is tried **twice more**, 250 ms and then 500 ms later. A function that changes something (`createacct`, `suspendacct`, a batch, …) is sent once, whatever happens. That's why nothing is ever created twice.
+
+That means a read against a server that's down can wait up to three times `WHM_TIMEOUT`. Turn retries down where that matters:
+
+```php
+Whm::withoutRetries()->server()->version();   // one attempt, e.g. in a health check
+```
+
+```dotenv
+WHM_RETRY_TIMES=0        # no retries for the connection
+WHM_RETRY_SLEEP_MS=250   # base back-off; attempt n waits n × this
+```
+
+If your queued jobs already retry, consider `WHM_RETRY_TIMES=0` so a failing read isn't retried at two levels. `WhmCheck` always makes a single attempt.
+
+Set `WHM_LOG_CHANNEL=stack` to log every call: function, connection, duration and outcome. Parameters are redacted (passwords, tokens and login URLs never reach the log). Add `WHM_LOG_RESPONSES=true` to log WHM's redacted answers too, and set `log_levels` to choose the level per outcome. `WhmRequestSending`, `WhmResponseReceived` and `WhmRequestFailed` fire for every call, with secrets already masked.
 
 With spatie/laravel-health, add `WhmCheck::new()->failWhenTokenExpiresWithin(7)` to your checks.
+
+## Stability and versioning
+
+The package follows [semantic versioning](https://semver.org/). Before 1.0, a minor release may still break the public API, and the [changelog](https://github.com/itxshakil/cpanel-whm/blob/main/CHANGELOG.md) says so when it does. From 1.0, only a major release will.
+
+**Public API**, covered by that promise:
+
+- the `Whm` facade and `WhmManager`, `WhmClient`, `WhmResponse`, `WhmRequest`, `WhmBatch`, `BatchResults`;
+- the modules (`Whm::accounts()`, `Whm::dns()`, ... and `Whm::asUser()`), `Data\*`, `Enums\*`, `Events\*` and `Exceptions\*`, including the exception hierarchy;
+- `Testing\WhmFake` and the `Whm::fake()` helpers;
+- `Support\ConnectionConfig` and `Support\Filter`;
+- config keys, environment variables, and Artisan command names and options.
+
+**Contracts.** Type-hint `Contracts\WhmClient` and `Contracts\Transport` freely. Implementing them yourself (a decorator, a hand-written double) isn't covered: a minor release may add methods to them. Use `Whm::fake()` for tests.
+
+**The generated API** (`Whm::api()`, `asUser()->api()`) follows cPanel's spec:
+
+- Call generated methods with **named arguments**. Required parameters come first, but the order of the rest isn't covered and can change when the spec does.
+- A minor release may add methods and optional parameters from a newer spec.
+- A method or parameter cPanel removes is marked `@deprecated` first, and removed only in a major release.
+
+**Internal**: anything marked `@internal`, everything else under `Support\` and `Transport\`, `Support\FunctionCatalog`'s array shape, and the generator in `generator/` (which isn't shipped). These can change in any release.
 
 ## Documentation
 

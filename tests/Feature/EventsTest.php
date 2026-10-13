@@ -13,6 +13,7 @@ use Itxshakil\CpanelWhm\Events\AccountPasswordChanged;
 use Itxshakil\CpanelWhm\Events\AccountRemoved;
 use Itxshakil\CpanelWhm\Events\AccountSuspended;
 use Itxshakil\CpanelWhm\Events\AccountUnsuspended;
+use Itxshakil\CpanelWhm\Events\WhmResponseReceived;
 use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
 use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Tests\TestCase;
@@ -83,5 +84,24 @@ final class EventsTest extends TestCase
         Whm::connection('ca-1')->suspensions()->unsuspend('acme');
 
         Event::assertDispatched(AccountUnsuspended::class, static fn (AccountUnsuspended $e): bool => $e->connection === 'ca-1');
+    }
+
+    #[Test]
+    public function only_the_modules_fire_domain_events_and_every_path_fires_response_received(): void
+    {
+        Event::fake([AccountCreated::class, AccountSuspended::class, WhmResponseReceived::class]);
+        Whm::fake(['*' => Whm::response()]);
+
+        Whm::api()->accounts()->createacct(username: 'acme', domain: 'acme.test');
+        Whm::call('suspendacct', ['user' => 'acme']);
+        Whm::batch()->add('suspendacct', ['user' => 'other'])->send();
+
+        Event::assertNotDispatched(AccountCreated::class);
+        Event::assertNotDispatched(AccountSuspended::class);
+        Event::assertDispatched(WhmResponseReceived::class, static fn (WhmResponseReceived $e): bool => $e->request->function === 'createacct');
+        Event::assertDispatched(WhmResponseReceived::class, static fn (WhmResponseReceived $e): bool => $e->request->function === 'suspendacct'
+            && $e->request->params['user'] === 'acme');
+        Event::assertDispatched(WhmResponseReceived::class, static fn (WhmResponseReceived $e): bool => $e->request->function === 'batch');
+        Event::assertDispatchedTimes(WhmResponseReceived::class, 3);
     }
 }

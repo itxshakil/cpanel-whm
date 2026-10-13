@@ -9,8 +9,10 @@ use Itxshakil\CpanelWhm\Data\AutoSslProblem;
 use Itxshakil\CpanelWhm\Data\InstalledCertificate;
 use Itxshakil\CpanelWhm\Data\Value;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
+use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\Support\UsernameRules;
+use Itxshakil\CpanelWhm\WhmResponse;
 use SensitiveParameter;
 
 /**
@@ -49,6 +51,7 @@ class Ssl extends Module
      * Install a certificate on a domain's virtual host. The key is sent in the
      * POST body and redacted from logs and events.
      *
+     * @throws WhmCommandFailed when installssl reports the install failed in data.status
      * @throws WhmException
      */
     public function install(string $domain, string $certificate, #[SensitiveParameter] string $key, ?string $caBundle = null, ?string $ip = null): InstalledCertificate
@@ -60,6 +63,14 @@ class Ssl extends Module
             'cab' => $caBundle,
             'ip' => $ip,
         ], HttpMethod::Post);
+
+        // installssl reports its own outcome in data.status / data.statusmsg,
+        // separately from metadata.result.
+        if (array_key_exists('status', $response->data) && ! Value::bool($response->data['status'])) {
+            $reason = Value::string($response->data['statusmsg'] ?? null) ?? 'installssl reported that the certificate was not installed.';
+
+            throw WhmCommandFailed::from('installssl', new WhmResponse($response->data, [...$response->metadata, 'result' => 0, 'reason' => $reason], $response->status));
+        }
 
         return InstalledCertificate::fromArray($response->data, $domain);
     }
