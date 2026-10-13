@@ -18,6 +18,37 @@ final class SocketProbeTest extends TestCase
     }
 
     #[Test]
+    public function a_name_with_only_an_aaaa_record_resolves(): void
+    {
+        $probe = new SocketProbe(
+            lookupIpv4: static fn (string $host): array => [],
+            lookupIpv6: static fn (string $host): array => $host === 'v6only.example.com' ? ['2001:db8::10'] : [],
+        );
+
+        self::assertSame(['2001:db8::10'], $probe->resolve('v6only.example.com'));
+        self::assertSame([], $probe->resolve('nowhere.example.com'));
+    }
+
+    #[Test]
+    public function both_address_families_are_returned_once(): void
+    {
+        $probe = new SocketProbe(
+            lookupIpv4: static fn (string $host): array => ['203.0.113.10', '203.0.113.10'],
+            lookupIpv6: static fn (string $host): array => ['2001:db8::10'],
+        );
+
+        self::assertSame(['203.0.113.10', '2001:db8::10'], $probe->resolve('server.example.com'));
+    }
+
+    #[Test]
+    public function the_container_builds_the_real_lookups(): void
+    {
+        $probe = (new \Illuminate\Container\Container)->make(SocketProbe::class);
+
+        self::assertContains('127.0.0.1', $probe->resolve('localhost'));
+    }
+
+    #[Test]
     public function ipv6_addresses_get_brackets_in_stream_urls(): void
     {
         self::assertSame('[2001:db8::1]:2087', SocketProbe::address('2001:db8::1', 2087));

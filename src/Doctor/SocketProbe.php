@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Itxshakil\CpanelWhm\Doctor;
 
 use Carbon\CarbonImmutable;
+use Closure;
 use OpenSSLCertificate;
 
 /**
@@ -13,15 +14,61 @@ use OpenSSLCertificate;
  */
 final class SocketProbe implements NetworkProbe
 {
+    /**
+     * @param  (Closure(string): list<string>)|null  $lookupIpv4  replaces gethostbynamel() in tests
+     * @param  (Closure(string): list<string>)|null  $lookupIpv6  replaces the AAAA lookup in tests
+     */
+    public function __construct(
+        private readonly ?Closure $lookupIpv4 = null,
+        private readonly ?Closure $lookupIpv6 = null,
+    ) {}
+
+    /**
+     * IPv4 and IPv6 addresses. gethostbynamel() alone would fail a server that
+     * only has an AAAA record, which cURL reaches fine.
+     */
     public function resolve(string $host): array
     {
         if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
             return [$host];
         }
 
+        $ipv4 = $this->lookupIpv4 instanceof Closure ? ($this->lookupIpv4)($host) : self::ipv4($host);
+        $ipv6 = $this->lookupIpv6 instanceof Closure ? ($this->lookupIpv6)($host) : self::ipv6($host);
+
+        return array_values(array_unique([...$ipv4, ...$ipv6]));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function ipv4(string $host): array
+    {
         $addresses = gethostbynamel($host);
 
         return $addresses === false ? [] : $addresses;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function ipv6(string $host): array
+    {
+        $records = @dns_get_record($host, DNS_AAAA);
+
+        if (! is_array($records)) {
+            return [];
+        }
+
+        $addresses = [];
+
+        foreach ($records as $record) {
+            if (is_string($record['ipv6'] ?? null)) {
+                $addresses[] = $record['ipv6'];
+            }
+        }
+
+        return $addresses;
     }
 
     /**

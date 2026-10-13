@@ -95,6 +95,7 @@ All notable changes to this project are documented here. The format follows
 - Adding or updating a DNS record whose data isn't valid UTF-8 now names the record and its line, and explains that it can be removed by line index and added again, instead of a bare "could not be encoded".
 - With a reseller's token, `Packages::find('starter')` finds the package WHM saved as `res1_starter`. An exact name still wins, and root's lookups are unchanged.
 - `whm:doctor` works with an IPv6 host such as `https://[2001:db8::1]:2087`: the address is recognised as an IP, and the network and TLS probes use it without brackets. `ConnectionConfig::bareHost()` returns the host in that form.
+- `whm:doctor`'s DNS check also looks up AAAA records, so a server with only an IPv6 address no longer fails it.
 
 ## [0.3.0] - 2026-10-08
 

@@ -132,7 +132,7 @@ final readonly class ConnectionDoctor
         $addresses = $this->probe->resolve($config->bareHost());
 
         if ($addresses === []) {
-            return CheckResult::fail(self::DNS, "{$config->host} does not resolve", 'Check the spelling of WHM_HOST and that the name has an A record.');
+            return CheckResult::fail(self::DNS, "{$config->host} does not resolve", 'Check the spelling of WHM_HOST and that the name has an A or AAAA record.');
         }
 
         return CheckResult::pass(self::DNS, "{$config->host} → ".implode(', ', array_slice($addresses, 0, 3)));
