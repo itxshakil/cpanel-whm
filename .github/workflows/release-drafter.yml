@@ -1,17 +1,36 @@
 name: Release Drafter
 
 # Keeps a draft GitHub Release up to date as PRs merge into main. The draft's
-# version is resolved from PR labels (see .github/release-drafter.yml).
+# version is resolved from PR labels (see .github/release-drafter.yml), which
+# the autolabel job sets from each PR's title.
 on:
     push:
         branches: ["main"]
+    # pull_request_target so PRs from forks get labels too. Safe here: no job
+    # checks out or runs the PR's code.
+    pull_request_target:
+        types: [opened, reopened, synchronize, edited]
 
 permissions:
     contents: read
 
 jobs:
+    autolabel:
+        name: Label the PR from its title
+        if: github.event_name == 'pull_request_target'
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            pull-requests: write
+
+        steps:
+            - uses: release-drafter/release-drafter/autolabeler@v7
+              with:
+                  config-name: release-drafter.yml
+
     update_release_draft:
         name: Update draft release notes
+        if: github.event_name == 'push'
         runs-on: ubuntu-latest
         permissions:
             contents: write

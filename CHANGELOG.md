@@ -55,6 +55,7 @@ All notable changes to this project are documented here. The format follows
 - The docs and the Boost guideline say which method fires each account and DNS event, that `Whm::api()`, `Whm::call()` and batches fire none of them, and how to use `WhmResponseReceived` for those paths.
 - `whm:doctor` (and `Whm::ping()`) fails a plain `http://` connection, since every call sends the token unencrypted. Set `allow_insecure_http => true` on the connection to accept it with a warning. The Config line says `TLS n/a (http)` for such connections.
 - Requires Laravel 12.69+ or 13.30+, the lowest versions CI can install (Composer skips releases with security advisories), so every allowed version is tested.
+- Release drafts take the version and the section from the PR title's Conventional Commit type (`feat:`, `fix:`, `docs:`, ...), via `type: …` labels set automatically, instead of from area labels. `skip-changelog` now actually excludes a PR.
 
 ### Fixed
 - `whm:record` prints a replay hint with the path relative to the project root, so it can be committed.
