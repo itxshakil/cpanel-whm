@@ -40,6 +40,7 @@ All notable changes to this project are documented here. The format follows
 - `BatchResults::failures()`, `successful()` and `throw()` report a `uapi_cpanel` or `cpanel` command whose cPanel function failed as `UapiCallFailed`, as a single call does. The check now lives in `UapiCallFailed::fromInnerCall()`.
 - `Domains::owner()` throws `WhmPermissionDenied` instead of returning null when the token lacks the privilege.
 - `composer.json` requires `ext-openssl`, which `whm:doctor`'s TLS check and HTTPS calls need.
+- `WhmRequestFailed` (and the request log's warning) fires once, for the error the caller gets, instead of for every failed attempt of a read that a retry then made succeed.
 
 ## [0.3.0] - 2026-10-08
 

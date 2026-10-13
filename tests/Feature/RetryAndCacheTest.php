@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace Itxshakil\CpanelWhm\Tests\Feature;
 
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Event;
 use Itxshakil\CpanelWhm\Data\DnsRecord;
+use Itxshakil\CpanelWhm\Events\WhmRequestFailed;
+use Itxshakil\CpanelWhm\Events\WhmRequestSending;
+use Itxshakil\CpanelWhm\Events\WhmResponseReceived;
 use Itxshakil\CpanelWhm\Exceptions\WhmAuthenticationFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmConnectionFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmHttpError;
@@ -42,6 +46,33 @@ final class RetryAndCacheTest extends TestCase
         } catch (WhmConnectionFailed) {
             $fake->assertCalledTimes('version', 3);
         }
+    }
+
+    #[Test]
+    public function a_read_that_succeeds_on_retry_fires_no_failure_event(): void
+    {
+        Event::fake([WhmRequestSending::class, WhmResponseReceived::class, WhmRequestFailed::class]);
+        Whm::fake(['listaccts' => Whm::sequence(Whm::connectionError(), Whm::httpError(503), Whm::response(['acct' => []]))]);
+
+        Whm::accounts()->list();
+
+        Event::assertNotDispatched(WhmRequestFailed::class);
+        Event::assertDispatchedTimes(WhmRequestSending::class, 3);
+        Event::assertDispatchedTimes(WhmResponseReceived::class, 1);
+    }
+
+    #[Test]
+    public function the_failure_event_fires_once_for_the_error_the_caller_gets(): void
+    {
+        Event::fake([WhmRequestFailed::class]);
+        Whm::fake(['version' => Whm::connectionError(), 'removeacct' => Whm::failure('nope')]);
+
+        rescue(static fn () => Whm::server()->version(), report: false);
+        rescue(static fn () => Whm::accounts()->remove('acme'), report: false);
+
+        Event::assertDispatchedTimes(WhmRequestFailed::class, 2);
+        Event::assertDispatched(WhmRequestFailed::class, static fn (WhmRequestFailed $event): bool => $event->request->function === 'version' && $event->exception instanceof WhmConnectionFailed);
+        Event::assertDispatched(WhmRequestFailed::class, static fn (WhmRequestFailed $event): bool => $event->request->function === 'removeacct');
     }
 
     #[Test]

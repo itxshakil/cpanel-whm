@@ -293,12 +293,20 @@ final class WhmClient implements WhmClientContract
         $attempts = $readOnly ? 1 + $this->config->retries : 1;
 
         for ($attempt = 1; ; $attempt++) {
-            try {
-                return $this->attempt(new WhmRequest($this->config->name, $function, $params, $method, $timeout));
-            } catch (WhmConnectionFailed|WhmHttpError $exception) {
-                $retryable = $exception instanceof WhmConnectionFailed || $exception->status() >= 500;
+            $request = new WhmRequest($this->config->name, $function, $params, $method, $timeout);
 
+            try {
+                return $this->attempt($request);
+            } catch (WhmException $exception) {
+                $retryable = $exception instanceof WhmConnectionFailed
+                    || ($exception instanceof WhmHttpError && $exception->status() >= 500);
+
+                // WhmRequestFailed is for the failure the caller gets, not for an
+                // attempt a retry is about to make up for: listeners and the
+                // request log would otherwise report reads that succeeded.
                 if (! $retryable || $attempt >= $attempts) {
+                    $this->events?->dispatch(new WhmRequestFailed($request->redacted(), $exception));
+
                     throw $exception;
                 }
 
@@ -318,14 +326,8 @@ final class WhmClient implements WhmClientContract
         // listeners and logs, none of which may see a password or a new token.
         $this->events?->dispatch(new WhmRequestSending($request->redacted()));
 
-        try {
-            $raw = $this->transport->send($this->config, $request);
-            $response = $this->interpret($request, $raw);
-        } catch (WhmException $whmException) {
-            $this->events?->dispatch(new WhmRequestFailed($request->redacted(), $whmException));
-
-            throw $whmException;
-        }
+        $raw = $this->transport->send($this->config, $request);
+        $response = $this->interpret($request, $raw);
 
         $this->events?->dispatch(new WhmResponseReceived($request->redacted(), $response->redacted(), $raw->durationMs));
 
