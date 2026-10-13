@@ -8,6 +8,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 - `Resellers::setLimits()` can turn account and resource limits off again with `limitAccounts: false` and `limitResources: false`.
+- `BatchResults::failures()`, `successful()` and `throw()` report a `uapi_cpanel` or `cpanel` command whose cPanel function failed as `UapiCallFailed`, as a single call does. The check now lives in `UapiCallFailed::fromInnerCall()`.
+- `Domains::owner()` throws `WhmPermissionDenied` instead of returning null when the token lacks the privilege.
 
 ## [0.3.0] - 2026-10-08
 
