@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `whm:install` updates and checks the `main` connection, which the `WHM_*` keys it writes belong to, instead of whichever connection is the default; it warns when they differ.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
