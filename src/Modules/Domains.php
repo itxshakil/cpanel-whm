@@ -12,6 +12,7 @@ use Itxshakil\CpanelWhm\Data\Value;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
 use Itxshakil\CpanelWhm\Support\UsernameRules;
 use Itxshakil\CpanelWhm\WhmResponse;
 
@@ -57,12 +58,16 @@ class Domains extends Module
     /**
      * The cPanel account that owns a domain, or null when no account does.
      *
+     * @throws WhmPermissionDenied when the token may not look owners up
      * @throws WhmException
      */
     public function owner(string $domain): ?string
     {
         try {
             return Value::string($this->client->call('getdomainowner', ['domain' => $domain])->get('user'));
+        } catch (WhmPermissionDenied $whmPermissionDenied) {
+            // A token without the privilege must not read as "nobody owns it".
+            throw $whmPermissionDenied;
         } catch (WhmCommandFailed) {
             return null;
         }

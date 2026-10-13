@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Itxshakil\CpanelWhm\Tests\Feature\Modules;
 
 use InvalidArgumentException;
+use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
 use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
@@ -45,6 +46,16 @@ final class DomainsAndUsageTest extends TestCase
         self::assertSame('acme', Whm::domains()->owner('acme.test'));
         self::assertNull(Whm::domains()->owner('nobody.test'));
         self::assertSame('/home/acme/public_html', Whm::domains()->userData('acme.test')['documentroot']);
+    }
+
+    #[Test]
+    public function a_token_without_the_privilege_is_not_read_as_an_unowned_domain(): void
+    {
+        Whm::fake(['getdomainowner' => Whm::failure('Permission denied: you do not have access to getdomainowner.')]);
+
+        $this->expectException(WhmPermissionDenied::class);
+
+        Whm::domains()->owner('acme.test');
     }
 
     #[Test]
@@ -204,5 +215,20 @@ final class DomainsAndUsageTest extends TestCase
 
         self::assertSame(['calm', 'acme'], Whm::usage()->nearLimit(90)->map(static fn ($usage) => $usage->user)->all());
         $fake->assertCalledTimes('get_disk_usage', 2)->assertCalledTimes('showbw', 2);
+    }
+
+    #[Test]
+    public function an_unlimited_account_is_never_near_its_limit_even_at_zero_percent(): void
+    {
+        Whm::fake([
+            'get_disk_usage' => Whm::response(['accounts' => [
+                ['user' => 'free', 'blocks_used' => 5000, 'blocks_limit' => 0],
+                ['user' => 'tiny', 'blocks_used' => 0, 'blocks_limit' => 1000],
+            ]]),
+            'showbw' => Whm::response(['acct' => []]),
+        ]);
+
+        // A limited account at 0% is "at or above 0%"; an unlimited one has no share at all.
+        self::assertSame(['tiny'], Whm::usage()->nearLimit(0)->map(static fn ($usage) => $usage->user)->all());
     }
 }
