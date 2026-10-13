@@ -23,6 +23,8 @@ final readonly class DnsRecord
 
     /**
      * @param  list<string>  $data  the record's fields, as WHM splits them (an MX has priority and exchange)
+     * @param  int|null  $zoneSerial  the serial of the zone this record was read from; Dns sends it with
+     *                                an update or removal, so an edit from a stale read is refused
      */
     public function __construct(
         public string $name,
@@ -30,6 +32,7 @@ final readonly class DnsRecord
         public array $data,
         public ?int $ttl = null,
         public ?int $lineIndex = null,
+        public ?int $zoneSerial = null,
     ) {}
 
     public static function a(string $name, string $ip, ?int $ttl = null): self
@@ -120,17 +123,22 @@ final readonly class DnsRecord
 
     public function withLineIndex(int $lineIndex): self
     {
-        return new self($this->name, $this->type, $this->data, $this->ttl, $lineIndex);
+        return new self($this->name, $this->type, $this->data, $this->ttl, $lineIndex, $this->zoneSerial);
     }
 
     public function withData(string ...$data): self
     {
-        return new self($this->name, $this->type, array_values($data), $this->ttl, $this->lineIndex);
+        return new self($this->name, $this->type, array_values($data), $this->ttl, $this->lineIndex, $this->zoneSerial);
     }
 
     public function withTtl(int $ttl): self
     {
-        return new self($this->name, $this->type, $this->data, $ttl, $this->lineIndex);
+        return new self($this->name, $this->type, $this->data, $ttl, $this->lineIndex, $this->zoneSerial);
+    }
+
+    public function withZoneSerial(?int $serial): self
+    {
+        return new self($this->name, $this->type, $this->data, $this->ttl, $this->lineIndex, $serial);
     }
 
     /**
