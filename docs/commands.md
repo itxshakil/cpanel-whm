@@ -57,7 +57,7 @@ php artisan whm:suspend acme --reason="Unpaid invoice #1042" --lock
 php artisan whm:unsuspend acme
 ```
 
-`whm:suspend` asks first unless you pass `--force`.
+Both ask first (the default answer is no) unless you pass `--force`. Without a terminal (cron, CI, `-n`) they refuse unless `--force` is given, so nothing is suspended or unsuspended because nobody was there to answer.
 
 ## whm:packages
 

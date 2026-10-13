@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- `whm:suspend` and `whm:unsuspend` both ask first, with "no" as the default, and refuse without a terminal unless `--force` is given. `whm:unsuspend` gains `--force`.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

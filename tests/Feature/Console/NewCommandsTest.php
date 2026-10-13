@@ -14,12 +14,15 @@ use PHPUnit\Framework\Attributes\Test;
 final class NewCommandsTest extends TestCase
 {
     #[Test]
-    public function suspend_asks_first_and_unsuspend_does_not(): void
+    public function suspend_and_unsuspend_ask_first(): void
     {
         $fake = Whm::fake(['*' => Whm::response()]);
 
         $this->artisan('whm:suspend', ['user' => 'acme', '--reason' => 'Unpaid', '--lock' => true])
             ->expectsConfirmation('Suspend acme? The sites and mail stop working.', 'no')
+            ->assertFailed();
+        $this->artisan('whm:unsuspend', ['user' => 'acme'])
+            ->expectsConfirmation('Unsuspend acme? Its sites and mail start working again.', 'no')
             ->assertFailed();
         $fake->assertNothingSent();
 
@@ -28,10 +31,29 @@ final class NewCommandsTest extends TestCase
             ->assertSuccessful();
 
         $this->artisan('whm:unsuspend', ['user' => 'acme'])
+            ->expectsConfirmation('Unsuspend acme? Its sites and mail start working again.', 'yes')
             ->expectsOutputToContain('acme is active again.')
             ->assertSuccessful();
 
-        $fake->assertCalled('suspendacct', static fn (array $p): bool => $p === ['user' => 'acme', 'reason' => 'Unpaid', 'disallowun' => 1]);
+        $fake->assertCalled('suspendacct', static fn (array $p): bool => $p === ['user' => 'acme', 'reason' => 'Unpaid', 'disallowun' => 1])
+            ->assertCalledTimes('unsuspendacct', 1);
+    }
+
+    #[Test]
+    public function without_a_terminal_nothing_is_suspended_or_unsuspended_unless_forced(): void
+    {
+        $fake = Whm::fake(['*' => Whm::response()]);
+
+        $this->artisan('whm:suspend', ['user' => 'acme', '--no-interaction' => true])
+            ->expectsOutputToContain('--force')
+            ->assertFailed();
+        $this->artisan('whm:unsuspend', ['user' => 'acme', '--no-interaction' => true])
+            ->expectsOutputToContain('--force')
+            ->assertFailed();
+        $fake->assertNothingSent();
+
+        $this->artisan('whm:unsuspend', ['user' => 'acme', '--no-interaction' => true, '--force' => true])->assertSuccessful();
+        $fake->assertCalledTimes('unsuspendacct', 1);
     }
 
     #[Test]
@@ -39,7 +61,7 @@ final class NewCommandsTest extends TestCase
     {
         Whm::fake(['unsuspendacct' => Whm::failure('User does not exist')]);
 
-        $this->artisan('whm:unsuspend', ['user' => 'ghost'])
+        $this->artisan('whm:unsuspend', ['user' => 'ghost', '--force' => true])
             ->expectsOutputToContain('User does not exist')
             ->assertFailed();
     }
