@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `extra:` on the generated WHM and UAPI methods, and `$options` on `Backups::backupAccount()`, can add parameters but no longer replace a typed argument the caller gave (or the normalised username).
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

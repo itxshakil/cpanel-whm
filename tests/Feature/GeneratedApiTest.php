@@ -49,6 +49,19 @@ final class GeneratedApiTest extends TestCase
     }
 
     #[Test]
+    public function extra_adds_parameters_but_never_replaces_a_typed_argument(): void
+    {
+        $fake = Whm::fake(['createacct' => Whm::response(), 'uapi_cpanel' => Whm::uapi([])]);
+
+        Whm::api()->accounts()->createacct(username: 'acme', domain: 'acme.test', extra: ['username' => 'other', 'plan' => 'gold']);
+        Whm::asUser('acme')->api()->email()->listPops(regex: 'info', extra: ['regex' => 'sales', 'skip_main' => 1]);
+
+        // A typed argument that was given wins; one left as null can still come from extra.
+        $fake->assertCalled('createacct', static fn (array $p): bool => $p['username'] === 'acme' && $p['plan'] === 'gold')
+            ->assertCalled('uapi_cpanel', static fn (array $p): bool => $p['regex'] === 'info' && $p['skip_main'] === 1);
+    }
+
+    #[Test]
     public function uapi_functions_run_as_the_account(): void
     {
         $fake = Whm::fake(['uapi_cpanel' => Whm::sequence(Whm::uapi([['email' => 'info@acme.test']]), Whm::uapiFailure('The account does not exist.'))]);

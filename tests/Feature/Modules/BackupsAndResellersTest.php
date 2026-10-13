@@ -73,8 +73,18 @@ final class BackupsAndResellersTest extends TestCase
         self::assertSame('RUNNING', Whm::backups()->backupStatus('acme2026abc'));
 
         $fake->assertCalled('start_background_pkgacct', static fn (array $p): bool => $p === [
-            'user' => 'acme', 'compressionsetting' => 'compress', 'skiphomedir' => 1, 'skiplogs' => 1,
+            'skiplogs' => 1, 'user' => 'acme', 'compressionsetting' => 'compress', 'skiphomedir' => 1,
         ]);
+    }
+
+    #[Test]
+    public function backup_options_cannot_replace_the_normalised_user(): void
+    {
+        $fake = Whm::fake(['start_background_pkgacct' => Whm::response(['session_id' => 's1'])]);
+
+        Whm::backups()->backupAccount('Acme', options: ['user' => 'other', 'skiplogs' => true]);
+
+        $fake->assertCalled('start_background_pkgacct', static fn (array $p): bool => $p['user'] === 'acme' && $p['skiplogs'] === 1);
     }
 
     #[Test]
