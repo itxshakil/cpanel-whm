@@ -6,6 +6,7 @@ namespace Itxshakil\CpanelWhm\Tests\Feature\Console;
 
 use Carbon\CarbonImmutable;
 use Closure;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
 use Itxshakil\CpanelWhm\Doctor\CertificateInfo;
 use Itxshakil\CpanelWhm\Doctor\CheckResult;
@@ -190,6 +191,25 @@ final class DoctorCommandTest extends TestCase
         $this->artisan('whm:doctor', ['--all' => true, '--json' => true])
             ->expectsOutputToContain('"connection": "ca-1"')
             ->assertSuccessful();
+    }
+
+    #[Test]
+    public function json_output_with_all_is_a_list_even_for_one_connection(): void
+    {
+        $this->healthyServer();
+        config()->set('cpanel-whm.connections', ['main' => config('cpanel-whm.connections.main')]);
+
+        Artisan::call('whm:doctor', ['--all' => true, '--json' => true]);
+        $all = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);
+
+        Artisan::call('whm:doctor', ['--json' => true]);
+        $one = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);
+
+        self::assertIsArray($all);
+        self::assertTrue(array_is_list($all));
+        self::assertSame('main', $all[0]['connection'] ?? null);
+        self::assertIsArray($one);
+        self::assertSame('main', $one['connection'] ?? null);
     }
 
     /**

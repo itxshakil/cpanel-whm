@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `whm:doctor --all --json` always prints a list, also when only one connection is configured.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
