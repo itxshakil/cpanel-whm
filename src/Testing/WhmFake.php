@@ -213,7 +213,13 @@ final class WhmFake implements Transport
 
     private function answer(ConnectionConfig $config, WhmRequest $request): TransportResponse
     {
-        $stub = $this->stubs[$request->function] ?? $this->stubs['*'] ?? null;
+        // A UAPI call can be stubbed on its own, 'uapi:Email::add_pop', before
+        // falling back to every uapi_cpanel call, then to '*'.
+        $uapiKey = self::uapiKey($request);
+        $stub = ($uapiKey !== null ? $this->stubs[$uapiKey] ?? null : null)
+            ?? $this->stubs[$request->function]
+            ?? $this->stubs['*']
+            ?? null;
 
         if ($stub === null) {
             if ($this->preventStrayCalls) {
@@ -227,7 +233,9 @@ final class WhmFake implements Transport
     }
 
     /**
-     * Every recorded call, or only those to one function.
+     * Every recorded call, or only those to one function. A UAPI function is
+     * named 'uapi:Module::function', e.g. 'uapi:Email::add_pop'; so the
+     * assertions take that form too.
      *
      * @return list<WhmRequest>
      */
@@ -237,7 +245,25 @@ final class WhmFake implements Transport
             return $this->recorded;
         }
 
-        return array_values(array_filter($this->recorded, static fn (WhmRequest $request): bool => $request->function === $function));
+        return array_values(array_filter(
+            $this->recorded,
+            static fn (WhmRequest $request): bool => str_starts_with($function, 'uapi:')
+                ? self::uapiKey($request) === $function
+                : $request->function === $function,
+        ));
+    }
+
+    /**
+     * 'uapi:Module::function' for a uapi_cpanel call, null for anything else.
+     */
+    private static function uapiKey(WhmRequest $request): ?string
+    {
+        $module = $request->params['cpanel.module'] ?? null;
+        $function = $request->params['cpanel.function'] ?? null;
+
+        return $request->function === 'uapi_cpanel' && is_string($module) && is_string($function)
+            ? "uapi:{$module}::{$function}"
+            : null;
     }
 
     /**

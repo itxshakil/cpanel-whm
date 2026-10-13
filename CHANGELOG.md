@@ -28,6 +28,7 @@ All notable changes to this project are documented here. The format follows
 - `NewAccount::asGiven()`: `accounts()->create()` sends the account exactly as given, skipping the local username rules, domain lowercasing and password generation, while still returning a typed `CreatedAccount`.
 - `WhmConnectionFailed` keeps a `TransportFailure` as its previous exception (the HTTP client's exception class, the cURL error number as the code, and the sanitised message), and has `curlError()`. The original exception is still not chained, since it carries the URL and the Authorization header.
 - `WhmHttpError::body()`: the start of the response body (up to 2,000 characters), with secrets masked, for error pages and JSON errors.
+- `Whm::fake()` accepts `uapi:Module::function` keys to answer one UAPI function, falling back to `uapi_cpanel` and `*`; `assertCalled()`, `assertNotCalled()`, `assertCalledTimes()` and `recorded()` take the same keys.
 
 ### Changed
 - Parameters: backed enums are sent as their value and `Stringable` objects as their string. A nested array, a date or any other object throws `InvalidArgumentException` before anything is sent, instead of reaching WHM as `name[key]=…` and being ignored.
