@@ -65,14 +65,16 @@ final class RecordCommand extends Command
         }
 
         $name = $this->stringOption('name') !== '' ? $this->stringOption('name') : str_replace('/', '_', $function);
+        // The replay hint uses the path relative to the project root, so it can be committed as is.
+        $relative = trim($this->stringOption('path'), '/').'/'.$name.'.json';
         $directory = base_path(trim($this->stringOption('path'), '/'));
-        $path = $directory.'/'.$name.'.json';
+        $path = base_path($relative);
 
         $files->ensureDirectoryExists($directory);
         $files->put($path, json_encode(Redactor::redact($json), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)."\n");
 
         $this->components->info("Saved {$path}");
-        $this->line('  Replay it: <fg=gray>Whm::fake(["'.$function.'" => Whm::fixture(\''.$path.'\')]);</>');
+        $this->line('  Replay it: <fg=gray>Whm::fake(["'.$function.'" => Whm::fixture(\''.$relative.'\')]);</>');
         $this->line('  Check it for customer data before committing: only secrets are redacted.');
 
         return self::SUCCESS;

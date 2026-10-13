@@ -94,7 +94,7 @@ final class WhmBatch
             $responses[] = WhmResponse::fromArray(is_array($result) ? $result : []);
         }
 
-        return new BatchResults($responses, array_column($this->commands, 'function'));
+        return new BatchResults($responses, array_column($this->commands, 'function'), array_column($this->commands, 'params'));
     }
 
     /**

@@ -11,6 +11,7 @@ use Itxshakil\CpanelWhm\Events\WhmRequestFailed;
 use Itxshakil\CpanelWhm\Events\WhmRequestSending;
 use Itxshakil\CpanelWhm\Events\WhmResponseReceived;
 use Itxshakil\CpanelWhm\Exceptions\StrayWhmCall;
+use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
 use Itxshakil\CpanelWhm\Facades\Whm;
@@ -174,5 +175,31 @@ final class BatchTest extends TestCase
         $this->expectExceptionMessage('Invalid batch.');
 
         Whm::batch()->add('version')->send();
+    }
+
+    #[Test]
+    public function a_uapi_command_whose_cpanel_function_failed_is_a_failure(): void
+    {
+        Http::fake(['*' => Http::response(Responses::envelope(['result' => [
+            Responses::envelope(['uapi' => ['status' => 1, 'data' => []]], command: 'uapi_cpanel'),
+            Responses::envelope(['uapi' => ['status' => 0, 'errors' => ['The mailbox already exists.'], 'data' => null]], command: 'uapi_cpanel'),
+        ]], command: 'batch'))]);
+
+        $results = Whm::batch()
+            ->add('uapi_cpanel', ['cpanel.user' => 'acme', 'cpanel.module' => 'Email', 'cpanel.function' => 'list_pops'])
+            ->add('uapi_cpanel', ['cpanel.user' => 'acme', 'cpanel.module' => 'Email', 'cpanel.function' => 'add_pop', 'email' => 'info'])
+            ->send();
+
+        self::assertFalse($results->successful());
+        self::assertSame([1], array_keys($results->failures()));
+
+        $failure = $results->failures()[1];
+        self::assertInstanceOf(UapiCallFailed::class, $failure);
+        self::assertSame('Email', $failure->module());
+        self::assertSame('add_pop', $failure->function());
+        self::assertSame(['The mailbox already exists.'], $failure->errors());
+
+        $this->expectException(UapiCallFailed::class);
+        $results->throw();
     }
 }

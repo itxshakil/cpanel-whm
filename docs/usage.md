@@ -18,6 +18,7 @@ Failures always throw a `WhmException`; no method signals failure through its re
 | Method | WHM function | Returns |
 | --- | --- | --- |
 | `create(NewAccount $account)` | `createacct` (POST, ≥ 120 s timeout) | `CreatedAccount` |
+| `createOrRecover(NewAccount $account)` | `createacct`; after a timeout that may have reached WHM, `accountsummary` | `CreatedAccount` (`recovered` is true when it was found afterwards) |
 | `list(?Filter $filter = null)` | `listaccts` | `Collection<Account>` |
 | `search(string $term, SearchType $by = User, bool $exact = false)` | `listaccts` | `Collection<Account>` |
 | `find(string $user)` | `accountsummary` | `?Account` (null when it does not exist) |
@@ -26,7 +27,11 @@ Failures always throw a `WhmException`; no method signals failure through its re
 | `changePassword(string $user, string $password, bool $syncDatabasePasswords = false)` | `passwd` (POST) | `WhmResponse` |
 | `changePackage(string $user, string $package)` | `changepackage` | `WhmResponse` |
 | `modify(string $user, array $changes)` | `modifyacct` (POST) | `WhmResponse` |
+| `changePrimaryDomain(string $user, string $domain)` | `modifyacct` with `DNS` (POST) | `WhmResponse` |
+| `rename(string $user, string $newUsername)` | `modifyacct` with `newuser` (POST); the new name is checked first | `WhmResponse` |
+| `changeIp(string $user, string $ip)` | `setsiteip` (POST) | `WhmResponse` |
 | `remove(string $user, bool $keepDns = false)` | `removeacct` (POST) | `WhmResponse` |
+| `removeIfExists(string $user, bool $keepDns = false)` | `removeacct` (POST); a missing account counts as done | `bool`: true when this call removed it |
 
 ### Creating
 
@@ -38,9 +43,12 @@ $created = Whm::accounts()->create(new NewAccount(
     password: null,                  // a strong one is generated
     contactEmail: 'ops@acme.example',
     dedicatedIp: false,
-    extra: ['owner' => 'reseller1'], // any other createacct parameter
+    owner: 'reseller1',
+    extra: ['spf' => 1],             // any other createacct parameter
 ));
 ```
+
+Typed overrides of the package's settings for this one account: `customIp` (a specific address), `quotaMb`, `bandwidthMb` (a number or `'unlimited'`), `featureList`, `owner`, `maxEmailsPerHour`, `language` and `shell`. Anything else goes in `extra`.
 
 `CreatedAccount` has `username` (the one WHM assigned: it can differ from the one you asked for), `domain`, `ip`, `package`, `nameservers`, `rawOutput` (WHM's creation log), the full `response` and `password`. Store `username`, not your input.
 
@@ -49,6 +57,8 @@ Without a password (in `password:` or `extra`), a 24-character one with lowercas
 ### Account
 
 `Account` has `username`, `domain`, `package`, `ip`, `email` (null when WHM says `*unknown*`), `owner`, `suspended`, `suspendReason`, `diskUsed`, `diskLimit` (as WHM formats them, e.g. `120M`), `createdAt` and `raw` (everything WHM returned).
+
+It also has `suspendedAt`, `locked` (only root can unsuspend), `ipv6`, `backupEnabled`, `shell`, `theme`, `partition`, `inodesUsed`, `inodesLimit`, and the limits `maxEmailsPerHour`, `maxEmailAccounts`, `maxDatabases`, `maxAddonDomains`, `maxSubdomains`, `maxAliases` and `maxFtpAccounts`. Limits are strings as WHM sends them: a number or `unlimited`.
 
 ### Filters
 
@@ -62,9 +72,21 @@ Operators: `contains`, `begins`, `eq` (`=`), `==`, `lt` (`<`), `lt_equal` (`<=`)
 
 `suspend(string $user, string $reason = '', bool $lock = false)`, `unsuspend(string $user)` and `list()` (`Collection<SuspendedAccount>`). `lock: true` stops the account's reseller from unsuspending it.
 
+## Feature lists
+
+```php
+Whm::featureLists()->list();                                        // ['default', 'disabled', 'basic']
+Whm::featureLists()->features('basic');                             // ['autossl' => true, 'changemx' => false, ...]
+Whm::featureLists()->create('basic', ['autossl' => true]);          // features left out are off
+Whm::featureLists()->update('basic', ['changemx' => true]);         // only the named features change
+Whm::featureLists()->delete('basic');
+```
+
+Features are keyed by their id. `update()` refuses an empty list, because WHM would turn every feature off.
+
 ## Packages
 
-`list()` returns `Collection<Package>` with `name`, `diskQuota`, `bandwidthLimit`, `featureList`, `maxAddonDomains`, `maxSubdomains`, `maxEmailAccounts`, `maxDatabases`, `maxFtpAccounts`, `dedicatedIp` and `raw`. Limits are strings as WHM sends them: a number or `unlimited`. `find(string $name)` returns one or null, and `info(string $name)` reads one package's full settings with `getpkginfo`.
+`list()` returns `Collection<Package>` with `name`, `diskQuota`, `bandwidthLimit`, `featureList`, `maxAddonDomains`, `maxSubdomains`, `maxEmailAccounts`, `maxDatabases`, `maxFtpAccounts`, `dedicatedIp`, `maxAliases`, `maxMailingLists`, `maxEmailsPerHour`, `maxEmailQuota`, `theme`, `language`, `shell`, `cgi` and `raw`. Limits are strings as WHM sends them: a number or `unlimited`. `find(string $name)` returns one or null, and `info(string $name)` reads one package's full settings with `getpkginfo`. `$package->toDefinition()` turns it back into a `PackageDefinition`, for example to copy it to another server.
 
 ```php
 use Itxshakil\CpanelWhm\Data\PackageDefinition;
@@ -193,6 +215,7 @@ Whm::resellers()->saveAcl('basic', ['create-acct', 'list-accts']);
 Whm::resellers()->assignAcl('res1', 'basic');
 Whm::resellers()->acls();                         // ['basic' => ['create-acct', 'list-accts'], ...]
 Whm::resellers()->setLimits('res1', accounts: 25, diskMb: 51_200, bandwidthMb: 512_000);
+Whm::resellers()->setLimits('res1', limitAccounts: false, limitResources: false); // back to unlimited
 Whm::resellers()->stats('res1');                  // ResellerStats: disk, bandwidth, owned accounts
 Whm::resellers()->accountCounts('res1')->remaining();
 Whm::resellers()->suspend('res1', 'Unpaid', lock: true);
@@ -282,7 +305,7 @@ They are a good fit for an audit log:
 Event::listen(AccountSuspended::class, fn ($e) => Activity::log("Suspended {$e->user}: {$e->reason}"));
 ```
 
-The low-level `WhmRequestSending`, `WhmResponseReceived` and `WhmRequestFailed` fire for every call. They carry redacted copies of the request and response: passwords, new API tokens and login URLs are masked, so they are safe for Telescope, queued listeners and logs.
+The low-level `WhmRequestSending`, `WhmResponseReceived` and `WhmRequestFailed` fire for every call. `WhmRequestSending` fires once per attempt, so a retried read sends it more than once; `WhmRequestFailed` fires once, for the error the caller gets, never for an attempt a retry made up for. They carry redacted copies of the request and response: passwords, new API tokens and login URLs are masked, so they are safe for Telescope, queued listeners and logs.
 
 ## Retries and caching
 
@@ -294,6 +317,8 @@ Whm::cache(now()->addHour(), 'redis')->packages()->list();
 ```
 
 `cache()` returns a copy of the client; only read-only calls are cached, and failures never are. `verify_new_username` is never cached, DNS edits read the zone's serial uncached, and `withoutCache()` gives you an uncached copy back. Cache keys include the server and user, not just the connection name.
+
+A successful call that changes something (`create()`, `suspend()`, a batch, ...) drops that server's cached reads, so `Whm::cache(300)->accounts()->list()` never shows an account list from before your own change. The drop happens in the store set as `cpanel-whm.cache.store`; if you cache with an explicit store (`Whm::cache(300, 'redis')`), write through `Whm::cache(300, 'redis')` too, or call `flushCache()` on it. After a change made elsewhere (WHM's UI, another app), call `Whm::flushCache()` or `Whm::connection('ca-1')->flushCache()`.
 
 ## Batches
 
@@ -308,11 +333,11 @@ $results = Whm::batch()
 
 $results[0]->get('acct.0.domain');   // one WhmResponse per command, in order
 $results->successful();              // every command ran and succeeded
-$results->failures();                // [index => WhmCommandFailed|WhmPermissionDenied]
+$results->failures();                // [index => WhmCommandFailed|WhmPermissionDenied|UapiCallFailed]
 $results->throw();                   // throw the first failure, if any
 ```
 
-Parameters are normalised like `Whm::call()`. A failed command does not throw from `send()`; only a failure of the batch request itself does. WHM marks the whole batch failed when one command fails, but as long as it answers every command the batch counts as a response: `WhmResponseReceived` fires, not `WhmRequestFailed`, and a raw `Whm::call('batch', …)` returns it too. The batch is sent as POST and is never retried or cached, whatever its commands are. Secrets inside commands are masked in events and logs.
+Parameters are normalised like `Whm::call()`. A `uapi_cpanel` or `cpanel` command whose cPanel function failed is a failure too (`UapiCallFailed`), as it is for a single call. A failed command does not throw from `send()`; only a failure of the batch request itself does. WHM marks the whole batch failed when one command fails, but as long as it answers every command the batch counts as a response: `WhmResponseReceived` fires, not `WhmRequestFailed`, and a raw `Whm::call('batch', …)` returns it too. The batch is sent as POST and is never retried or cached, whatever its commands are. Secrets inside commands are masked in events and logs.
 
 ## Macros
 
