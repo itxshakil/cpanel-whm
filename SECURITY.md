@@ -4,7 +4,9 @@
 
 | Version | Supported |
 |---|---|
-| 0.x | yes |
+| 0.x | yes, the latest minor release only |
+
+Fixes land in the latest 0.x release. From 1.0, the latest major release gets security fixes, and the previous major gets them for six months after a new major ships.
 
 ## Reporting a vulnerability
 

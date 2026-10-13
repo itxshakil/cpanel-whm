@@ -47,6 +47,9 @@ All notable changes to this project are documented here. The format follows
 - `whm:suspend` and `whm:unsuspend` both ask first, with "no" as the default, and refuse without a terminal unless `--force` is given. `whm:unsuspend` gains `--force`.
 - Docs: coverage claims say that functions taking a JSON body or a file upload may not be callable by name, `coverage.md` points UAPI functions at `asUser()->uapi()`, and the DNS examples check `first()` for null.
 - `Whm::fake()` answers a batch with a failed command the way WHM does: the batch itself has `result = 0` and still carries every command's answer. A `connectionError()` stub for one command becomes a failed command instead of failing the whole batch.
+- The README states what the public API is and how versions treat it: contracts may gain methods in a minor release, generated methods need named arguments, and removals from cPanel's spec are deprecated first. It also states the supported cPanel & WHM versions (developed against 11.138, warned below 11.110).
+- `Support\Params`, `Support\CuratedFunctions` and `Transport\HttpTransport` are marked `@internal`.
+- RELEASING.md aligns the 1.0 criterion with the roadmap and signs release tags; SECURITY.md says which versions get fixes.
 
 ### Fixed
 - `whm:record` prints a replay hint with the path relative to the project root, so it can be committed.

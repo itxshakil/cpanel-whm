@@ -19,6 +19,8 @@ use Stringable;
  * Anything else that isn't a scalar is refused. WHM reads flat form fields, so
  * a nested array would arrive as name[key]=... and be ignored without an error.
  * Dates are refused too: WHM takes them in different formats per function.
+ *
+ * @internal
  */
 final class Params
 {

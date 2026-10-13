@@ -17,3 +17,5 @@ The functions without a typed method take a JSON body or a file upload; see [cov
 ## Before 1.0
 
 - Run in production for six weeks with no breaking changes needed.
+
+That is the only criterion. Functions that take a JSON body or a file upload don't block 1.0; they stay callable with `Whm::call()`. What 1.0 promises is in the README, under "Stability and versioning"; the release steps are in RELEASING.md.

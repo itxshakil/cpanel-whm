@@ -20,6 +20,8 @@ use Itxshakil\CpanelWhm\WhmRequest;
  * The token travels only in the Authorization header. POST bodies are
  * form-encoded (WHM reads parameters as form fields), which keeps passwords
  * out of URLs and therefore out of cURL error messages and server logs.
+ *
+ * @internal Type-hint Contracts\Transport instead.
  */
 final readonly class HttpTransport implements Transport
 {
