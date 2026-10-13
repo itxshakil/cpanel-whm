@@ -46,6 +46,7 @@ All notable changes to this project are documented here. The format follows
 - `whm:install` updates and checks the `main` connection, which the `WHM_*` keys it writes belong to, instead of whichever connection is the default; it warns when they differ.
 - `whm:call --json` prints only JSON on stdout; the "typed on the command line" warning goes to stderr.
 - The `Whm` facade documents `getFake()` and `dispatch()`, and a test keeps its `@method` lines in step with the manager and the client contract.
+- A null inside a list parameter no longer leaves a gap in WHM's repeated parameters (`name`, `name-1`, …), which could hide the values after it.
 - `whm:doctor --all --json` always prints a list, also when only one connection is configured.
 
 ## [0.3.0] - 2026-10-08
