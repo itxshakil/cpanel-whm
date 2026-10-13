@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Itxshakil\CpanelWhm\Tests\Feature\Modules;
 
+use InvalidArgumentException;
 use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
@@ -65,6 +66,21 @@ final class DomainsAndUsageTest extends TestCase
             ->assertCalled('create_parked_domain_for_user', static fn (array $p): bool => $p === ['username' => 'acme', 'domain' => 'acme.store', 'web_vhost_domain' => 'acme.test'])
             ->assertCalled('create_parked_domain_for_user', static fn (array $p): bool => $p['web_vhost_domain'] === 'blog.acme.test')
             ->assertCalledTimes('accountsummary', 1);
+    }
+
+    #[Test]
+    public function an_alias_for_a_missing_account_is_refused_with_a_clear_error(): void
+    {
+        $fake = Whm::fake(['accountsummary' => Whm::failure('Account does not exist.')]);
+
+        try {
+            Whm::domains()->createAlias('ghost', 'ghost.store');
+            self::fail('Expected InvalidArgumentException');
+        } catch (InvalidArgumentException $invalidArgumentException) {
+            self::assertStringContainsString('no cPanel account [ghost]', $invalidArgumentException->getMessage());
+        }
+
+        $fake->assertNotCalled('create_parked_domain_for_user');
     }
 
     #[Test]

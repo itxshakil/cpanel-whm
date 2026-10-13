@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `Domains::createAlias()` without `$webVhostDomain` throws a clear `InvalidArgumentException` when the account doesn't exist, instead of sending `create_parked_domain_for_user` without its required `web_vhost_domain`.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
