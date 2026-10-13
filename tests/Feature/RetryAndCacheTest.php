@@ -178,7 +178,50 @@ final class RetryAndCacheTest extends TestCase
 
         $fake->assertCalledTimes('listaccts', 3);
         $server = hash('xxh128', 'https://server.example.com:2087|root');
-        self::assertTrue(Cache::has("cpanel-whm:main:{$server}:listaccts:".hash('xxh128', serialize(['searchtype' => 'user', 'search' => 'a', 'searchmethod' => 'regex']))));
+        self::assertTrue(Cache::has("cpanel-whm:main:{$server}:g0:listaccts:".hash('xxh128', serialize(['searchtype' => 'user', 'search' => 'a', 'searchmethod' => 'regex']))));
+    }
+
+    #[Test]
+    public function a_change_drops_that_servers_cached_reads(): void
+    {
+        $fake = Whm::fake(['listaccts' => Whm::response(['acct' => []]), 'suspendacct' => Whm::response()]);
+
+        Whm::cache(300)->accounts()->list();
+        Whm::connection('ca-1')->cache(300)->accounts()->list();
+
+        // An uncached client's change still reaches the reads cached by Whm::cache().
+        Whm::suspensions()->suspend('acme');
+
+        Whm::cache(300)->accounts()->list();
+        Whm::connection('ca-1')->cache(300)->accounts()->list();
+
+        // main was read again; ca-1 is another server and kept its cache.
+        $fake->assertCalledTimes('listaccts', 3);
+    }
+
+    #[Test]
+    public function flush_cache_drops_cached_reads_after_a_change_made_elsewhere(): void
+    {
+        $fake = Whm::fake(['listaccts' => Whm::response(['acct' => []])]);
+
+        Whm::cache(300)->accounts()->list();
+        Whm::cache(300)->accounts()->list();
+        Whm::flushCache();
+        Whm::cache(300)->accounts()->list();
+
+        $fake->assertCalledTimes('listaccts', 2);
+    }
+
+    #[Test]
+    public function a_failed_change_leaves_the_cache_alone(): void
+    {
+        $fake = Whm::fake(['listaccts' => Whm::response(['acct' => []]), 'suspendacct' => Whm::failure('nope')]);
+
+        Whm::cache(300)->accounts()->list();
+        rescue(static fn () => Whm::suspensions()->suspend('acme'), report: false);
+        Whm::cache(300)->accounts()->list();
+
+        $fake->assertCalledTimes('listaccts', 1);
     }
 
     #[Test]
