@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `whm:call --json` prints only JSON on stdout; the "typed on the command line" warning goes to stderr.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
