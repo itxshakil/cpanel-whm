@@ -49,6 +49,22 @@ final class GeneratedApiTest extends TestCase
     }
 
     #[Test]
+    public function slow_functions_get_their_long_timeout_on_every_path(): void
+    {
+        $fake = Whm::fake(['*' => Whm::response()]);
+
+        Whm::call('createacct', ['username' => 'acme', 'domain' => 'acme.test']);
+        Whm::api()->accounts()->createacct(username: 'acme', domain: 'acme.test');
+        Whm::call('terminatereseller', ['user' => 'res1']);
+        Whm::call('createacct', ['username' => 'acme'], timeout: 45);
+
+        $timeouts = array_map(static fn (WhmRequest $request): ?int => $request->timeout, $fake->recorded());
+
+        // An explicit timeout is the caller's choice and wins.
+        self::assertSame([120, 120, 600, 45], $timeouts);
+    }
+
+    #[Test]
     public function extra_adds_parameters_but_never_replaces_a_typed_argument(): void
     {
         $fake = Whm::fake(['createacct' => Whm::response(), 'uapi_cpanel' => Whm::uapi([])]);
