@@ -67,6 +67,7 @@ All notable changes to this project are documented here. The format follows
 - `whm:record` refuses a `--name` with a path in it and an absolute or `..` `--path`, before calling WHM, so a fixture can't overwrite files outside the fixtures directory.
 - `UserEmail::list()` asks UAPI for mailbox restrictions (`get_restrictions=1`), so `EmailAccount`'s suspension flags reflect the server instead of always being false.
 - `whm:usage` formats sizes itself instead of with `Number::fileSize()`, which needs ext-intl; it no longer crashes on hosts without it.
+- `Tokens::expiringWithin()`, `whm:token` and `WhmCheck::failWhenTokenExpiresWithin()` ignore tokens that have already expired, so one old token left in WHM no longer fails them forever. `whm:token` lists expired tokens as a reminder to revoke them.
 
 ## [0.3.0] - 2026-10-08
 

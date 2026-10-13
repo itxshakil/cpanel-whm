@@ -183,8 +183,9 @@ final class ProvisioningTest extends TestCase
         self::assertSame(['203.0.113.0/24'], $tokens[1]->allowedIps);
         self::assertSame(6, $tokens[1]->daysLeft());
         self::assertTrue($tokens[2]->isExpired());
-        self::assertSame(['billing', 'old'], Whm::tokens()->expiringWithin(14)->pluck('name')->all());
-        self::assertSame(['old'], Whm::tokens()->expiringWithin(3)->pluck('name')->all());
+        // "old" has already expired: it isn't the token in use, so it isn't "expiring".
+        self::assertSame(['billing'], Whm::tokens()->expiringWithin(14)->pluck('name')->all());
+        self::assertSame([], Whm::tokens()->expiringWithin(3)->pluck('name')->all());
         self::assertSame('billing', Whm::tokens()->find('billing')?->name);
 
         CarbonImmutable::setTestNow();

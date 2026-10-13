@@ -113,6 +113,24 @@ final class NewCommandsTest extends TestCase
     }
 
     #[Test]
+    public function an_old_expired_token_does_not_fail_the_token_check(): void
+    {
+        CarbonImmutable::setTestNow('2026-10-03 12:00:00');
+        Whm::fake(['api_token_list' => Whm::response(['tokens' => [
+            'old' => ['create_time' => 1767225600, 'expires_at' => CarbonImmutable::parse('2026-01-01')->getTimestamp(), 'acls' => ['all' => 1]],
+            'app' => ['create_time' => 1767225600, 'expires_at' => null, 'acls' => ['all' => 1]],
+        ]])]);
+
+        $this->artisan('whm:token')
+            ->expectsOutputToContain('1 expired token(s): old')
+            ->assertSuccessful();
+
+        self::assertCount(0, Whm::tokens()->expiringWithin(14));
+
+        CarbonImmutable::setTestNow();
+    }
+
+    #[Test]
     public function usage_lists_accounts_near_their_limits_and_fails(): void
     {
         Whm::fake([
