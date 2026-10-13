@@ -14,6 +14,7 @@ use Itxshakil\CpanelWhm\Modules\Backups;
 use Itxshakil\CpanelWhm\Modules\CpanelUser;
 use Itxshakil\CpanelWhm\Modules\Dns;
 use Itxshakil\CpanelWhm\Modules\Domains;
+use Itxshakil\CpanelWhm\Modules\FeatureLists;
 use Itxshakil\CpanelWhm\Modules\Packages;
 use Itxshakil\CpanelWhm\Modules\Quotas;
 use Itxshakil\CpanelWhm\Modules\Resellers;
@@ -38,9 +39,11 @@ interface WhmClient
      * Call any WHM API 1 function. Throws on connection errors, HTTP errors and
      * when WHM reports failure (metadata.result = 0).
      *
-     * Null values are left out, booleans are sent as 1/0 and lists as WHM's
-     * repeated parameters (name, name-1, name-2, ...). Read-only functions are
-     * retried after a connection error or HTTP 5xx.
+     * Null values are left out, booleans are sent as 1/0, backed enums as their
+     * value and lists as WHM's repeated parameters (name, name-1, name-2, ...).
+     * Nested arrays, dates and other objects are refused with an
+     * InvalidArgumentException. Read-only functions are retried after a
+     * connection error or HTTP 5xx.
      *
      * Without a $method the call uses the one cPanel documents for the function
      * (POST for undocumented ones). Parameters that hold a secret (password,
@@ -65,10 +68,25 @@ interface WhmClient
     public function withoutCache(): static;
 
     /**
+     * Forget every cached read for this server and user. Calls that change
+     * something do this on their own; use it after a change made elsewhere
+     * (WHM's UI, another app).
+     */
+    public function flushCache(): void;
+
+    /**
      * A copy of this client that makes one attempt per call, for probes such
      * as health checks that time a single request.
      */
     public function withoutRetries(): static;
+
+    /**
+     * A copy of this client with other timeouts, in seconds, for callers that
+     * must not wait as long as provisioning does (a status page, a health check):
+     * Whm::timeout(5, connect: 2)->server()->version(). A per-call $timeout
+     * still wins, and createacct still gets at least Accounts::CREATE_TIMEOUT.
+     */
+    public function timeout(int $seconds, ?int $connect = null): static;
 
     /**
      * A copy of this client that sends every call with one HTTP method, for
@@ -110,6 +128,8 @@ interface WhmClient
     public function tokens(): Tokens;
 
     public function transfers(): Transfers;
+
+    public function featureLists(): FeatureLists;
 
     /**
      * Every documented WHM API 1 function as a typed method, grouped like cPanel's docs.

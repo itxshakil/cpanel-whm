@@ -173,7 +173,11 @@ Whm::asUser('acme')->mysql()->grant('acme_app', 'acme_shop');
 use Itxshakil\CpanelWhm\Data\DnsRecord;
 
 Whm::dns()->add('acme.example', DnsRecord::a('shop', '203.0.113.20'), DnsRecord::txt('@', 'v=spf1 -all'));
-Whm::dns()->update('acme.example', Whm::dns()->zone('acme.example')->first('www', 'A')->withData('203.0.113.30'));
+$www = Whm::dns()->zone('acme.example')->first('www', 'A');   // null when there's no such record
+
+if ($www !== null) {
+    Whm::dns()->update('acme.example', $www->withData('203.0.113.30'));
+}
 
 Whm::domains()->createSubdomain('blog.acme.example', 'public_html/blog');
 Whm::domains()->owner('acme.example');                         // "acme"
@@ -260,6 +264,7 @@ Everything extends `Itxshakil\CpanelWhm\Exceptions\WhmException`, and each has a
 | `WhmHttpError` | Another HTTP error, or an answer that isn't JSON (wrong port or a proxy). |
 | `WhmCommandFailed` | WHM ran the function and reported failure. Has `reason()`, `function()`, `response()`, `rawOutput()`. |
 | `WhmPermissionDenied` | Like `WhmCommandFailed`, but the token's ACL doesn't allow the function. |
+| `AccountNotFound` | Like `WhmCommandFailed`, but the named cPanel account doesn't exist. |
 | `UapiCallFailed` | The UAPI function inside `uapi_cpanel` (or `cpanel`) failed. Has `errors()`. |
 | `InvalidUsername` | A username broke a cPanel rule (checked before sending). |
 | `InvalidConfiguration` | Missing host or token, unknown connection, or a cPanel port. |
@@ -311,7 +316,24 @@ The modules dispatch `AccountCreated`, `AccountRemoved`, `AccountSuspended`, `Ac
 
 Read-only calls are retried after a connection error or HTTP 5xx, and `Whm::cache(300)->packages()->list()` caches them. Calls that change something are never retried or cached.
 
-Set `WHM_LOG_CHANNEL=stack` to log every call: function, connection, duration and outcome. Parameters are redacted (passwords, tokens and login URLs never reach the log). `WhmRequestSending`, `WhmResponseReceived` and `WhmRequestFailed` fire for every call, with secrets already masked.
+### Retries
+
+Retries are **on by default**: a read-only call that fails with a connection error or an HTTP 5xx is tried **twice more**, 250 ms and then 500 ms later. A function that changes something (`createacct`, `suspendacct`, a batch, …) is sent once, whatever happens. That's why nothing is ever created twice.
+
+That means a read against a server that's down can wait up to three times `WHM_TIMEOUT`. Turn retries down where that matters:
+
+```php
+Whm::withoutRetries()->server()->version();   // one attempt, e.g. in a health check
+```
+
+```dotenv
+WHM_RETRY_TIMES=0        # no retries for the connection
+WHM_RETRY_SLEEP_MS=250   # base back-off; attempt n waits n × this
+```
+
+If your queued jobs already retry, consider `WHM_RETRY_TIMES=0` so a failing read isn't retried at two levels. `WhmCheck` always makes a single attempt.
+
+Set `WHM_LOG_CHANNEL=stack` to log every call: function, connection, duration and outcome. Parameters are redacted (passwords, tokens and login URLs never reach the log). Add `WHM_LOG_RESPONSES=true` to log WHM's redacted answers too, and set `log_levels` to choose the level per outcome. `WhmRequestSending`, `WhmResponseReceived` and `WhmRequestFailed` fire for every call, with secrets already masked.
 
 With spatie/laravel-health, add `WhmCheck::new()->failWhenTokenExpiresWithin(7)` to your checks.
 
