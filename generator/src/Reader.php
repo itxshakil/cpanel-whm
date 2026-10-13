@@ -110,6 +110,8 @@ final readonly class Reader
             $method .= 'Function';
         }
 
+        [$parameters, $collisions] = $this->parameters($operation);
+
         return new Operation(
             function: $function,
             group: $group,
@@ -118,17 +120,21 @@ final readonly class Reader
             description: Text::firstParagraph(is_string($operation['description'] ?? null) ? $operation['description'] : ''),
             readOnly: ($operation['x-readonly'] ?? false) === true,
             deprecated: ($operation['deprecated'] ?? false) === true,
-            parameters: $this->parameters($operation),
+            parameters: $parameters,
             docsUrl: $this->docsUrl($operation, $tags, $tagGroups),
             skipReason: $this->skipReason($operation),
             module: $module,
             title: $title,
+            collisions: $collisions,
         );
     }
 
     /**
+     * The typed parameters, and the names of those left out because their PHP
+     * name is already taken (key_id and keyId both become $keyId).
+     *
      * @param  array<array-key, mixed>  $operation
-     * @return list<Parameter>
+     * @return array{0: list<Parameter>, 1: list<string>}
      */
     private function parameters(array $operation): array
     {
@@ -165,6 +171,7 @@ final readonly class Reader
         }
 
         $parameters = [];
+        $collisions = [];
         $names = [];
         $variables = [];
 
@@ -182,7 +189,10 @@ final readonly class Reader
             }
 
             if ($variable === '' || isset($variables[$variable])) {
-                continue;   // still reachable through $extra
+                // Still reachable through $extra, but listed so it isn't silently lost.
+                $collisions[] = $name;
+
+                continue;
             }
 
             $names[$name] = true;
@@ -207,7 +217,7 @@ final readonly class Reader
             );
         }
 
-        return $parameters;
+        return [$parameters, $collisions];
     }
 
     /**

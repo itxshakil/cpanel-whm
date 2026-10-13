@@ -69,6 +69,7 @@ paths:
               properties:
                 zone: { type: string, description: The zone. }
                 ttl: { type: number }
+                TTL: { type: number }
   /personalization_set:
     post:
       operationId: Personalization-set
