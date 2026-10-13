@@ -76,6 +76,15 @@ final class Whm extends Facade
         return WhmFake::failure($reason, $data);
     }
 
+    /**
+     * WHM's answer when the named cPanel account doesn't exist; the client
+     * throws AccountNotFound for it.
+     */
+    public static function accountNotFound(string $user = 'acme'): TransportResponse
+    {
+        return WhmFake::accountNotFound($user);
+    }
+
     public static function httpError(int $status = 500, string $body = ''): TransportResponse
     {
         return WhmFake::httpError($status, $body);

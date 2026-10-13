@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Data\NewAccount;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Enums\SearchType;
 use Itxshakil\CpanelWhm\Events\AccountCreated;
+use Itxshakil\CpanelWhm\Exceptions\AccountNotFound;
 use Itxshakil\CpanelWhm\Exceptions\InvalidUsername;
 use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
@@ -19,6 +20,7 @@ use Itxshakil\CpanelWhm\Support\Filter;
 use Itxshakil\CpanelWhm\Tests\Fixtures\Responses;
 use Itxshakil\CpanelWhm\Tests\TestCase;
 use Itxshakil\CpanelWhm\WhmRequest;
+use Itxshakil\CpanelWhm\WhmResponse;
 use PHPUnit\Framework\Attributes\Test;
 
 final class AccountsTest extends TestCase
@@ -172,6 +174,43 @@ final class AccountsTest extends TestCase
         $this->expectExceptionMessage('Something else broke.');
 
         Whm::accounts()->find('broken');
+    }
+
+    #[Test]
+    public function a_missing_account_throws_account_not_found_however_whm_words_it(): void
+    {
+        $reasons = [
+            'You do not have a user named "ghost".',
+            'Account does not exist.',
+            'The user ghost does not exist.',
+            'No such user: ghost',
+        ];
+
+        foreach ($reasons as $reason) {
+            Whm::fake(['suspendacct' => Whm::failure($reason)]);
+
+            try {
+                Whm::suspensions()->suspend('ghost');
+                self::fail("Expected AccountNotFound for: {$reason}");
+            } catch (AccountNotFound $accountNotFound) {
+                self::assertSame('suspendacct', $accountNotFound->function());
+                self::assertSame($reason, $accountNotFound->reason());
+                self::assertStringContainsString('find()', $accountNotFound->hint());
+            }
+        }
+
+        Whm::fake(['accountsummary' => Whm::accountNotFound('ghost')]);
+        self::assertNull(Whm::accounts()->find('ghost'));
+    }
+
+    #[Test]
+    public function other_missing_things_are_not_mistaken_for_a_missing_account(): void
+    {
+        foreach (['The package "gold" does not exist.', 'The domain does not exist.', 'You do not have permission to do that.'] as $reason) {
+            $exception = WhmCommandFailed::classify('changepackage', WhmResponse::fromArray(['metadata' => ['result' => 0, 'reason' => $reason]]));
+
+            self::assertNotInstanceOf(AccountNotFound::class, $exception, $reason);
+        }
     }
 
     #[Test]
