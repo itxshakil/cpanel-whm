@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- The docs and the Boost guideline say which method fires each account and DNS event, that `Whm::api()`, `Whm::call()` and batches fire none of them, and how to use `WhmResponseReceived` for those paths.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

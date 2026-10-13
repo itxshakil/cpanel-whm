@@ -263,18 +263,30 @@ Whm::asUser('acme')->api()->email()->addPop(email: 'info', password: $password, 
 
 ## Events
 
-The modules dispatch these after WHM confirms the change:
+The hand-written modules dispatch these after WHM confirms the change:
 
-| Event | Properties |
-| --- | --- |
-| `AccountCreated` | `connection`, `account` (`CreatedAccount`, without its password) |
-| `AccountRemoved` | `connection`, `user` |
-| `AccountSuspended` | `connection`, `user`, `reason`, `locked` |
-| `AccountUnsuspended` | `connection`, `user` |
-| `AccountPackageChanged` | `connection`, `user`, `package` |
-| `AccountModified` | `connection`, `user`, `changes` (the `modifyacct` parameters, secrets redacted) |
-| `AccountPasswordChanged` | `connection`, `user` (never the password) |
-| `DnsZoneChanged` | `connection`, `zone`, `serial`, `added`, `edited`, `removed` |
+| Event | Fired by | WHM function | Properties |
+| --- | --- | --- | --- |
+| `AccountCreated` | `accounts()->create()` | `createacct` | `connection`, `account` (`CreatedAccount`, without its password) |
+| `AccountRemoved` | `accounts()->remove()` | `removeacct` | `connection`, `user` |
+| `AccountSuspended` | `suspensions()->suspend()` | `suspendacct` | `connection`, `user`, `reason`, `locked` |
+| `AccountUnsuspended` | `suspensions()->unsuspend()` | `unsuspendacct` | `connection`, `user` |
+| `AccountPackageChanged` | `accounts()->changePackage()` | `changepackage` | `connection`, `user`, `package` |
+| `AccountModified` | `accounts()->modify()` | `modifyacct` | `connection`, `user`, `changes` (the `modifyacct` parameters, secrets redacted) |
+| `AccountPasswordChanged` | `accounts()->changePassword()` | `passwd` | `connection`, `user` (never the password) |
+| `DnsZoneChanged` | `dns()->add()`, `update()`, `remove()`, `edit()` | `mass_edit_dns_zone` | `connection`, `zone`, `serial`, `added`, `edited`, `removed` |
+
+Only those methods fire them. The same WHM function called through `Whm::api()`, `Whm::call()` or inside a `Whm::batch()` fires none of these, because the payload (a `CreatedAccount`, the record counts) is built by the module. To catch every path, listen to `WhmResponseReceived` instead:
+
+```php
+Event::listen(WhmResponseReceived::class, function (WhmResponseReceived $e) {
+    if ($e->request->function === 'suspendacct') {
+        Activity::log("Suspended {$e->request->params['user']}");   // params are already redacted
+    }
+});
+```
+
+A batch is one request, so it fires `WhmResponseReceived` once, with `function` set to `batch`.
 
 They are a good fit for an audit log:
 
