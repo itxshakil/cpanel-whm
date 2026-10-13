@@ -194,6 +194,93 @@ final class AccountsTest extends TestCase
     }
 
     #[Test]
+    public function accounts_carry_suspension_time_lock_limits_and_settings(): void
+    {
+        Whm::fake(['accountsummary' => Whm::response(['acct' => [Responses::account([
+            'suspended' => 1,
+            'suspendreason' => 'Unpaid',
+            'suspendtime' => 1767312000,
+            'is_locked' => 1,
+            'ipv6' => ['2001:db8::20'],
+            'backup' => 1,
+            'shell' => '/usr/local/cpanel/bin/noshell',
+            'theme' => 'jupiter',
+            'inodesused' => 1520,
+            'inodeslimit' => 'unlimited',
+            'max_email_per_hour' => 500,
+            'maxpop' => 'unlimited',
+            'maxsql' => 10,
+            'maxaddons' => 0,
+            'maxsub' => 'unlimited',
+            'maxparked' => 5,
+            'maxftp' => 2,
+        ])]])]);
+
+        $account = Whm::accounts()->find('acme');
+
+        self::assertSame('2026-01-02', $account?->suspendedAt?->toDateString());
+        self::assertTrue($account?->locked);
+        self::assertSame(['2001:db8::20'], $account?->ipv6);
+        self::assertTrue($account?->backupEnabled);
+        self::assertSame('/usr/local/cpanel/bin/noshell', $account?->shell);
+        self::assertSame('jupiter', $account?->theme);
+        self::assertSame('home', $account?->partition);
+        self::assertSame('1520', $account?->inodesUsed);
+        self::assertSame('unlimited', $account?->inodesLimit);
+        self::assertSame('500', $account?->maxEmailsPerHour);
+        self::assertSame(['unlimited', '10', '0', 'unlimited', '5', '2'], [
+            $account?->maxEmailAccounts, $account?->maxDatabases, $account?->maxAddonDomains,
+            $account?->maxSubdomains, $account?->maxAliases, $account?->maxFtpAccounts,
+        ]);
+    }
+
+    #[Test]
+    public function an_active_account_has_no_suspension_time(): void
+    {
+        Whm::fake(['accountsummary' => Whm::response(['acct' => [Responses::account(['suspendtime' => 0])]])]);
+
+        $account = Whm::accounts()->find('acme');
+
+        self::assertNull($account?->suspendedAt);
+        self::assertFalse($account?->locked);
+        self::assertSame([], $account?->ipv6);
+    }
+
+    #[Test]
+    public function new_accounts_send_their_typed_overrides(): void
+    {
+        $fake = Whm::fake(['createacct' => Whm::response(['user' => 'acme'])]);
+
+        Whm::accounts()->create(new NewAccount(
+            username: 'acme',
+            domain: 'acme.example',
+            password: 'S3cure!pass',
+            customIp: '203.0.113.30',
+            quotaMb: 5_120,
+            bandwidthMb: 'unlimited',
+            featureList: 'basic',
+            owner: 'reseller1',
+            maxEmailsPerHour: 200,
+            language: 'fr',
+            shell: false,
+        ));
+
+        $fake->assertCalled('createacct', static fn (array $params): bool => $params === [
+            'username' => 'acme',
+            'domain' => 'acme.example',
+            'password' => 'S3cure!pass',
+            'customip' => '203.0.113.30',
+            'quota' => 5_120,
+            'bwlimit' => 'unlimited',
+            'featurelist' => 'basic',
+            'owner' => 'reseller1',
+            'max_email_per_hour' => 200,
+            'language' => 'fr',
+            'hasshell' => 0,
+        ]);
+    }
+
+    #[Test]
     public function filters_and_searches_are_passed_to_listaccts(): void
     {
         $fake = Whm::fake(['listaccts' => Whm::response(['acct' => []])]);
