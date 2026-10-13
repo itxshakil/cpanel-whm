@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `Whm::ping()` and `whm:doctor` no longer make real DNS lookups and socket connections in tests that call `Http::preventStrayRequests()`: the DNS, network and TLS checks are skipped there, unless a custom `NetworkProbe` is bound.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
