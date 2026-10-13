@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Itxshakil\CpanelWhm\Tests\Feature\Modules;
 
+use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
 use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
@@ -44,6 +45,16 @@ final class DomainsAndUsageTest extends TestCase
         self::assertSame('acme', Whm::domains()->owner('acme.test'));
         self::assertNull(Whm::domains()->owner('nobody.test'));
         self::assertSame('/home/acme/public_html', Whm::domains()->userData('acme.test')['documentroot']);
+    }
+
+    #[Test]
+    public function a_token_without_the_privilege_is_not_read_as_an_unowned_domain(): void
+    {
+        Whm::fake(['getdomainowner' => Whm::failure('Permission denied: you do not have access to getdomainowner.')]);
+
+        $this->expectException(WhmPermissionDenied::class);
+
+        Whm::domains()->owner('acme.test');
     }
 
     #[Test]
