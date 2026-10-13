@@ -11,6 +11,7 @@ All notable changes to this project are documented here. The format follows
 - `Accounts::removeIfExists()`: removes an account, or returns false when it is already gone, so a retried job doesn't fail.
 - `Accounts::createOrRecover()`: like `create()`, but after a timeout that may have reached WHM it looks the account up and returns it (`CreatedAccount::$recovered`), with the password the request carried, when it exists with the requested domain.
 - `WhmClient::flushCache()` (and `Whm::flushCache()`): forget every cached read for the server.
+- `Whm::build(array $config, string $name = 'runtime')`: a client for a server that isn't in config (for example, one read from a database), validated like a configured connection and covered by `Whm::fake()`.
 
 ### Changed
 - Parameters: backed enums are sent as their value and `Stringable` objects as their string. A nested array, a date or any other object throws `InvalidArgumentException` before anything is sent, instead of reaching WHM as `name[key]=…` and being ignored.
