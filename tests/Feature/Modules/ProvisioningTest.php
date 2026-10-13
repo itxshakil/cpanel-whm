@@ -100,6 +100,25 @@ final class ProvisioningTest extends TestCase
     }
 
     #[Test]
+    public function a_certificate_install_that_installssl_reports_as_failed_throws(): void
+    {
+        Whm::fake(['installssl' => Whm::sequence(
+            Whm::response(['status' => 0, 'statusmsg' => 'The certificate does not match the key.']),
+            Whm::response(['status' => 1, 'statusmsg' => 'Installed.', 'domain' => 'acme.test']),
+        )]);
+
+        try {
+            Whm::ssl()->install('acme.test', '-----BEGIN CERTIFICATE-----', '-----BEGIN PRIVATE KEY-----');
+            self::fail('Expected WhmCommandFailed');
+        } catch (WhmCommandFailed $whmCommandFailed) {
+            self::assertSame('installssl', $whmCommandFailed->function());
+            self::assertSame('The certificate does not match the key.', $whmCommandFailed->reason());
+        }
+
+        self::assertSame('Installed.', Whm::ssl()->install('acme.test', '-----BEGIN CERTIFICATE-----', '-----BEGIN PRIVATE KEY-----')->message);
+    }
+
+    #[Test]
     public function api_tokens_are_listed_with_their_expiry(): void
     {
         CarbonImmutable::setTestNow('2026-10-03 12:00:00');

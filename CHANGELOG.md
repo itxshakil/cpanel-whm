@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `Ssl::install()` throws `WhmCommandFailed` with `statusmsg` when `installssl` reports `data.status = 0`, instead of returning a normal-looking result.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
