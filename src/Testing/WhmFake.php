@@ -277,8 +277,8 @@ final class WhmFake implements Transport
      */
     public function assertUapiCalled(string $user, string $module, string $function, ?Closure $callback = null): self
     {
-        PHPUnit::assertNotEmpty(
-            $this->matchingUapi($user, $module, $function, $callback),
+        self::assertThat(
+            $this->matchingUapi($user, $module, $function, $callback) !== [],
             "Expected UAPI {$module}::{$function} to be called as [{$user}]".($callback instanceof Closure ? ' with matching parameters' : '').', but no call matched.',
         );
 
@@ -290,8 +290,8 @@ final class WhmFake implements Transport
      */
     public function assertUapiNotCalled(string $user, string $module, string $function, ?Closure $callback = null): self
     {
-        PHPUnit::assertEmpty(
-            $this->matchingUapi($user, $module, $function, $callback),
+        self::assertThat(
+            $this->matchingUapi($user, $module, $function, $callback) === [],
             "Expected UAPI {$module}::{$function} not to be called as [{$user}], but it was.",
         );
 
