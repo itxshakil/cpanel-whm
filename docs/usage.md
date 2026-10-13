@@ -38,9 +38,12 @@ $created = Whm::accounts()->create(new NewAccount(
     password: null,                  // a strong one is generated
     contactEmail: 'ops@acme.example',
     dedicatedIp: false,
-    extra: ['owner' => 'reseller1'], // any other createacct parameter
+    owner: 'reseller1',
+    extra: ['spf' => 1],             // any other createacct parameter
 ));
 ```
+
+Typed overrides of the package's settings for this one account: `customIp` (a specific address), `quotaMb`, `bandwidthMb` (a number or `'unlimited'`), `featureList`, `owner`, `maxEmailsPerHour`, `language` and `shell`. Anything else goes in `extra`.
 
 `CreatedAccount` has `username` (the one WHM assigned: it can differ from the one you asked for), `domain`, `ip`, `package`, `nameservers`, `rawOutput` (WHM's creation log), the full `response` and `password`. Store `username`, not your input.
 
@@ -49,6 +52,8 @@ Without a password (in `password:` or `extra`), a 24-character one with lowercas
 ### Account
 
 `Account` has `username`, `domain`, `package`, `ip`, `email` (null when WHM says `*unknown*`), `owner`, `suspended`, `suspendReason`, `diskUsed`, `diskLimit` (as WHM formats them, e.g. `120M`), `createdAt` and `raw` (everything WHM returned).
+
+It also has `suspendedAt`, `locked` (only root can unsuspend), `ipv6`, `backupEnabled`, `shell`, `theme`, `partition`, `inodesUsed`, `inodesLimit`, and the limits `maxEmailsPerHour`, `maxEmailAccounts`, `maxDatabases`, `maxAddonDomains`, `maxSubdomains`, `maxAliases` and `maxFtpAccounts`. Limits are strings as WHM sends them: a number or `unlimited`.
 
 ### Filters
 
@@ -64,7 +69,7 @@ Operators: `contains`, `begins`, `eq` (`=`), `==`, `lt` (`<`), `lt_equal` (`<=`)
 
 ## Packages
 
-`list()` returns `Collection<Package>` with `name`, `diskQuota`, `bandwidthLimit`, `featureList`, `maxAddonDomains`, `maxSubdomains`, `maxEmailAccounts`, `maxDatabases`, `maxFtpAccounts`, `dedicatedIp` and `raw`. Limits are strings as WHM sends them: a number or `unlimited`. `find(string $name)` returns one or null, and `info(string $name)` reads one package's full settings with `getpkginfo`.
+`list()` returns `Collection<Package>` with `name`, `diskQuota`, `bandwidthLimit`, `featureList`, `maxAddonDomains`, `maxSubdomains`, `maxEmailAccounts`, `maxDatabases`, `maxFtpAccounts`, `dedicatedIp`, `maxAliases`, `maxMailingLists`, `maxEmailsPerHour`, `maxEmailQuota`, `theme`, `language`, `shell`, `cgi` and `raw`. Limits are strings as WHM sends them: a number or `unlimited`. `find(string $name)` returns one or null, and `info(string $name)` reads one package's full settings with `getpkginfo`. `$package->toDefinition()` turns it back into a `PackageDefinition`, for example to copy it to another server.
 
 ```php
 use Itxshakil\CpanelWhm\Data\PackageDefinition;

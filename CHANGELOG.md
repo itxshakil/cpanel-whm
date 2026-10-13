@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `NewAccount`: typed `customIp`, `quotaMb`, `bandwidthMb`, `featureList`, `owner`, `maxEmailsPerHour`, `language` and `shell`.
+- `Account`: `suspendedAt`, `locked`, `ipv6`, `backupEnabled`, `shell`, `theme`, `partition`, `inodesUsed`, `inodesLimit` and the per-account limits.
+- `Package`: `maxAliases`, `maxMailingLists`, `maxEmailsPerHour`, `maxEmailQuota`, `theme`, `language`, `shell`, `cgi`, and `toDefinition()` to save a package elsewhere without losing settings.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

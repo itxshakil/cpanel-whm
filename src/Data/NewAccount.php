@@ -14,8 +14,15 @@ use SensitiveParameter;
 final readonly class NewAccount
 {
     /**
+     * The limits default to the package's; set one only to override it for this account.
+     *
      * @param  string|null  $password  when omitted (here and in $extra), Accounts::create() generates a strong one and returns it
      * @param  array<string, mixed>  $extra  any other createacct parameter, sent as-is
+     * @param  string|null  $customIp  a specific IPv4 address for the account (customip)
+     * @param  int|string|null  $quotaMb  disk quota in MB, or "unlimited" (quota)
+     * @param  int|string|null  $bandwidthMb  monthly bandwidth in MB, or "unlimited" (bwlimit)
+     * @param  string|null  $owner  the reseller that owns the account (owner)
+     * @param  bool|null  $shell  whether the account gets shell access (hasshell)
      */
     public function __construct(
         public string $username,
@@ -26,6 +33,14 @@ final readonly class NewAccount
         public ?string $contactEmail = null,
         public bool $dedicatedIp = false,
         public array $extra = [],
+        public ?string $customIp = null,
+        public int|string|null $quotaMb = null,
+        public int|string|null $bandwidthMb = null,
+        public ?string $featureList = null,
+        public ?string $owner = null,
+        public int|string|null $maxEmailsPerHour = null,
+        public ?string $language = null,
+        public ?bool $shell = null,
     ) {}
 
     /**
@@ -40,6 +55,14 @@ final readonly class NewAccount
             'password' => $this->password === null ? null : '[REDACTED]',
             'contactEmail' => $this->contactEmail,
             'dedicatedIp' => $this->dedicatedIp,
+            'customIp' => $this->customIp,
+            'quotaMb' => $this->quotaMb,
+            'bandwidthMb' => $this->bandwidthMb,
+            'featureList' => $this->featureList,
+            'owner' => $this->owner,
+            'maxEmailsPerHour' => $this->maxEmailsPerHour,
+            'language' => $this->language,
+            'shell' => $this->shell,
         ];
     }
 
@@ -55,7 +78,23 @@ final readonly class NewAccount
 
     public function withPassword(#[SensitiveParameter] string $password): self
     {
-        return new self($this->username, $this->domain, $this->package, $password, $this->contactEmail, $this->dedicatedIp, $this->extra);
+        return new self(
+            username: $this->username,
+            domain: $this->domain,
+            package: $this->package,
+            password: $password,
+            contactEmail: $this->contactEmail,
+            dedicatedIp: $this->dedicatedIp,
+            extra: $this->extra,
+            customIp: $this->customIp,
+            quotaMb: $this->quotaMb,
+            bandwidthMb: $this->bandwidthMb,
+            featureList: $this->featureList,
+            owner: $this->owner,
+            maxEmailsPerHour: $this->maxEmailsPerHour,
+            language: $this->language,
+            shell: $this->shell,
+        );
     }
 
     /**
@@ -72,6 +111,14 @@ final readonly class NewAccount
             'password' => $this->password,
             'contactemail' => $this->contactEmail,
             'ip' => $this->dedicatedIp ? 'y' : null,
+            'customip' => $this->customIp,
+            'quota' => $this->quotaMb,
+            'bwlimit' => $this->bandwidthMb,
+            'featurelist' => $this->featureList,
+            'owner' => $this->owner,
+            'max_email_per_hour' => $this->maxEmailsPerHour,
+            'language' => $this->language,
+            'hasshell' => $this->shell,
         ];
 
         // $extra goes first, so it can add parameters but never replace the validated ones.
