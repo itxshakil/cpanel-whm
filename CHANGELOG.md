@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `Quotas::setDiskQuota()` and `setBandwidthLimit()` refuse 0 and negative values: WHM reads 0 as unlimited, so a 0 meant as "nothing" granted the opposite. `null` still means unlimited.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
