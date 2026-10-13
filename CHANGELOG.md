@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `whm:usage` formats sizes itself instead of with `Number::fileSize()`, which needs ext-intl; it no longer crashes on hosts without it.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

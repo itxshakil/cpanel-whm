@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\File;
 use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\Finder\Finder;
 
 final class NewCommandsTest extends TestCase
 {
@@ -106,6 +107,24 @@ final class NewCommandsTest extends TestCase
         self::assertMatchesRegularExpression('/\| acme +\| acme\.test +\| 0\.9 GB \/ 1\.0 GB +\| 95% +\| 10 B \/ unlimited/', $output);
         self::assertStringNotContainsString('calm', $output);
         self::assertStringContainsString('1 account(s) at or above 90% of their disk or bandwidth limit.', $output);
+    }
+
+    #[Test]
+    public function usage_formats_every_size_without_the_intl_extension(): void
+    {
+        Whm::fake([
+            'get_disk_usage' => Whm::response(['accounts' => [['user' => 'big', 'blocks_used' => 5 * 1024 ** 3, 'blocks_limit' => 5 * 1024 ** 3]]]),
+            'showbw' => Whm::response(['acct' => [['user' => 'big', 'maindomain' => 'big.test', 'totalbytes' => 1536, 'limit' => 2048]]]),
+        ]);
+
+        Artisan::call('whm:usage', ['--all' => true]);
+
+        self::assertMatchesRegularExpression('/5\.0 TB \/ 5\.0 TB .*1\.5 KB \/ 2\.0 KB/', Artisan::output());
+
+        // Number::fileSize() needs ext-intl, which the package doesn't require.
+        foreach ((new Finder)->files()->in(dirname(__DIR__, 3).'/src')->name('*.php') as $file) {
+            self::assertStringNotContainsString('Illuminate\Support\Number', $file->getContents(), $file->getRelativePathname());
+        }
     }
 
     #[Test]
