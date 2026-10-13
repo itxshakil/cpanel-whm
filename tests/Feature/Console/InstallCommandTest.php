@@ -56,6 +56,46 @@ final class InstallCommandTest extends TestCase
     }
 
     #[Test]
+    public function exported_and_spaced_env_lines_are_replaced_not_duplicated(): void
+    {
+        file_put_contents($this->directory.'/.env', "APP_NAME=Test\nexport WHM_TOKEN=old-token\nWHM_USER = olduser\n");
+
+        $this->artisan('whm:install', ['--no-doctor' => true])
+            ->expectsQuestion('WHM host', 'new.example.com')
+            ->expectsQuestion('WHM username', 'root')
+            ->expectsQuestion('API token', 'new-token')
+            ->expectsConfirmation('Verify the TLS certificate?', 'yes')
+            ->assertSuccessful();
+
+        $env = (string) file_get_contents($this->directory.'/.env');
+
+        self::assertStringContainsString("export WHM_TOKEN=new-token\n", $env);
+        self::assertStringContainsString("WHM_USER=root\n", $env);
+        self::assertStringNotContainsString('old-token', $env);
+        self::assertStringNotContainsString('olduser', $env);
+        self::assertSame(1, substr_count($env, 'WHM_TOKEN'));
+        self::assertSame(1, substr_count($env, 'WHM_USER'));
+    }
+
+    #[Test]
+    public function it_updates_and_checks_main_even_when_another_connection_is_the_default(): void
+    {
+        config()->set('cpanel-whm.default', 'ca-1');
+        $caOne = config('cpanel-whm.connections.ca-1');
+
+        $this->artisan('whm:install', ['--no-doctor' => true])
+            ->expectsQuestion('WHM host', 'new.example.com')
+            ->expectsQuestion('WHM username', 'root')
+            ->expectsQuestion('API token', 'abc')
+            ->expectsConfirmation('Verify the TLS certificate?', 'yes')
+            ->expectsOutputToContain('Checking [main]')
+            ->assertSuccessful();
+
+        self::assertSame('new.example.com', config('cpanel-whm.connections.main.host'));
+        self::assertSame($caOne, config('cpanel-whm.connections.ca-1'));
+    }
+
+    #[Test]
     public function the_doctor_can_be_skipped(): void
     {
         $this->artisan('whm:install', ['--no-doctor' => true])

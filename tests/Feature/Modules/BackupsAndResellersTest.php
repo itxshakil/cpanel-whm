@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Itxshakil\CpanelWhm\Tests\Feature\Modules;
 
 use Carbon\CarbonImmutable;
+use InvalidArgumentException;
+use Itxshakil\CpanelWhm\Exceptions\RestoreNotStarted;
+use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
 use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
@@ -62,6 +65,52 @@ final class BackupsAndResellersTest extends TestCase
     }
 
     #[Test]
+    public function backup_dates_are_taken_in_the_servers_timezone_when_one_is_configured(): void
+    {
+        // 02:30 UTC on the 3rd is still the 2nd in Toronto.
+        $moment = CarbonImmutable::parse('2026-10-03 02:30:00', 'UTC');
+        $fake = Whm::fake(['backup_user_list' => Whm::response(['user' => []])]);
+
+        Whm::backups()->users($moment);
+
+        config()->set('cpanel-whm.connections.main.timezone', 'America/Toronto');
+        Whm::purge();
+        Whm::backups()->users($moment);
+        Whm::backups()->users('2026-10-03');
+
+        self::assertSame(
+            ['2026-10-03', '2026-10-02', '2026-10-03'],
+            array_map(static fn ($request): mixed => $request->params['restore_point'], $fake->recorded('backup_user_list')),
+        );
+        self::assertSame('UTC', $moment->getTimezone()->getName());
+    }
+
+    #[Test]
+    public function a_queued_restore_whose_queue_fails_to_start_keeps_its_queue_id(): void
+    {
+        $fake = Whm::fake([
+            'restore_queue_add_task' => Whm::response(['queue_id' => 'q-123']),
+            'restore_queue_activate' => Whm::sequence(Whm::failure('The restore queue is locked.'), Whm::response()),
+        ]);
+
+        try {
+            Whm::backups()->restore('acme', '2026-10-02');
+            self::fail('Expected RestoreNotStarted');
+        } catch (RestoreNotStarted $restoreNotStarted) {
+            self::assertSame('q-123', $restoreNotStarted->queueId());
+            self::assertStringContainsString('The restore queue is locked.', $restoreNotStarted->getMessage());
+            self::assertInstanceOf(WhmCommandFailed::class, $restoreNotStarted->getPrevious());
+            self::assertStringContainsString('activateQueue()', $restoreNotStarted->hint());
+        }
+
+        // Start the waiting task instead of queueing it again.
+        Whm::backups()->activateQueue();
+
+        $fake->assertCalledTimes('restore_queue_add_task', 1)
+            ->assertCalledTimes('restore_queue_activate', 2);
+    }
+
+    #[Test]
     public function an_account_is_packaged_in_the_background(): void
     {
         $fake = Whm::fake([
@@ -73,8 +122,18 @@ final class BackupsAndResellersTest extends TestCase
         self::assertSame('RUNNING', Whm::backups()->backupStatus('acme2026abc'));
 
         $fake->assertCalled('start_background_pkgacct', static fn (array $p): bool => $p === [
-            'user' => 'acme', 'compressionsetting' => 'compress', 'skiphomedir' => 1, 'skiplogs' => 1,
+            'skiplogs' => 1, 'user' => 'acme', 'compressionsetting' => 'compress', 'skiphomedir' => 1,
         ]);
+    }
+
+    #[Test]
+    public function backup_options_cannot_replace_the_normalised_user(): void
+    {
+        $fake = Whm::fake(['start_background_pkgacct' => Whm::response(['session_id' => 's1'])]);
+
+        Whm::backups()->backupAccount('Acme', options: ['user' => 'other', 'skiplogs' => true]);
+
+        $fake->assertCalled('start_background_pkgacct', static fn (array $p): bool => $p['user'] === 'acme' && $p['skiplogs'] === 1);
     }
 
     #[Test]
@@ -153,5 +212,33 @@ final class BackupsAndResellersTest extends TestCase
             ->assertCalled('suspendreseller', static fn (array $p): bool => $p === ['user' => 'res1', 'reason' => 'Unpaid', 'disallow' => 1, 'reseller-only' => 0])
             ->assertCalled('unsuspendreseller', static fn (array $p): bool => $p === ['user' => 'res1', 'reseller-only' => 1])
             ->assertCalled('terminatereseller', static fn (array $p, $r): bool => $p === ['user' => 'res1', 'terminatereseller' => 0] && $r->timeout === 600);
+    }
+
+    #[Test]
+    public function reseller_limits_can_be_turned_off(): void
+    {
+        $fake = Whm::fake(['setresellerlimits' => Whm::response()]);
+
+        Whm::resellers()->setLimits('res1', limitAccounts: false, limitResources: false);
+        Whm::resellers()->setLimits('res1', accounts: 10, limitResources: false);
+
+        $fake->assertCalled('setresellerlimits', static fn (array $p): bool => $p === [
+            'user' => 'res1', 'enable_account_limit' => 0, 'enable_resource_limits' => 0,
+        ])->assertCalled('setresellerlimits', static fn (array $p): bool => $p === [
+            'user' => 'res1', 'enable_account_limit' => 1, 'account_limit' => 10, 'enable_resource_limits' => 0,
+        ]);
+    }
+
+    #[Test]
+    public function a_limit_given_while_turning_it_off_is_refused(): void
+    {
+        $fake = Whm::fake();
+
+        try {
+            Whm::resellers()->setLimits('res1', diskMb: 1024, limitResources: false);
+            self::fail('Expected InvalidArgumentException');
+        } catch (InvalidArgumentException) {
+            $fake->assertNothingSent();
+        }
     }
 }

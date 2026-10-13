@@ -34,11 +34,13 @@ final readonly class AccountUsage
     }
 
     /**
-     * Whether disk or bandwidth use is at or above $percent of its limit.
+     * Whether disk or bandwidth use is at or above $percent of its limit. An
+     * unlimited one has no share, so it is never near its limit.
      */
     public function isNearLimit(float $percent = 90.0): bool
     {
-        return ($this->disk?->percentUsed() ?? 0) >= $percent
-            || ($this->bandwidth?->percentUsed() ?? 0) >= $percent;
+        $highest = $this->highestPercent();
+
+        return $highest !== null && $highest >= $percent;
     }
 }
