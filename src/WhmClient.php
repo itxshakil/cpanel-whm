@@ -7,6 +7,7 @@ namespace Itxshakil\CpanelWhm;
 use DateInterval;
 use DateTimeInterface;
 use Illuminate\Contracts\Cache\Factory as CacheFactory;
+use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Contracts\Events\Dispatcher;
 use Itxshakil\CpanelWhm\Api\WhmApi;
 use Itxshakil\CpanelWhm\Contracts\Transport;
@@ -82,11 +83,8 @@ final class WhmClient implements WhmClientContract
         $readOnly = FunctionCatalog::isReadOnly($function);
 
         if ($readOnly && $this->cacheTtl !== null && $this->cache instanceof CacheFactory && ! in_array($function, self::NEVER_CACHED, true)) {
-            // The server and user are part of the key, so two apps or tenants that
-            // reuse a connection name never read each other's answers.
-            $server = hash('xxh128', $this->config->baseUrl().'|'.$this->config->user);
-            $key = $this->cachePrefix.':'.$this->config->name.':'.$server.':'.$function.':'.hash('xxh128', serialize($params));
             $store = $this->cache->store($this->cacheStore);
+            $key = $this->cacheKeyPrefix($store).':'.$function.':'.hash('xxh128', serialize($params));
             $cached = $store->get($key);
 
             if ($cached instanceof WhmResponse) {
@@ -99,7 +97,25 @@ final class WhmClient implements WhmClientContract
             return $response;
         }
 
-        return $this->send($function, $params, $method, $timeout, $readOnly);
+        $response = $this->send($function, $params, $method, $timeout, $readOnly);
+
+        // A change makes this server's cached reads stale (a new account, a suspension, ...).
+        if (! $readOnly) {
+            $this->flushCache();
+        }
+
+        return $response;
+    }
+
+    public function flushCache(): void
+    {
+        if (! $this->cache instanceof CacheFactory) {
+            return;
+        }
+
+        // Bumping a generation number drops every cached read for this server at
+        // once, on any cache store, without knowing the keys.
+        $this->cache->store($this->cacheStore)->increment($this->generationKey());
     }
 
     public function cache(int|DateInterval|DateTimeInterface $ttl, ?string $store = null): static
@@ -216,6 +232,28 @@ final class WhmClient implements WhmClientContract
     public function config(): ConnectionConfig
     {
         return $this->config;
+    }
+
+    /**
+     * The server and user are part of the key, so two apps or tenants that
+     * reuse a connection name never read each other's answers. The generation
+     * changes on every flushCache().
+     */
+    private function cacheKeyPrefix(Repository $store): string
+    {
+        $generation = $store->get($this->generationKey());
+
+        return $this->cachePrefix.':'.$this->config->name.':'.$this->serverHash().':g'.(is_int($generation) ? $generation : 0);
+    }
+
+    private function generationKey(): string
+    {
+        return $this->cachePrefix.':'.$this->config->name.':'.$this->serverHash().':generation';
+    }
+
+    private function serverHash(): string
+    {
+        return hash('xxh128', $this->config->baseUrl().'|'.$this->config->user);
     }
 
     /**

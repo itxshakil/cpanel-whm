@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `WhmClient::flushCache()` (and `Whm::flushCache()`): forget every cached read for the server.
+
+### Changed
+- A successful call that changes something drops that server's cached reads, so `Whm::cache()` never returns data from before your own change. Cache keys gained a generation segment.
+- The `WhmClient` contract gains `flushCache()`.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

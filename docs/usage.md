@@ -295,6 +295,8 @@ Whm::cache(now()->addHour(), 'redis')->packages()->list();
 
 `cache()` returns a copy of the client; only read-only calls are cached, and failures never are. `verify_new_username` is never cached, DNS edits read the zone's serial uncached, and `withoutCache()` gives you an uncached copy back. Cache keys include the server and user, not just the connection name.
 
+A successful call that changes something (`create()`, `suspend()`, a batch, ...) drops that server's cached reads, so `Whm::cache(300)->accounts()->list()` never shows an account list from before your own change. The drop happens in the store set as `cpanel-whm.cache.store`; if you cache with an explicit store (`Whm::cache(300, 'redis')`), write through `Whm::cache(300, 'redis')` too, or call `flushCache()` on it. After a change made elsewhere (WHM's UI, another app), call `Whm::flushCache()` or `Whm::connection('ca-1')->flushCache()`.
+
 ## Batches
 
 `Whm::batch()` sends several functions in one request through WHM's `batch` function:
