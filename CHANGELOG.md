@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `whm:record` prints a replay hint with the path relative to the project root, so it can be committed.
+- `Whm::fixture()` treats Windows (`C:\…`, `C:/…`) and UNC paths as absolute.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
