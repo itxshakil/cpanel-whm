@@ -118,6 +118,23 @@ final class DoctorCommandTest extends TestCase
     }
 
     #[Test]
+    public function a_server_that_only_answers_on_retry_is_reported_not_hidden(): void
+    {
+        config()->set('cpanel-whm.connections.main.retry', ['times' => 2, 'sleep_ms' => 0]);
+        Http::fake([
+            '*/json-api/version*' => Http::sequence()->push('', 503)->push(Responses::envelope(['version' => '11.134.0.5'])),
+            '*/json-api/myprivs*' => Http::response(Responses::envelope(['privileges' => [['all' => 1]]], command: 'myprivs')),
+            '*/json-api/applist*' => Http::response(Responses::envelope(['app' => ['version']], command: 'applist')),
+        ]);
+
+        $report = Whm::ping();
+
+        self::assertFalse($report->passed());
+        self::assertStringContainsString('HTTP 503', (string) $report->firstFailure()?->message);
+        Http::assertSentCount(1);
+    }
+
+    #[Test]
     public function an_untrusted_certificate_only_warns_when_verification_is_off(): void
     {
         $this->healthyServer();
