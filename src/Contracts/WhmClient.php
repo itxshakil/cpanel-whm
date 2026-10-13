@@ -38,9 +38,11 @@ interface WhmClient
      * Call any WHM API 1 function. Throws on connection errors, HTTP errors and
      * when WHM reports failure (metadata.result = 0).
      *
-     * Null values are left out, booleans are sent as 1/0 and lists as WHM's
-     * repeated parameters (name, name-1, name-2, ...). Read-only functions are
-     * retried after a connection error or HTTP 5xx.
+     * Null values are left out, booleans are sent as 1/0, backed enums as their
+     * value and lists as WHM's repeated parameters (name, name-1, name-2, ...).
+     * Nested arrays, dates and other objects are refused with an
+     * InvalidArgumentException. Read-only functions are retried after a
+     * connection error or HTTP 5xx.
      *
      * Without a $method the call uses the one cPanel documents for the function
      * (POST for undocumented ones). Parameters that hold a secret (password,
@@ -63,6 +65,13 @@ interface WhmClient
      * depends on (a DNS zone's serial, for example).
      */
     public function withoutCache(): static;
+
+    /**
+     * Forget every cached read for this server and user. Calls that change
+     * something do this on their own; use it after a change made elsewhere
+     * (WHM's UI, another app).
+     */
+    public function flushCache(): void;
 
     /**
      * A copy of this client that makes one attempt per call, for probes such

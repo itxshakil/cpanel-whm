@@ -13,6 +13,7 @@ use Itxshakil\CpanelWhm\WhmManager;
 
 /**
  * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient connection(?string $name = null)
+ * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient build(array<string, mixed> $config, string $name = 'runtime')
  * @method static \Itxshakil\CpanelWhm\WhmResponse call(string $function, array<string, mixed> $params = [], ?\Itxshakil\CpanelWhm\Enums\HttpMethod $method = null, ?int $timeout = null)
  * @method static \Itxshakil\CpanelWhm\WhmBatch batch()
  * @method static \Itxshakil\CpanelWhm\Modules\Accounts accounts()
@@ -32,6 +33,7 @@ use Itxshakil\CpanelWhm\WhmManager;
  * @method static \Itxshakil\CpanelWhm\Api\WhmApi api()
  * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient cache(int|\DateInterval|\DateTimeInterface $ttl, ?string $store = null)
  * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient withoutCache()
+ * @method static void flushCache()
  * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient withoutRetries()
  * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient timeout(int $seconds, ?int $connect = null)
  * @method static \Itxshakil\CpanelWhm\Modules\CpanelUser asUser(string $user)
@@ -75,6 +77,15 @@ final class Whm extends Facade
     public static function failure(string $reason, array $data = []): TransportResponse
     {
         return WhmFake::failure($reason, $data);
+    }
+
+    /**
+     * WHM's answer when the named cPanel account doesn't exist; the client
+     * throws AccountNotFound for it.
+     */
+    public static function accountNotFound(string $user = 'acme'): TransportResponse
+    {
+        return WhmFake::accountNotFound($user);
     }
 
     public static function httpError(int $status = 500, string $body = ''): TransportResponse
