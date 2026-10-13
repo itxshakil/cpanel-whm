@@ -150,12 +150,27 @@ final readonly class ConnectionDoctor
         }
 
         try {
-            $certificate = $this->probe->certificate($config->host, $config->port, $config->connectTimeout);
+            $certificate = $this->probe->certificate($config->host, $config->port, $config->connectTimeout, $config->verifyTls ? $config->caBundle : null);
         } catch (ProbeFailed $probeFailed) {
             return CheckResult::fail(self::TLS, "TLS handshake failed: {$probeFailed->getMessage()}", "Check that port {$config->port} serves WHM over HTTPS.");
         }
 
         $expiry = $certificate->validTo?->format('Y-m-d');
+        $pinHint = $certificate->publicKeyPin !== null ? " Its public key pin is {$certificate->publicKeyPin}." : '';
+
+        if ($config->pinnedPublicKey !== null && $certificate->publicKeyPin !== null) {
+            if (! in_array($certificate->publicKeyPin, explode(';', $config->pinnedPublicKey), true)) {
+                return CheckResult::fail(
+                    self::TLS,
+                    "the certificate's public key doesn't match WHM_PINNED_PUBLIC_KEY",
+                    "The server's key changed, or something is intercepting the connection.{$pinHint} Update the pin only once you know why.",
+                );
+            }
+
+            if (! $certificate->trusted) {
+                return CheckResult::pass(self::TLS, 'certificate not trusted by a CA, but its public key matches the pin');
+            }
+        }
 
         if (! $certificate->trusted) {
             $why = $certificate->error ?? 'the certificate is not trusted';
@@ -164,9 +179,9 @@ final readonly class ConnectionDoctor
                 ? CheckResult::fail(
                     self::TLS,
                     "certificate not trusted: {$why}",
-                    "Install a valid certificate for {$config->host} (AutoSSL covers the server hostname), or set WHM_VERIFY_TLS=false if you connect by IP and accept the risk.",
+                    "Install a valid certificate for {$config->host} (AutoSSL covers the server hostname), set WHM_CA_BUNDLE to the CA that signed it, or set WHM_VERIFY_TLS=false and pin its key with WHM_PINNED_PUBLIC_KEY if you connect by IP.{$pinHint}",
                 )
-                : CheckResult::warn(self::TLS, 'certificate not trusted; verification is off (WHM_VERIFY_TLS=false)', 'Prefer a hostname with a valid certificate so the token cannot be intercepted.');
+                : CheckResult::warn(self::TLS, 'certificate not trusted; verification is off (WHM_VERIFY_TLS=false)', "Pin the certificate's key with WHM_PINNED_PUBLIC_KEY so the token cannot be intercepted.{$pinHint}");
         }
 
         if ($certificate->validTo !== null && $certificate->validTo->lessThan(now()->addDays(self::CERTIFICATE_WARNING_DAYS))) {

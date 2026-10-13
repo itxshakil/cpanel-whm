@@ -23,9 +23,10 @@ interface NetworkProbe
     public function connect(string $host, int $port, int $timeoutSeconds): float;
 
     /**
-     * Read the TLS certificate the server presents.
+     * Read the TLS certificate the server presents. $caBundle, when given, is
+     * the CA file to judge trust by instead of the system's.
      *
      * @throws ProbeFailed when no TLS handshake is possible at all
      */
-    public function certificate(string $host, int $port, int $timeoutSeconds): CertificateInfo;
+    public function certificate(string $host, int $port, int $timeoutSeconds, ?string $caBundle = null): CertificateInfo;
 }

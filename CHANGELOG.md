@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `ca_bundle` (`WHM_CA_BUNDLE`): verify WHM's certificate against your own CA file instead of turning verification off.
+- `pinned_public_key` (`WHM_PINNED_PUBLIC_KEY`): calls fail unless the certificate's public key matches, even with `verify_tls` off. `whm:doctor` checks the pin and prints the server's.
+
+### Changed
+- `NetworkProbe::certificate()` takes an optional `$caBundle`, and `CertificateInfo` gains `publicKeyPin`. Custom probes need the new parameter.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
