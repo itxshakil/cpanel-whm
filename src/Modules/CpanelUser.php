@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Itxshakil\CpanelWhm\Modules;
 
+use InvalidArgumentException;
 use Itxshakil\CpanelWhm\Api\UapiApi;
 use Itxshakil\CpanelWhm\Contracts\WhmClient;
 use Itxshakil\CpanelWhm\Data\UapiResult;
@@ -79,11 +80,20 @@ class CpanelUser extends Module
     /**
      * @param  array<string, mixed>  $params
      *
+     * @throws InvalidArgumentException when $params tries to set cpanel.user, cpanel.module or cpanel.function
      * @throws UapiCallFailed when the UAPI function reports failure
      * @throws WhmException
      */
     public function uapi(string $module, string $function, #[SensitiveParameter] array $params = []): UapiResult
     {
+        // Params often carry user input (the generated API's $extra passes it on as is),
+        // and a cpanel.user key in them would run the function as another account.
+        foreach (array_keys($params) as $key) {
+            if (str_starts_with(mb_strtolower(trim((string) $key)), 'cpanel.')) {
+                throw new InvalidArgumentException("UAPI parameter [{$key}] is reserved: the account, module and function are set by asUser() and uapi().");
+            }
+        }
+
         // POST keeps whatever the function receives (passwords included) out of URLs.
         $response = $this->client->call('uapi_cpanel', [
             'cpanel.user' => $this->user,

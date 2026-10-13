@@ -190,6 +190,31 @@ final class OtherModulesTest extends TestCase
     }
 
     #[Test]
+    public function uapi_params_cannot_change_the_account_module_or_function(): void
+    {
+        $fake = Whm::fake(['uapi_cpanel' => Whm::uapi([])]);
+
+        foreach (['cpanel.user', 'cpanel.module', 'cpanel.function', 'CPANEL.USER', ' cpanel.user'] as $key) {
+            try {
+                Whm::asUser('acme')->uapi('Email', 'list_pops', [$key => 'root']);
+                self::fail("Expected [{$key}] to be refused");
+            } catch (InvalidArgumentException $invalidArgumentException) {
+                self::assertStringContainsString('reserved', $invalidArgumentException->getMessage());
+            }
+        }
+
+        // The generated API passes $extra through to the same call.
+        try {
+            Whm::asUser('acme')->api()->email()->listPops(extra: ['cpanel.user' => 'root']);
+            self::fail('Expected the generated API to refuse cpanel.user');
+        } catch (InvalidArgumentException) {
+            // Refused before anything was sent.
+        }
+
+        $fake->assertNothingSent();
+    }
+
+    #[Test]
     public function a_failed_uapi_function_inside_a_whm_success_raises_uapi_call_failed(): void
     {
         Whm::fake(['uapi_cpanel' => Whm::uapiFailure(['The mailbox already exists.', 'Try another name.'])]);
