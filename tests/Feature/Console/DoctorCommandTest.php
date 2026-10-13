@@ -220,6 +220,43 @@ final class DoctorCommandTest extends TestCase
     }
 
     #[Test]
+    public function a_minimum_version_written_as_a_number_is_flagged_not_ignored(): void
+    {
+        $this->healthyServer();
+        config()->set('cpanel-whm.doctor.minimum_version', 11.110);
+
+        $report = Whm::ping();
+
+        self::assertSame(CheckStatus::Warn, $report->check('Version')?->status);
+        self::assertStringContainsString('11.11', (string) $report->check('Version')?->message);
+        self::assertStringContainsString("'11.110'", (string) $report->check('Version')?->hint);
+    }
+
+    #[Test]
+    public function required_lists_can_be_comma_separated_strings(): void
+    {
+        $this->healthyServer(privileges: ['create-acct' => 1], functions: ['createacct']);
+        config()->set('cpanel-whm.doctor.required_privileges', 'create-acct, kill-acct');
+
+        $report = Whm::ping();
+
+        self::assertSame(CheckStatus::Fail, $report->check('Privileges')?->status);
+        self::assertSame('missing: kill-acct', $report->check('Privileges')?->message);
+    }
+
+    #[Test]
+    public function a_required_list_of_the_wrong_type_is_flagged_not_ignored(): void
+    {
+        $this->healthyServer();
+        config()->set('cpanel-whm.doctor.required_functions', 42);
+
+        $report = Whm::ping();
+
+        self::assertSame(CheckStatus::Warn, $report->check('Functions')?->status);
+        self::assertStringContainsString('doctor.required_functions', (string) $report->check('Functions')?->message);
+    }
+
+    #[Test]
     public function plain_http_fails_the_check(): void
     {
         $this->healthyServer();
