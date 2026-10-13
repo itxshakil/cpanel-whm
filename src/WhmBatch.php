@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Itxshakil\CpanelWhm;
 
 use Itxshakil\CpanelWhm\Contracts\WhmClient;
-use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\Support\Params;
 use SensitiveParameter;
@@ -84,17 +83,9 @@ final class WhmBatch
             'abort_on_error' => $this->abortOnError,
         ];
 
-        try {
-            $response = $this->client->call('batch', $params, timeout: $this->timeout);
-        } catch (WhmCommandFailed $whmCommandFailed) {
-            // WHM may mark the whole batch failed when one command fails; the
-            // per-command results are still there.
-            if (! is_array($whmCommandFailed->response()->get('result'))) {
-                throw $whmCommandFailed;
-            }
-
-            $response = $whmCommandFailed->response();
-        }
+        // A batch WHM marks failed but that still carries every command's result
+        // comes back as a response; see WhmClient::interpret().
+        $response = $this->client->call('batch', $params, timeout: $this->timeout);
 
         $results = $response->get('result');
         $responses = [];
@@ -103,7 +94,7 @@ final class WhmBatch
             $responses[] = WhmResponse::fromArray(is_array($result) ? $result : []);
         }
 
-        return new BatchResults($responses, array_column($this->commands, 'function'));
+        return new BatchResults($responses, array_column($this->commands, 'function'), array_column($this->commands, 'params'));
     }
 
     /**

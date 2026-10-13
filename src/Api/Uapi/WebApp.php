@@ -29,7 +29,7 @@ final class WebApp extends UapiModule
      * @param  string|null  $buildCommand  The command that builds the application.
      * @param  string|null  $deployname  The name (slug) used to name the deployment.
      * @param  string|null  $domain  The domain to bind the application to: a new subdomain of a domain the account owns, or the application's own already-materialized domain.
-     * @param  string|null  $env  A JSON-encoded object of the application's environment variables.
+     * @param  array<array-key, mixed>|string|null  $env  A JSON-encoded object of the application's environment variables. Sent as JSON: an array is encoded for you, a string is sent as it is.
      * @param  string|null  $envText  The raw contents of a `.env` file, for a caller pasting a whole file rather than assembling an object.
      * @param  string|null  $mode  The run mode for `server` category applications.
      * @param  string|null  $outputDir  The directory, relative to the application root, that the build writes its output to.
@@ -49,7 +49,7 @@ final class WebApp extends UapiModule
         ?string $buildCommand = null,
         ?string $deployname = null,
         ?string $domain = null,
-        ?string $env = null,
+        array|string|null $env = null,
         ?string $envText = null,
         ?string $mode = null,
         ?string $outputDir = null,
@@ -64,7 +64,7 @@ final class WebApp extends UapiModule
             'build_command' => $buildCommand,
             'deployname' => $deployname,
             'domain' => $domain,
-            'env' => $env,
+            'env' => self::json($env),
             'env_text' => $envText,
             'mode' => $mode,
             'output_dir' => $outputDir,

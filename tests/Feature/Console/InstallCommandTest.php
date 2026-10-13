@@ -56,6 +56,46 @@ final class InstallCommandTest extends TestCase
     }
 
     #[Test]
+    public function exported_and_spaced_env_lines_are_replaced_not_duplicated(): void
+    {
+        file_put_contents($this->directory.'/.env', "APP_NAME=Test\nexport WHM_TOKEN=old-token\nWHM_USER = olduser\n");
+
+        $this->artisan('whm:install', ['--no-doctor' => true])
+            ->expectsQuestion('WHM host', 'new.example.com')
+            ->expectsQuestion('WHM username', 'root')
+            ->expectsQuestion('API token', 'new-token')
+            ->expectsConfirmation('Verify the TLS certificate?', 'yes')
+            ->assertSuccessful();
+
+        $env = (string) file_get_contents($this->directory.'/.env');
+
+        self::assertStringContainsString("export WHM_TOKEN=new-token\n", $env);
+        self::assertStringContainsString("WHM_USER=root\n", $env);
+        self::assertStringNotContainsString('old-token', $env);
+        self::assertStringNotContainsString('olduser', $env);
+        self::assertSame(1, substr_count($env, 'WHM_TOKEN'));
+        self::assertSame(1, substr_count($env, 'WHM_USER'));
+    }
+
+    #[Test]
+    public function it_updates_and_checks_main_even_when_another_connection_is_the_default(): void
+    {
+        config()->set('cpanel-whm.default', 'ca-1');
+        $caOne = config('cpanel-whm.connections.ca-1');
+
+        $this->artisan('whm:install', ['--no-doctor' => true])
+            ->expectsQuestion('WHM host', 'new.example.com')
+            ->expectsQuestion('WHM username', 'root')
+            ->expectsQuestion('API token', 'abc')
+            ->expectsConfirmation('Verify the TLS certificate?', 'yes')
+            ->expectsOutputToContain('Checking [main]')
+            ->assertSuccessful();
+
+        self::assertSame('new.example.com', config('cpanel-whm.connections.main.host'));
+        self::assertSame($caOne, config('cpanel-whm.connections.ca-1'));
+    }
+
+    #[Test]
     public function the_doctor_can_be_skipped(): void
     {
         $this->artisan('whm:install', ['--no-doctor' => true])
@@ -69,5 +109,33 @@ final class InstallCommandTest extends TestCase
 
         self::assertStringContainsString('WHM_USER=reseller', $env);
         self::assertStringContainsString('WHM_VERIFY_TLS=false', $env);
+    }
+
+    #[Test]
+    public function a_cached_config_is_warned_about(): void
+    {
+        // What Laravel records at boot when it loaded bootstrap/cache/config.php.
+        $this->app->instance('config_loaded_from_cache', true);
+        self::assertTrue($this->app->configurationIsCached());
+
+        $this->artisan('whm:install', ['--no-doctor' => true])
+            ->expectsQuestion('WHM host', 'new.example.com')
+            ->expectsQuestion('WHM username', 'root')
+            ->expectsQuestion('API token', 'abc')
+            ->expectsConfirmation('Verify the TLS certificate?', 'yes')
+            ->expectsOutputToContain('php artisan config:clear')
+            ->assertSuccessful();
+    }
+
+    #[Test]
+    public function an_uncached_config_is_not_warned_about(): void
+    {
+        $this->artisan('whm:install', ['--no-doctor' => true])
+            ->expectsQuestion('WHM host', 'new.example.com')
+            ->expectsQuestion('WHM username', 'root')
+            ->expectsQuestion('API token', 'abc')
+            ->expectsConfirmation('Verify the TLS certificate?', 'yes')
+            ->doesntExpectOutputToContain('config:clear')
+            ->assertSuccessful();
     }
 }

@@ -8,7 +8,9 @@ use Illuminate\Contracts\Config\Repository;
 use Itxshakil\CpanelWhm\Contracts\WhmClient;
 use Itxshakil\CpanelWhm\Enums\CheckStatus;
 use Itxshakil\CpanelWhm\Exceptions\InvalidConfiguration;
+use Itxshakil\CpanelWhm\Exceptions\WhmAuthenticationFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
 use Itxshakil\CpanelWhm\Support\ConnectionConfig;
 use Itxshakil\CpanelWhm\WhmManager;
 
@@ -27,6 +29,8 @@ final readonly class ConnectionDoctor
 
     public const string TLS = 'TLS';
 
+    public const string API = 'API';
+
     public const string AUTH = 'Auth';
 
     public const string PRIVILEGES = 'Privileges';
@@ -41,7 +45,7 @@ final readonly class ConnectionDoctor
      * @var list<string>
      */
     public const array ORDER = [
-        self::CONFIG, self::DNS, self::NETWORK, self::TLS, self::AUTH,
+        self::CONFIG, self::DNS, self::NETWORK, self::TLS, self::API, self::AUTH,
         self::PRIVILEGES, self::FUNCTIONS, self::VERSION, self::LATENCY,
     ];
 
@@ -60,7 +64,8 @@ final readonly class ConnectionDoctor
         try {
             $config = $manager->configFor($connection);
             $target = $config->baseUrl();
-            $results[] = CheckResult::pass(self::CONFIG, "{$config->user} @ {$config->baseUrl()}, TLS verification ".($config->verifyTls ? 'on' : 'off'));
+            $tls = $config->usesTls() ? 'TLS verification '.($config->verifyTls ? 'on' : 'off') : 'TLS n/a (http)';
+            $results[] = CheckResult::pass(self::CONFIG, "{$config->user} @ {$config->baseUrl()}, {$tls}");
         } catch (InvalidConfiguration $invalidConfiguration) {
             $results[] = CheckResult::fail(self::CONFIG, $invalidConfiguration->getMessage(), $invalidConfiguration->hint());
 
@@ -81,22 +86,28 @@ final readonly class ConnectionDoctor
             }
         }
 
-        $client = $manager->connection($connection);
+        // One attempt per check: a retry would hide a flaky server and fold the
+        // failed attempt and its back-off into the latency figure.
+        $client = $manager->connection($connection)->withoutRetries();
         $startedAt = hrtime(true);
 
         try {
             $version = $client->server()->version();
+        } catch (WhmAuthenticationFailed|WhmPermissionDenied $whmException) {
+            // WHM answered and refused the token: the API itself is fine.
+            $results[] = CheckResult::pass(self::API, 'WHM answered');
+            $results[] = CheckResult::fail(self::AUTH, $whmException->getMessage(), $whmException->hint());
+
+            return $this->finish($connection, $target, $results);
         } catch (WhmException $whmException) {
-            $results[] = CheckResult::fail(
-                self::AUTH,
-                $whmException->getMessage(),
-                $whmException->hint(),
-            );
+            // A timeout, an HTTP 5xx or a proxy's HTML page says nothing about the token.
+            $results[] = CheckResult::fail(self::API, $whmException->getMessage(), $whmException->hint());
 
             return $this->finish($connection, $target, $results);
         }
 
         $latencyMs = (hrtime(true) - $startedAt) / 1_000_000;
+        $results[] = CheckResult::pass(self::API, 'WHM answered');
         $results[] = CheckResult::pass(self::AUTH, "token accepted for {$config->user}");
 
         foreach ([$this->privileges($client), $this->functions($client)] as $result) {
@@ -119,10 +130,10 @@ final readonly class ConnectionDoctor
             return CheckResult::pass(self::DNS, "{$config->host} is an IP address, no lookup needed");
         }
 
-        $addresses = $this->probe->resolve($config->host);
+        $addresses = $this->probe->resolve($config->bareHost());
 
         if ($addresses === []) {
-            return CheckResult::fail(self::DNS, "{$config->host} does not resolve", 'Check the spelling of WHM_HOST and that the name has an A record.');
+            return CheckResult::fail(self::DNS, "{$config->host} does not resolve", 'Check the spelling of WHM_HOST and that the name has an A or AAAA record.');
         }
 
         return CheckResult::pass(self::DNS, "{$config->host} → ".implode(', ', array_slice($addresses, 0, 3)));
@@ -131,7 +142,7 @@ final readonly class ConnectionDoctor
     private function network(ConnectionConfig $config): CheckResult
     {
         try {
-            $milliseconds = $this->probe->connect($config->host, $config->port, $config->connectTimeout);
+            $milliseconds = $this->probe->connect($config->bareHost(), $config->port, $config->connectTimeout);
         } catch (ProbeFailed $probeFailed) {
             return CheckResult::fail(
                 self::NETWORK,
@@ -145,36 +156,57 @@ final readonly class ConnectionDoctor
 
     private function tls(ConnectionConfig $config): CheckResult
     {
+        // Every call carries the token in its Authorization header, so plain HTTP
+        // fails the check unless the connection opts in, e.g. on a private network.
         if (! $config->usesTls()) {
-            return CheckResult::warn(self::TLS, "plain HTTP on port {$config->port}: the token is sent unencrypted", 'Use https:// and port 2087.');
+            $message = "plain HTTP on port {$config->port}: the token is sent unencrypted";
+
+            return $config->allowInsecureHttp
+                ? CheckResult::warn(self::TLS, "{$message} (allow_insecure_http is on)", 'Use https:// and port 2087 unless the network between the app and WHM is private.')
+                : CheckResult::fail(self::TLS, $message, "Use https:// and port 2087. If this network is private and you accept the risk, set 'allow_insecure_http' => true on the connection.");
         }
 
         try {
-            $certificate = $this->probe->certificate($config->host, $config->port, $config->connectTimeout);
+            $certificate = $this->probe->certificate($config->bareHost(), $config->port, $config->connectTimeout, $config->verifyTls ? $config->caBundle : null);
         } catch (ProbeFailed $probeFailed) {
             return CheckResult::fail(self::TLS, "TLS handshake failed: {$probeFailed->getMessage()}", "Check that port {$config->port} serves WHM over HTTPS.");
         }
 
         $expiry = $certificate->validTo?->format('Y-m-d');
+        $pinHint = $certificate->publicKeyPin !== null ? " Its public key pin is {$certificate->publicKeyPin}." : '';
+
+        // Expiry matters even when verification is off: an expired
+        // certificate is often why it isn't trusted in the first place.
+        $validity = match (true) {
+            $certificate->validTo === null => '',
+            $certificate->validTo->isPast() => "; it expired on {$expiry}",
+            default => "; valid until {$expiry}",
+        };
+
+        if ($config->pinnedPublicKey !== null && $certificate->publicKeyPin !== null) {
+            if (! in_array($certificate->publicKeyPin, explode(';', $config->pinnedPublicKey), true)) {
+                return CheckResult::fail(
+                    self::TLS,
+                    "the certificate's public key doesn't match WHM_PINNED_PUBLIC_KEY",
+                    "The server's key changed, or something is intercepting the connection.{$pinHint} Update the pin only once you know why.",
+                );
+            }
+
+            if (! $certificate->trusted) {
+                return CheckResult::pass(self::TLS, "certificate not trusted by a CA, but its public key matches the pin{$validity}");
+            }
+        }
 
         if (! $certificate->trusted) {
             $why = $certificate->error ?? 'the certificate is not trusted';
-
-            // Expiry matters even when verification is off: an expired
-            // certificate is often why it isn't trusted in the first place.
-            $validity = match (true) {
-                $certificate->validTo === null => '',
-                $certificate->validTo->isPast() => "; it expired on {$expiry}",
-                default => "; valid until {$expiry}",
-            };
 
             return $config->verifyTls
                 ? CheckResult::fail(
                     self::TLS,
                     "certificate not trusted: {$why}{$validity}",
-                    "Install a valid certificate for {$config->host} (AutoSSL covers the server hostname), or set WHM_VERIFY_TLS=false if you connect by IP and accept the risk.",
+                    "Install a valid certificate for {$config->host} (AutoSSL covers the server hostname), set WHM_CA_BUNDLE to the CA that signed it, or set WHM_VERIFY_TLS=false and pin its key with WHM_PINNED_PUBLIC_KEY if you connect by IP.{$pinHint}",
                 )
-                : CheckResult::warn(self::TLS, "certificate not trusted; verification is off (WHM_VERIFY_TLS=false){$validity}", 'Prefer a hostname with a valid certificate so the token cannot be intercepted.');
+                : CheckResult::warn(self::TLS, "certificate not trusted; verification is off (WHM_VERIFY_TLS=false){$validity}", "Pin the certificate's key with WHM_PINNED_PUBLIC_KEY so the token cannot be intercepted.{$pinHint}");
         }
 
         if ($certificate->validTo !== null && $certificate->validTo->lessThan(now()->addDays(self::CERTIFICATE_WARNING_DAYS))) {
@@ -187,6 +219,10 @@ final readonly class ConnectionDoctor
     private function privileges(WhmClient $client): CheckResult
     {
         $required = $this->stringList('cpanel-whm.doctor.required_privileges');
+
+        if ($required === null) {
+            return self::badSetting(self::PRIVILEGES, 'required_privileges', "['create-acct', 'suspend-acct']");
+        }
 
         try {
             $privileges = $client->server()->privileges();
@@ -217,6 +253,10 @@ final readonly class ConnectionDoctor
     {
         $required = $this->stringList('cpanel-whm.doctor.required_functions');
 
+        if ($required === null) {
+            return self::badSetting(self::FUNCTIONS, 'required_functions', "['createacct', 'uapi_cpanel']");
+        }
+
         try {
             $functions = $client->server()->functions();
         } catch (WhmException $whmException) {
@@ -240,8 +280,21 @@ final readonly class ConnectionDoctor
 
     private function version(string $version): CheckResult
     {
-        $minimum = $this->config->get('cpanel-whm.doctor.minimum_version');
-        $minimum = is_string($minimum) ? $minimum : '0';
+        $configured = $this->config->get('cpanel-whm.doctor.minimum_version');
+
+        // A float can't be trusted: 11.110 written without quotes is 11.11.
+        $minimum = match (true) {
+            $configured === null => '0',
+            is_string($configured) => trim($configured) === '' ? '0' : trim($configured),
+            is_int($configured) => (string) $configured,
+            default => null,
+        };
+
+        if ($minimum === null) {
+            return is_float($configured)
+                ? CheckResult::warn(self::VERSION, "doctor.minimum_version is the number {$configured}, so the version was not checked", "Write it as a string: '11.110', not 11.110 (which PHP reads as 11.11).")
+                : self::badSetting(self::VERSION, 'minimum_version', "'11.110'");
+        }
 
         if ($version === '') {
             return CheckResult::warn(self::VERSION, 'the server did not report its version');
@@ -282,12 +335,40 @@ final readonly class ConnectionDoctor
     }
 
     /**
-     * @return list<string>
+     * A list setting as strings. A comma-separated string (as an env value
+     * would give) is accepted too. Null means the type can't be used, so the
+     * caller can say so instead of quietly requiring nothing.
+     *
+     * @return list<string>|null
      */
-    private function stringList(string $key): array
+    private function stringList(string $key): ?array
     {
         $value = $this->config->get($key);
 
-        return is_array($value) ? array_values(array_map(strval(...), array_filter($value, is_scalar(...)))) : [];
+        if ($value === null) {
+            return [];
+        }
+
+        if (is_string($value)) {
+            $value = explode(',', $value);
+        }
+
+        if (! is_array($value)) {
+            return null;
+        }
+
+        return array_values(array_filter(
+            array_map(static fn (mixed $item): string => is_scalar($item) ? trim((string) $item) : '', $value),
+            static fn (string $item): bool => $item !== '',
+        ));
+    }
+
+    private static function badSetting(string $check, string $key, string $example): CheckResult
+    {
+        return CheckResult::warn(
+            $check,
+            "doctor.{$key} in config/cpanel-whm.php has a type that can't be used, so it was not checked",
+            "Set it like {$example}.",
+        );
     }
 }
