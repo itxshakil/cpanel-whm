@@ -155,7 +155,7 @@ final class BackupsAndResellersTest extends TestCase
     #[Test]
     public function reseller_stats_and_counts_are_typed(): void
     {
-        Whm::fake([
+        $fake = Whm::fake([
             'resellerstats' => Whm::response(['reseller' => [
                 'user' => 'res1', 'diskused' => 5.69, 'diskquota' => 0, 'totaldiskalloc' => '1100', 'totalbwused' => '12.5',
                 'bandwidthlimit' => 2000, 'totalbwalloc' => '500', 'diskoverselling' => 1, 'bwoverselling' => 0,
@@ -173,6 +173,12 @@ final class BackupsAndResellersTest extends TestCase
 
         $counts = Whm::resellers()->accountCounts('res1');
         self::assertSame(11, $counts->remaining());
+
+        Whm::resellers()->stats('res1', includeDeleted: true);
+
+        // Accounts removed this month stay out unless asked for.
+        $fake->assertCalled('resellerstats', static fn (array $p): bool => $p === ['user' => 'res1', 'filter_deleted' => 1])
+            ->assertCalled('resellerstats', static fn (array $p): bool => $p === ['user' => 'res1']);
     }
 
     #[Test]

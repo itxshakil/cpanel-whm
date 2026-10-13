@@ -104,6 +104,7 @@ All notable changes to this project are documented here. The format follows
 - `Whm::ping()` and `whm:doctor` no longer make real DNS lookups and socket connections in tests that call `Http::preventStrayRequests()`: the DNS, network and TLS checks are skipped there, unless a custom `NetworkProbe` is bound.
 - `ServiceStatus::isDown()` no longer reports enabled services that WHM doesn't monitor as down. WHM omits `running` for them, so `ServiceStatus::$running` is now `?bool` and null in that case.
 - Bandwidth usage leaves out accounts and domains removed during the month, which `showbw` still lists. A user removed and created again no longer risks `bandwidthFor()`, `all()` or `nearLimit()` picking the old row, and a removed domain no longer overwrites a live one in `byDomain`. `bandwidth(includeDeleted: true)` keeps them, flagged with `BandwidthUsage::$deleted`.
+- `Resellers::stats()` leaves accounts removed during the month out of `ResellerStats::$accounts` (`filter_deleted=1`); pass `includeDeleted: true` to keep them. The docblock now says the list includes the reseller's own account, as WHM documents.
 
 ## [0.3.0] - 2026-10-08
 
