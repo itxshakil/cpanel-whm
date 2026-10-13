@@ -11,7 +11,8 @@ namespace Itxshakil\CpanelWhm\Data;
 final readonly class BandwidthUsage
 {
     /**
-     * @param  array<string, int>  $byDomain  bytes per domain
+     * @param  array<string, int>  $byDomain  bytes per domain that still exists
+     * @param  bool  $deleted  the account was removed this month (showbw still lists it)
      */
     public function __construct(
         public string $user,
@@ -22,6 +23,7 @@ final readonly class BandwidthUsage
         public array $byDomain,
         public int $month,
         public int $year,
+        public bool $deleted = false,
     ) {}
 
     /**
@@ -32,7 +34,9 @@ final readonly class BandwidthUsage
         $byDomain = [];
 
         foreach (is_array($row['bwusage'] ?? null) ? $row['bwusage'] : [] as $usage) {
-            if (is_array($usage) && is_string($usage['domain'] ?? null)) {
+            // A domain removed and added again this month is listed twice; the
+            // deleted entry would otherwise overwrite the live one.
+            if (is_array($usage) && is_string($usage['domain'] ?? null) && ! Value::bool($usage['deleted'] ?? false)) {
                 $byDomain[$usage['domain']] = Value::int($usage['usage'] ?? null) ?? 0;
             }
         }
@@ -48,6 +52,7 @@ final readonly class BandwidthUsage
             byDomain: $byDomain,
             month: $month,
             year: $year,
+            deleted: Value::bool($row['deleted'] ?? false),
         );
     }
 

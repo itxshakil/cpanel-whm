@@ -160,7 +160,7 @@ $usage->isNearLimit(90);
 
 Whm::usage()->disk();                       // Collection<DiskUsage> for every account (WHM's quota cache)
 Whm::usage()->disk(fresh: true);            // bypass the cache; slower
-Whm::usage()->bandwidth(month: 9, year: 2026, reseller: 'res1');
+Whm::usage()->bandwidth(month: 9, year: 2026, reseller: 'res1');   // accounts removed that month are left out; includeDeleted: true keeps them
 Whm::usage()->bandwidthFor('acme');         // ?BandwidthUsage, with byDomain
 Whm::usage()->all();                        // Collection<AccountUsage>, highest share of a limit first
 Whm::usage()->nearLimit(90);                // accounts at or above 90% of their disk or bandwidth limit

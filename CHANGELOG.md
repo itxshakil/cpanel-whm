@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Bandwidth usage leaves out accounts and domains removed during the month, which `showbw` still lists. A user removed and created again no longer risks `bandwidthFor()`, `all()` or `nearLimit()` picking the old row, and a removed domain no longer overwrites a live one in `byDomain`. `bandwidth(includeDeleted: true)` keeps them, flagged with `BandwidthUsage::$deleted`.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
