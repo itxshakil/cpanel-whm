@@ -44,8 +44,10 @@ final class UserEmailAndMysqlTest extends TestCase
         self::assertNull($mailboxes->last()?->quotaBytes);
         self::assertNull($mailboxes->last()?->percentUsed());
 
+        // get_restrictions=1, or UAPI leaves the suspension fields out.
         $fake->assertCalled('uapi_cpanel', static fn (array $p): bool => $p['cpanel.user'] === 'acme'
-            && $p['cpanel.module'] === 'Email' && $p['cpanel.function'] === 'list_pops_with_disk');
+            && $p['cpanel.module'] === 'Email' && $p['cpanel.function'] === 'list_pops_with_disk'
+            && ($p['get_restrictions'] ?? null) === 1);
     }
 
     #[Test]
