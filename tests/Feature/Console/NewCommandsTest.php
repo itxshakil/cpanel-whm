@@ -45,6 +45,21 @@ final class NewCommandsTest extends TestCase
     }
 
     #[Test]
+    public function a_failure_with_json_is_reported_as_json(): void
+    {
+        Whm::fake(['listpkgs' => Whm::httpError(401), 'get_disk_usage' => Whm::httpError(401)]);
+
+        foreach (['whm:packages', 'whm:usage'] as $command) {
+            self::assertSame(1, Artisan::call($command, ['--json' => true]), $command);
+
+            $output = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);
+            self::assertIsArray($output);
+            self::assertStringContainsString('HTTP 401', (string) ($output['error'] ?? ''));
+            self::assertNotEmpty($output['hint'] ?? null);
+        }
+    }
+
+    #[Test]
     public function packages_are_shown_as_a_table_or_json(): void
     {
         Whm::fake(['listpkgs' => Whm::response(['pkg' => [['name' => 'starter', 'QUOTA' => '10240', 'MAXPOP' => '10']]])]);

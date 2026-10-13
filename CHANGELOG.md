@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Commands with `--json` (`whm:packages`, `whm:usage`, `whm:call`, `whm:record`, …) report a WHM failure as JSON (`error`, `hint`, `exception`) instead of a styled block on stdout.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
