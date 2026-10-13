@@ -79,7 +79,7 @@ jobs:
             - uses: shivammathur/setup-php@v2
               with:
                   php-version: ${{ matrix.php }}
-                  extensions: dom, mbstring, intl, openssl
+                  extensions: dom, mbstring, intl, openssl, fileinfo, curl
                   tools: composer
                   coverage: none
             - name: Pin Laravel version
