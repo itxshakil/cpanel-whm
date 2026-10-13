@@ -27,7 +27,11 @@ final class SuspendCommand extends Command
     {
         $user = $this->stringArgument('user');
 
-        if ($this->option('force') !== true && ! $this->confirm("Suspend {$user}? The sites and mail stop working.", true)) {
+        // Without a terminal (cron, CI, -n) nobody can be asked, so only --force may
+        // suspend; and the question itself defaults to no.
+        if ($this->option('force') !== true && (! $this->input->isInteractive() || ! $this->confirm("Suspend {$user}? The sites and mail stop working.", false))) {
+            $this->components->warn('Nothing changed. Pass --force to suspend without asking.');
+
             return self::FAILURE;
         }
 

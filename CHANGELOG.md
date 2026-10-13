@@ -38,6 +38,7 @@ All notable changes to this project are documented here. The format follows
 - Cache keys sort the parameters, so the same read with its parameters in another order hits the same cache entry.
 - HTTP error messages take WHM's reason from `data.reason` when `metadata.reason` is empty, as `WhmResponse::reason()` does.
 - Docs: the README has a "Retries" section naming the default (two retries for read-only calls), the worst-case wait, `WHM_RETRY_TIMES=0` and `withoutRetries()`.
+- `whm:suspend` and `whm:unsuspend` both ask first, with "no" as the default, and refuse without a terminal unless `--force` is given. `whm:unsuspend` gains `--force`.
 
 ### Fixed
 - `whm:record` prints a replay hint with the path relative to the project root, so it can be committed.
