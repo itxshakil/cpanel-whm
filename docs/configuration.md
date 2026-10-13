@@ -15,6 +15,7 @@ Publish the config with `php artisan vendor:publish --tag=cpanel-whm-config` (or
         'verify_tls' => (bool) env('WHM_VERIFY_TLS', true),
         'timeout' => (int) env('WHM_TIMEOUT', 30),
         'connect_timeout' => (int) env('WHM_CONNECT_TIMEOUT', 10),
+        'timezone' => env('WHM_TIMEZONE'),
     ],
 ],
 ```
@@ -27,6 +28,7 @@ Publish the config with `php artisan vendor:publish --tag=cpanel-whm-config` (or
 | `verify_tls` | Keep `true`. Set `false` only for a server reached by IP with a self-signed certificate; `whm:doctor` warns about it. |
 | `timeout` | Seconds per call. `createacct` always gets at least 120 seconds, because it sets up DNS, mail and DKIM. |
 | `connect_timeout` | Seconds to open the connection. |
+| `timezone` | Optional. The server's timezone identifier, such as `America/Toronto` (`timedatectl show -p Timezone --value` prints it). Backup dates are calendar days on the server, so a date object passed to `backups()->restore()` or `backups()->users()` is converted to this timezone before the day is taken. Without it, the object's own timezone is used. Date strings are always taken as written. |
 
 Add more servers as more entries and pick one with `Whm::connection('name')` or `--connection=name`.
 

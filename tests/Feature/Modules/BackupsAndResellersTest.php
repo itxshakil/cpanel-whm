@@ -62,6 +62,27 @@ final class BackupsAndResellersTest extends TestCase
     }
 
     #[Test]
+    public function backup_dates_are_taken_in_the_servers_timezone_when_one_is_configured(): void
+    {
+        // 02:30 UTC on the 3rd is still the 2nd in Toronto.
+        $moment = CarbonImmutable::parse('2026-10-03 02:30:00', 'UTC');
+        $fake = Whm::fake(['backup_user_list' => Whm::response(['user' => []])]);
+
+        Whm::backups()->users($moment);
+
+        config()->set('cpanel-whm.connections.main.timezone', 'America/Toronto');
+        Whm::purge();
+        Whm::backups()->users($moment);
+        Whm::backups()->users('2026-10-03');
+
+        self::assertSame(
+            ['2026-10-03', '2026-10-02', '2026-10-03'],
+            array_map(static fn ($request): mixed => $request->params['restore_point'], $fake->recorded('backup_user_list')),
+        );
+        self::assertSame('UTC', $moment->getTimezone()->getName());
+    }
+
+    #[Test]
     public function an_account_is_packaged_in_the_background(): void
     {
         $fake = Whm::fake([

@@ -39,6 +39,10 @@ return [
             'timeout' => (int) env('WHM_TIMEOUT', 30),
             'connect_timeout' => (int) env('WHM_CONNECT_TIMEOUT', 10),
 
+            // The server's timezone, e.g. America/Toronto. Backup dates given
+            // as date objects are converted to it before the day is taken.
+            'timezone' => env('WHM_TIMEZONE'),
+
             // Read-only functions (listaccts, accountsummary, ...) are retried
             // after a connection error or an HTTP 5xx. Changes never are.
             'retry' => [

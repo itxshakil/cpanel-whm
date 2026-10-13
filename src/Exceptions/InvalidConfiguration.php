@@ -40,6 +40,14 @@ final class InvalidConfiguration extends WhmException
         return $exception;
     }
 
+    public static function invalidTimezone(string $connection, string $timezone): self
+    {
+        $exception = new self("WHM connection [{$connection}] has an unknown timezone [{$timezone}].");
+        $exception->hintText = "Use the server's timezone identifier, such as America/Toronto or UTC. On the server, timedatectl show -p Timezone --value prints it.";
+
+        return $exception;
+    }
+
     public function hint(): ?string
     {
         return $this->hintText;

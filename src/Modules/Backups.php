@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Itxshakil\CpanelWhm\Modules;
 
+use DateTimeImmutable;
 use DateTimeInterface;
+use DateTimeZone;
 use Illuminate\Support\Collection;
 use Itxshakil\CpanelWhm\Data\RestoreQueue;
 use Itxshakil\CpanelWhm\Data\Value;
@@ -144,8 +146,21 @@ class Backups extends Module
         return Value::string($this->client->call('get_pkgacct_session_state', ['session_id' => $sessionId])->get('state'));
     }
 
+    /**
+     * Backup dates are calendar days on the server. A moment held in another
+     * timezone (an app in UTC) can fall on a different day there, so it is
+     * moved to the connection's timezone first when one is configured.
+     */
     private function date(DateTimeInterface|string $date): string
     {
-        return $date instanceof DateTimeInterface ? $date->format('Y-m-d') : substr(trim($date), 0, 10);
+        if (! $date instanceof DateTimeInterface) {
+            return substr(trim($date), 0, 10);
+        }
+
+        $timezone = $this->client->config()->timezone;
+
+        return $timezone === null
+            ? $date->format('Y-m-d')
+            : DateTimeImmutable::createFromInterface($date)->setTimezone(new DateTimeZone($timezone))->format('Y-m-d');
     }
 }

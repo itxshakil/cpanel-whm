@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- An optional `timezone` per connection (`WHM_TIMEZONE`). Date objects passed to `backups()->restore()` and `backups()->users()` are converted to it before the day is taken, so a UTC moment no longer asks for the wrong day's backup. Unknown timezones are rejected as `InvalidConfiguration`. Without it, nothing changes.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

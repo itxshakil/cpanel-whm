@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Itxshakil\CpanelWhm\Support;
 
+use DateTimeZone;
 use Itxshakil\CpanelWhm\Exceptions\InvalidConfiguration;
 use SensitiveParameter;
 
@@ -30,6 +31,7 @@ final readonly class ConnectionConfig
         public int $connectTimeout = 10,
         public int $retries = 2,
         public int $retryDelayMs = 250,
+        public ?string $timezone = null,
     ) {}
 
     /**
@@ -47,6 +49,7 @@ final readonly class ConnectionConfig
             'connectTimeout' => $this->connectTimeout,
             'retries' => $this->retries,
             'retryDelayMs' => $this->retryDelayMs,
+            'timezone' => $this->timezone,
         ];
     }
 
@@ -73,6 +76,12 @@ final readonly class ConnectionConfig
 
         [$scheme, $host, $port] = self::parseHost($name, $rawHost);
 
+        $timezone = self::string($config['timezone'] ?? null);
+
+        if ($timezone !== '' && ! in_array($timezone, timezone_identifiers_list(DateTimeZone::ALL_WITH_BC), true)) {
+            throw InvalidConfiguration::invalidTimezone($name, $timezone);
+        }
+
         return new self(
             name: $name,
             scheme: $scheme,
@@ -85,6 +94,7 @@ final readonly class ConnectionConfig
             connectTimeout: max(1, self::int($config['connect_timeout'] ?? null, 10)),
             retries: max(0, self::int(is_array($config['retry'] ?? null) ? ($config['retry']['times'] ?? null) : null, 2)),
             retryDelayMs: max(0, self::int(is_array($config['retry'] ?? null) ? ($config['retry']['sleep_ms'] ?? null) : null, 250)),
+            timezone: $timezone !== '' ? $timezone : null,
         );
     }
 
@@ -104,7 +114,7 @@ final readonly class ConnectionConfig
     {
         return new self(
             $this->name, $this->scheme, $this->host, $this->port, $this->user, $this->token,
-            $this->verifyTls, $this->timeout, $this->connectTimeout, $this->retries, 0,
+            $this->verifyTls, $this->timeout, $this->connectTimeout, $this->retries, 0, $this->timezone,
         );
     }
 
@@ -115,7 +125,7 @@ final readonly class ConnectionConfig
     {
         return new self(
             $this->name, $this->scheme, $this->host, $this->port, $this->user, $this->token,
-            $this->verifyTls, $this->timeout, $this->connectTimeout, 0, $this->retryDelayMs,
+            $this->verifyTls, $this->timeout, $this->connectTimeout, 0, $this->retryDelayMs, $this->timezone,
         );
     }
 
