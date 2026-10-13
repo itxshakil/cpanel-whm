@@ -8,6 +8,7 @@ use ArrayAccess;
 use ArrayIterator;
 use Countable;
 use IteratorAggregate;
+use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
 use LogicException;
 use OutOfRangeException;
@@ -25,10 +26,12 @@ final readonly class BatchResults implements ArrayAccess, Countable, IteratorAgg
     /**
      * @param  list<WhmResponse>  $responses
      * @param  list<string>  $functions  the function of each command sent
+     * @param  list<array<string, mixed>>  $params  the parameters of each command sent
      */
     public function __construct(
         private array $responses,
         private array $functions,
+        private array $params = [],
     ) {}
 
     public function get(int $index): WhmResponse
@@ -61,17 +64,29 @@ final readonly class BatchResults implements ArrayAccess, Countable, IteratorAgg
     }
 
     /**
-     * The commands that failed, keyed by their position in the batch.
+     * The commands that failed, keyed by their position in the batch. A
+     * uapi_cpanel or cpanel command whose cPanel function failed counts too,
+     * as UapiCallFailed, just like a single call.
      *
-     * @return array<int, WhmCommandFailed>
+     * @return array<int, WhmCommandFailed|UapiCallFailed>
      */
     public function failures(): array
     {
         $failures = [];
 
         foreach ($this->responses as $index => $response) {
+            $function = $response->command() ?? $this->functions[$index] ?? 'batch';
+
             if ($response->failed()) {
-                $failures[$index] = WhmCommandFailed::classify($response->command() ?? $this->functions[$index] ?? 'batch', $response);
+                $failures[$index] = WhmCommandFailed::classify($function, $response);
+
+                continue;
+            }
+
+            $inner = UapiCallFailed::fromInnerCall($function, $this->params[$index] ?? [], $response);
+
+            if ($inner instanceof UapiCallFailed) {
+                $failures[$index] = $inner;
             }
         }
 
@@ -82,6 +97,7 @@ final readonly class BatchResults implements ArrayAccess, Countable, IteratorAgg
      * Throw the first failed command's exception, if any.
      *
      * @throws WhmCommandFailed
+     * @throws UapiCallFailed
      */
     public function throw(): self
     {

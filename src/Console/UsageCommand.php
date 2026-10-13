@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Itxshakil\CpanelWhm\Console;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Number;
 use Itxshakil\CpanelWhm\Console\Concerns\InteractsWithWhm;
 use Itxshakil\CpanelWhm\Data\AccountUsage;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
@@ -97,9 +96,23 @@ final class UsageCommand extends Command
         return self::bytes($used).' / '.($limit === null ? 'unlimited' : self::bytes($limit));
     }
 
+    /**
+     * "10 B", "0.9 GB": the same output as Number::fileSize($bytes, $bytes < 1024 ? 0 : 1),
+     * which needs ext-intl that this package doesn't require.
+     */
     private static function bytes(int $bytes): string
     {
-        return (string) Number::fileSize($bytes, $bytes < 1024 ? 0 : 1);
+        $units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+        $value = (float) $bytes;
+        $unit = 0;
+
+        // Like Number::fileSize(): move up a unit once the value is past 0.9 of it.
+        while ($value / 1024 > 0.9 && $unit < count($units) - 1) {
+            $value /= 1024;
+            $unit++;
+        }
+
+        return number_format($value, $bytes < 1024 ? 0 : 1, '.', '').' '.$units[$unit];
     }
 
     private static function number(float $value): string

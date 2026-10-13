@@ -44,8 +44,10 @@ final class UserEmailAndMysqlTest extends TestCase
         self::assertNull($mailboxes->last()?->quotaBytes);
         self::assertNull($mailboxes->last()?->percentUsed());
 
+        // get_restrictions=1, or UAPI leaves the suspension fields out.
         $fake->assertCalled('uapi_cpanel', static fn (array $p): bool => $p['cpanel.user'] === 'acme'
-            && $p['cpanel.module'] === 'Email' && $p['cpanel.function'] === 'list_pops_with_disk');
+            && $p['cpanel.module'] === 'Email' && $p['cpanel.function'] === 'list_pops_with_disk'
+            && ($p['get_restrictions'] ?? null) === 1);
     }
 
     #[Test]
@@ -158,6 +160,23 @@ final class UserEmailAndMysqlTest extends TestCase
         self::assertSame('acme_app', $user?->name);
         self::assertSame('app', $user?->shortName);
         self::assertSame(['acme_shop'], $user?->databases);
+    }
+
+    #[Test]
+    public function an_empty_grant_is_refused(): void
+    {
+        $fake = Whm::fake();
+
+        foreach ([[], [' ', '']] as $privileges) {
+            try {
+                Whm::asUser('acme')->mysql()->grant('acme_app', 'acme_shop', $privileges);
+                self::fail('Expected InvalidArgumentException');
+            } catch (InvalidArgumentException $invalidArgumentException) {
+                self::assertStringContainsString('revoke()', $invalidArgumentException->getMessage());
+            }
+        }
+
+        $fake->assertNothingSent();
     }
 
     #[Test]

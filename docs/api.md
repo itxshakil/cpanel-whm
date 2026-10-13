@@ -38,6 +38,7 @@ Each returns a `UapiResult`; a UAPI failure throws `UapiCallFailed`.
 - **Optional arguments you leave out are not sent.**
 - **Flags** documented as 0/1 accept `true` / `false`.
 - **Lists** become WHM's repeated parameters: `zone: ['a.test', 'b.test']` sends `zone=a.test&zone-1=b.test`.
+- **Backed enums** are sent as their value and `Stringable` objects as their string. A nested array, a date or any other object throws `InvalidArgumentException` before anything is sent: WHM would ignore a nested array without an error, and each function documents its own date format.
 - **`extra:`** takes anything else, sent as given: wildcard parameters such as `copymysqldb-*`, or a parameter newer than the spec. It never replaces a typed argument you gave; a key in `extra` only counts when the matching argument is left out.
 - Functions that change something are sent as **POST**, so passwords and keys stay out of URLs and server logs. Read-only ones are GET and can be [retried and cached](usage.md#retries-and-caching). A call that carries a secret (a password, token, passphrase or key) is always POST, read-only or not.
 
