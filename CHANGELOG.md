@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `Suspensions::ensureSuspended()` and `ensureUnsuspended()`, and `Packages::deleteIfExists()`, for jobs that may be retried. They read the current state first, act only when it differs, and return whether they changed anything.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
