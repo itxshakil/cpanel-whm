@@ -131,6 +131,48 @@ final class DoctorCommandTest extends TestCase
     }
 
     #[Test]
+    public function a_self_signed_certificate_passes_when_its_key_matches_the_pin(): void
+    {
+        $pin = 'sha256//'.base64_encode(str_repeat('k', 32));
+        $this->healthyServer();
+        config()->set('cpanel-whm.connections.main.verify_tls', false);
+        config()->set('cpanel-whm.connections.main.pinned_public_key', $pin);
+        $this->probe(new FakeProbe(certificate: new CertificateInfo(false, error: 'self-signed', publicKeyPin: $pin)));
+
+        $tls = Whm::ping()->check('TLS');
+
+        self::assertSame(CheckStatus::Pass, $tls?->status);
+        self::assertStringContainsString('matches the pin', (string) $tls?->message);
+    }
+
+    #[Test]
+    public function a_certificate_whose_key_does_not_match_the_pin_fails_and_shows_the_new_pin(): void
+    {
+        $pinned = 'sha256//'.base64_encode(str_repeat('k', 32));
+        $presented = 'sha256//'.base64_encode(str_repeat('x', 32));
+        $this->healthyServer();
+        config()->set('cpanel-whm.connections.main.pinned_public_key', $pinned);
+        $this->probe(new FakeProbe(certificate: new CertificateInfo(true, publicKeyPin: $presented)));
+
+        $tls = Whm::ping()->check('TLS');
+
+        self::assertSame(CheckStatus::Fail, $tls?->status);
+        self::assertStringContainsString($presented, (string) $tls?->hint);
+    }
+
+    #[Test]
+    public function the_tls_check_judges_trust_by_the_configured_ca_bundle(): void
+    {
+        $this->healthyServer();
+        config()->set('cpanel-whm.connections.main.ca_bundle', __FILE__);
+        $this->probe($probe = new FakeProbe);
+
+        Whm::ping();
+
+        self::assertSame(__FILE__, $probe->caBundleSeen);
+    }
+
+    #[Test]
     public function an_expiring_certificate_and_an_old_server_only_warn(): void
     {
         $this->healthyServer();

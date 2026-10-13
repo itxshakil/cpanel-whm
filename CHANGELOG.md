@@ -13,11 +13,14 @@ All notable changes to this project are documented here. The format follows
 - `WhmClient::flushCache()` (and `Whm::flushCache()`): forget every cached read for the server.
 - `Whm::build(array $config, string $name = 'runtime')`: a client for a server that isn't in config (for example, one read from a database), validated like a configured connection and covered by `Whm::fake()`.
 - `WhmClient::timeout(int $seconds, ?int $connect = null)` (and `Whm::timeout()`): a copy of the client with other timeouts, for status pages and health checks. `ConnectionConfig::withTimeouts()` backs it. The `WhmClient` contract gains `timeout()`.
+- `ca_bundle` (`WHM_CA_BUNDLE`): verify WHM's certificate against your own CA file instead of turning verification off.
+- `pinned_public_key` (`WHM_PINNED_PUBLIC_KEY`): calls fail unless the certificate's public key matches, even with `verify_tls` off. `whm:doctor` checks the pin and prints the server's.
 
 ### Changed
 - Parameters: backed enums are sent as their value and `Stringable` objects as their string. A nested array, a date or any other object throws `InvalidArgumentException` before anything is sent, instead of reaching WHM as `name[key]=…` and being ignored.
 - A successful call that changes something drops that server's cached reads, so `Whm::cache()` never returns data from before your own change. Cache keys gained a generation segment.
 - The `WhmClient` contract gains `flushCache()`.
+- `NetworkProbe::certificate()` takes an optional `$caBundle`, and `CertificateInfo` gains `publicKeyPin`. Custom probes need the new parameter.
 
 ### Fixed
 - `whm:record` prints a replay hint with the path relative to the project root, so it can be committed.

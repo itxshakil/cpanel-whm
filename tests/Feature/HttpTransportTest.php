@@ -156,6 +156,26 @@ final class HttpTransportTest extends TestCase
     }
 
     #[Test]
+    public function a_ca_bundle_and_a_pinned_key_reach_the_http_client(): void
+    {
+        $pin = 'sha256//'.base64_encode(str_repeat('k', 32));
+        config()->set('cpanel-whm.connections.main.ca_bundle', __FILE__);
+        config()->set('cpanel-whm.connections.main.pinned_public_key', $pin);
+
+        $options = [];
+        Http::fake(static function (Request $request, array $sent) use (&$options) {
+            $options = $sent;
+
+            return Http::response(Responses::envelope(['version' => '11.134.0.5']));
+        });
+
+        Whm::server()->version();
+
+        self::assertSame(__FILE__, $options['verify'] ?? null);
+        self::assertSame($pin, $options['curl'][CURLOPT_PINNEDPUBLICKEY] ?? null);
+    }
+
+    #[Test]
     public function a_client_copy_can_use_shorter_timeouts(): void
     {
         $sent = [];
