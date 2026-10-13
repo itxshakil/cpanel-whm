@@ -43,6 +43,7 @@ All notable changes to this project are documented here. The format follows
 - `WhmRequestFailed` (and the request log's warning) fires once, for the error the caller gets, instead of for every failed attempt of a read that a retry then made succeed.
 - A batch WHM marks failed because one command failed, but that still answers every command, is a response: `WhmResponseReceived` fires instead of `WhmRequestFailed`, and the request log no longer warns about it. `Whm::call('batch', …)` returns it instead of throwing.
 - `whm:doctor` makes one attempt per check, so a server that only answers on retry is reported, and the latency figure no longer includes a failed attempt and its back-off.
+- `whm:install` updates and checks the `main` connection, which the `WHM_*` keys it writes belong to, instead of whichever connection is the default; it warns when they differ.
 
 ## [0.3.0] - 2026-10-08
 
