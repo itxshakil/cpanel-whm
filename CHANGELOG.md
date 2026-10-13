@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `Domains::owner()` throws `WhmPermissionDenied` instead of returning null when the token lacks the privilege.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
