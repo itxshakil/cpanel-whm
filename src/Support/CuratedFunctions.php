@@ -8,6 +8,8 @@ namespace Itxshakil\CpanelWhm\Support;
  * Which WHM API 1 functions have a hand-written method with typed results.
  * Every other documented function has a generated method under Whm::api()
  * (see FunctionCatalog), and anything at all is one Whm::call() away.
+ *
+ * @internal
  */
 final class CuratedFunctions
 {
@@ -39,11 +41,14 @@ final class CuratedFunctions
         'servicestatus' => 'server()->services()',
         'restartservice' => 'server()->restartService()',
         'getdiskusage' => 'server()->partitions()',
+        'get_current_users_count' => 'server()->accountLimits()',
+        'get_maximum_users' => 'server()->accountLimits()',
         'getpkginfo' => 'packages()->info()',
         'addpkg' => 'packages()->create()',
         'editpkg' => 'packages()->update()',
         'killpkg' => 'packages()->delete()',
         'listzones' => 'dns()->zones()',
+        'get_nameserver_config' => 'dns()->nameservers()',
         'parse_dns_zone' => 'dns()->zone()',
         'mass_edit_dns_zone' => 'dns()->add() / update() / remove() / edit()',
         'adddns' => 'dns()->create()',

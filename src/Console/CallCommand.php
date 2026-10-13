@@ -13,6 +13,7 @@ use Itxshakil\CpanelWhm\Support\CuratedFunctions;
 use Itxshakil\CpanelWhm\Support\Redactor;
 use Itxshakil\CpanelWhm\WhmResponse;
 use Symfony\Component\Console\Attribute\AsCommand;
+use Symfony\Component\Console\Output\ConsoleOutputInterface;
 
 #[AsCommand(name: 'whm:call')]
 final class CallCommand extends Command
@@ -138,10 +139,29 @@ final class CallCommand extends Command
 
         if ($typedSecrets !== []) {
             $keys = implode(', ', $typedSecrets);
-            $this->components->warn("{$keys} was typed on the command line, where shell history and the process list keep it. Give it as a bare key ({$typedSecrets[0]}) to be asked for it instead.");
+            $this->warnAside("{$keys} was typed on the command line, where shell history and the process list keep it. Give it as a bare key ({$typedSecrets[0]}) to be asked for it instead.");
         }
 
         return $params;
+    }
+
+    /**
+     * With --json, stdout must carry nothing but the JSON so it can be piped
+     * into jq; a warning goes to stderr instead.
+     */
+    private function warnAside(string $message): void
+    {
+        if ($this->option('json') !== true) {
+            $this->components->warn($message);
+
+            return;
+        }
+
+        $output = $this->output->getOutput();
+
+        if ($output instanceof ConsoleOutputInterface) {
+            $output->getErrorOutput()->writeln("<comment>WARN</comment> {$message}");
+        }
     }
 
     private function confirmDestructive(string $function): bool

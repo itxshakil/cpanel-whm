@@ -98,4 +98,23 @@ class Packages extends Module
     {
         return $this->client->call('killpkg', ['pkgname' => $name], HttpMethod::Post);
     }
+
+    /**
+     * Delete the package unless it is already gone. Safe to re-run from a
+     * retried job. Returns true when this call deleted it. A package still in
+     * use is refused by WHM and throws.
+     *
+     * @throws WhmException
+     */
+    public function deleteIfExists(string $name): bool
+    {
+        // Uncached, or a package deleted a moment ago would still be listed.
+        if (! (new self($this->client->withoutCache()))->find($name) instanceof Package) {
+            return false;
+        }
+
+        $this->delete($name);
+
+        return true;
+    }
 }
