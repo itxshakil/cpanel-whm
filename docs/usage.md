@@ -27,6 +27,9 @@ Failures always throw a `WhmException`; no method signals failure through its re
 | `changePassword(string $user, string $password, bool $syncDatabasePasswords = false)` | `passwd` (POST) | `WhmResponse` |
 | `changePackage(string $user, string $package)` | `changepackage` | `WhmResponse` |
 | `modify(string $user, array $changes)` | `modifyacct` (POST) | `WhmResponse` |
+| `changePrimaryDomain(string $user, string $domain)` | `modifyacct` with `DNS` (POST) | `WhmResponse` |
+| `rename(string $user, string $newUsername)` | `modifyacct` with `newuser` (POST); the new name is checked first | `WhmResponse` |
+| `changeIp(string $user, string $ip)` | `setsiteip` (POST) | `WhmResponse` |
 | `remove(string $user, bool $keepDns = false)` | `removeacct` (POST) | `WhmResponse` |
 | `removeIfExists(string $user, bool $keepDns = false)` | `removeacct` (POST); a missing account counts as done | `bool`: true when this call removed it |
 
@@ -68,6 +71,18 @@ Operators: `contains`, `begins`, `eq` (`=`), `==`, `lt` (`<`), `lt_equal` (`<=`)
 ## Suspensions
 
 `suspend(string $user, string $reason = '', bool $lock = false)`, `unsuspend(string $user)` and `list()` (`Collection<SuspendedAccount>`). `lock: true` stops the account's reseller from unsuspending it.
+
+## Feature lists
+
+```php
+Whm::featureLists()->list();                                        // ['default', 'disabled', 'basic']
+Whm::featureLists()->features('basic');                             // ['autossl' => true, 'changemx' => false, ...]
+Whm::featureLists()->create('basic', ['autossl' => true]);          // features left out are off
+Whm::featureLists()->update('basic', ['changemx' => true]);         // only the named features change
+Whm::featureLists()->delete('basic');
+```
+
+Features are keyed by their id. `update()` refuses an empty list, because WHM would turn every feature off.
 
 ## Packages
 

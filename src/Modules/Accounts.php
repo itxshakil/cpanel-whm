@@ -293,6 +293,52 @@ class Accounts extends Module
     }
 
     /**
+     * Change the account's main domain. WHM moves the DNS zone, the vhost and
+     * mail to the new name; the old domain stops working on this account.
+     *
+     * @throws WhmException
+     *
+     * @see https://api.docs.cpanel.net/specifications/whm.openapi/account-management/accounts-modifyacct
+     */
+    public function changePrimaryDomain(string $user, string $domain): WhmResponse
+    {
+        return $this->modify($user, ['DNS' => mb_strtolower(rtrim(trim($domain), '.'))]);
+    }
+
+    /**
+     * Rename the account. The new username is checked against cPanel's rules
+     * first. Database and database user names that carry the old prefix are
+     * renamed by WHM when database prefixing is on.
+     *
+     * @throws InvalidUsername
+     * @throws WhmException
+     *
+     * @see https://api.docs.cpanel.net/specifications/whm.openapi/account-management/accounts-modifyacct
+     */
+    public function rename(string $user, string $newUsername): WhmResponse
+    {
+        return $this->modify($user, ['newuser' => UsernameRules::assertValid($newUsername)]);
+    }
+
+    /**
+     * Move the account (and its domains) to another IP address on the server.
+     *
+     * @throws WhmException
+     *
+     * @see https://api.docs.cpanel.net/specifications/whm.openapi/ip-addresses/accounts-setsiteip
+     */
+    public function changeIp(string $user, string $ip): WhmResponse
+    {
+        $user = UsernameRules::normalise($user);
+
+        $response = $this->client->call('setsiteip', ['user' => $user, 'ip' => trim($ip)], HttpMethod::Post);
+
+        $this->client->dispatch(new AccountModified($this->client->config()->name, $user, ['ip' => trim($ip)]));
+
+        return $response;
+    }
+
+    /**
      * @param  array<string, mixed>  $params
      * @return Collection<int, Account>
      *

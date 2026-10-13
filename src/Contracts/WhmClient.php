@@ -14,6 +14,7 @@ use Itxshakil\CpanelWhm\Modules\Backups;
 use Itxshakil\CpanelWhm\Modules\CpanelUser;
 use Itxshakil\CpanelWhm\Modules\Dns;
 use Itxshakil\CpanelWhm\Modules\Domains;
+use Itxshakil\CpanelWhm\Modules\FeatureLists;
 use Itxshakil\CpanelWhm\Modules\Packages;
 use Itxshakil\CpanelWhm\Modules\Quotas;
 use Itxshakil\CpanelWhm\Modules\Resellers;
@@ -119,6 +120,8 @@ interface WhmClient
     public function tokens(): Tokens;
 
     public function transfers(): Transfers;
+
+    public function featureLists(): FeatureLists;
 
     /**
      * Every documented WHM API 1 function as a typed method, grouped like cPanel's docs.
