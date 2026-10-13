@@ -70,4 +70,32 @@ final class InstallCommandTest extends TestCase
         self::assertStringContainsString('WHM_USER=reseller', $env);
         self::assertStringContainsString('WHM_VERIFY_TLS=false', $env);
     }
+
+    #[Test]
+    public function a_cached_config_is_warned_about(): void
+    {
+        // What Laravel records at boot when it loaded bootstrap/cache/config.php.
+        $this->app->instance('config_loaded_from_cache', true);
+        self::assertTrue($this->app->configurationIsCached());
+
+        $this->artisan('whm:install', ['--no-doctor' => true])
+            ->expectsQuestion('WHM host', 'new.example.com')
+            ->expectsQuestion('WHM username', 'root')
+            ->expectsQuestion('API token', 'abc')
+            ->expectsConfirmation('Verify the TLS certificate?', 'yes')
+            ->expectsOutputToContain('php artisan config:clear')
+            ->assertSuccessful();
+    }
+
+    #[Test]
+    public function an_uncached_config_is_not_warned_about(): void
+    {
+        $this->artisan('whm:install', ['--no-doctor' => true])
+            ->expectsQuestion('WHM host', 'new.example.com')
+            ->expectsQuestion('WHM username', 'root')
+            ->expectsQuestion('API token', 'abc')
+            ->expectsConfirmation('Verify the TLS certificate?', 'yes')
+            ->doesntExpectOutputToContain('config:clear')
+            ->assertSuccessful();
+    }
 }

@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `whm:install` warns when the configuration is cached: the doctor checks the new values, but the app keeps the cached ones until `php artisan config:clear`.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
