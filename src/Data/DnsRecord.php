@@ -61,11 +61,25 @@ final readonly class DnsRecord
     }
 
     /**
-     * Text longer than 255 characters is split into strings of 255, as DNS requires.
+     * Text longer than 255 bytes is split into strings of at most 255 bytes, as
+     * DNS requires. The limit is in bytes, not characters, and a multibyte
+     * character is never cut in half.
      */
     public static function txt(string $name, string $text, ?int $ttl = null): self
     {
-        $chunks = $text === '' ? [''] : mb_str_split($text, 255);
+        $chunks = [];
+        $chunk = '';
+
+        foreach ($text === '' ? [] : mb_str_split($text) as $character) {
+            if (strlen($chunk.$character) > 255) {
+                $chunks[] = $chunk;
+                $chunk = '';
+            }
+
+            $chunk .= $character;
+        }
+
+        $chunks[] = $chunk;
 
         return new self($name, 'TXT', $chunks, $ttl);
     }
