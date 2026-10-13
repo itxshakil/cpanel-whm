@@ -64,7 +64,8 @@ final readonly class ConnectionDoctor
         try {
             $config = $manager->configFor($connection);
             $target = $config->baseUrl();
-            $results[] = CheckResult::pass(self::CONFIG, "{$config->user} @ {$config->baseUrl()}, TLS verification ".($config->verifyTls ? 'on' : 'off'));
+            $tls = $config->usesTls() ? 'TLS verification '.($config->verifyTls ? 'on' : 'off') : 'TLS n/a (http)';
+            $results[] = CheckResult::pass(self::CONFIG, "{$config->user} @ {$config->baseUrl()}, {$tls}");
         } catch (InvalidConfiguration $invalidConfiguration) {
             $results[] = CheckResult::fail(self::CONFIG, $invalidConfiguration->getMessage(), $invalidConfiguration->hint());
 
@@ -155,8 +156,14 @@ final readonly class ConnectionDoctor
 
     private function tls(ConnectionConfig $config): CheckResult
     {
+        // Every call carries the token in its Authorization header, so plain HTTP
+        // fails the check unless the connection opts in, e.g. on a private network.
         if (! $config->usesTls()) {
-            return CheckResult::warn(self::TLS, "plain HTTP on port {$config->port}: the token is sent unencrypted", 'Use https:// and port 2087.');
+            $message = "plain HTTP on port {$config->port}: the token is sent unencrypted";
+
+            return $config->allowInsecureHttp
+                ? CheckResult::warn(self::TLS, "{$message} (allow_insecure_http is on)", 'Use https:// and port 2087 unless the network between the app and WHM is private.')
+                : CheckResult::fail(self::TLS, $message, "Use https:// and port 2087. If this network is private and you accept the risk, set 'allow_insecure_http' => true on the connection.");
         }
 
         try {

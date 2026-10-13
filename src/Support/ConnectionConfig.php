@@ -44,6 +44,7 @@ final readonly class ConnectionConfig
         public ?string $caBundle = null,
         public ?string $pinnedPublicKey = null,
         public ?string $timezone = null,
+        public bool $allowInsecureHttp = false,
     ) {}
 
     /**
@@ -64,6 +65,7 @@ final readonly class ConnectionConfig
             'caBundle' => $this->caBundle,
             'pinnedPublicKey' => $this->pinnedPublicKey,
             'timezone' => $this->timezone,
+            'allowInsecureHttp' => $this->allowInsecureHttp,
         ];
     }
 
@@ -127,6 +129,7 @@ final readonly class ConnectionConfig
             caBundle: $caBundle !== '' ? $caBundle : null,
             pinnedPublicKey: $pin !== '' ? $pin : null,
             timezone: $timezone !== '' ? $timezone : null,
+            allowInsecureHttp: (bool) ($config['allow_insecure_http'] ?? false),
         );
     }
 
@@ -215,6 +218,7 @@ final readonly class ConnectionConfig
             caBundle: $this->caBundle,
             pinnedPublicKey: $this->pinnedPublicKey,
             timezone: $this->timezone,
+            allowInsecureHttp: $this->allowInsecureHttp,
         );
     }
 

@@ -53,6 +53,7 @@ All notable changes to this project are documented here. The format follows
 - `Support\Params`, `Support\CuratedFunctions` and `Transport\HttpTransport` are marked `@internal`.
 - RELEASING.md aligns the 1.0 criterion with the roadmap and signs release tags; SECURITY.md says which versions get fixes.
 - The docs and the Boost guideline say which method fires each account and DNS event, that `Whm::api()`, `Whm::call()` and batches fire none of them, and how to use `WhmResponseReceived` for those paths.
+- `whm:doctor` (and `Whm::ping()`) fails a plain `http://` connection, since every call sends the token unencrypted. Set `allow_insecure_http => true` on the connection to accept it with a warning. The Config line says `TLS n/a (http)` for such connections.
 
 ### Fixed
 - `whm:record` prints a replay hint with the path relative to the project root, so it can be committed.
