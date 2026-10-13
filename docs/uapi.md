@@ -15,7 +15,7 @@ $result->messages;
 
 Calls are sent as POST, so passwords you pass (for example to `Email::add_pop`) never appear in a URL.
 
-Every documented UAPI function also has a typed method, one accessor per module:
+Almost every documented UAPI function (680 of 693) also has a typed method, one accessor per module. The rest take a JSON body or a file upload; see [coverage](coverage.md).
 
 ```php
 Whm::asUser('acme')->api()->email()->listPops(regex: 'info');

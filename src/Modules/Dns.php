@@ -19,9 +19,10 @@ use JsonException;
  * DNS zones: listzones, parse_dns_zone, mass_edit_dns_zone, adddns, killdns, resetzone,
  * and the default nameservers (get_nameserver_config).
  *
- * Record changes go through mass_edit_dns_zone with the zone's current SOA
- * serial, so an edit made from a stale copy of the zone fails instead of
- * overwriting someone else's change.
+ * Record changes go through mass_edit_dns_zone with an SOA serial. Updates and
+ * removals send the serial of the zone() read their records came from, so an
+ * edit made from a stale copy of the zone fails instead of changing the wrong
+ * line. Adds alone send the current serial.
  *
  *     $zone = Whm::dns()->zone('example.com');
  *     Whm::dns()->add('example.com', DnsRecord::a('www', '203.0.113.10'));
@@ -165,30 +166,54 @@ class Dns extends Module
             return $serial;
         }
 
-        // Read the serial uncached: a cached one goes stale after the first edit.
+        // Line indexes are only valid for the read they came from, so updates and
+        // removals carry that read's serial. A fresh serial would let a stale
+        // line index through and edit whatever line is there now.
+        $serial ??= self::readSerial($update, $remove);
+
+        // Nothing read: only adds (or raw line indexes). Read the serial uncached,
+        // because a cached one goes stale after the first edit.
         $serial ??= (new self($this->client->withoutCache()))->zone($domain)->serial;
 
         if ($serial === null) {
             throw new InvalidArgumentException("The zone {$domain} has no SOA serial; pass one to edit().");
         }
 
-        try {
-            $response = $this->client->call('mass_edit_dns_zone', [
-                'zone' => $domain,
-                'serial' => $serial,
-                'add' => array_map(static fn (DnsRecord $record): string => $record->toMassEditJson(), $add),
-                'edit' => array_map(static fn (DnsRecord $record): string => self::requireLine($record)->toMassEditJson(true), $update),
-                'remove' => array_map(static fn (DnsRecord|int $record): int => is_int($record) ? $record : (int) self::requireLine($record)->lineIndex, $remove),
-            ], HttpMethod::Post);
-        } catch (JsonException $jsonException) {
-            throw new InvalidArgumentException('A DNS record could not be encoded: '.$jsonException->getMessage(), 0, $jsonException);
-        }
+        $response = $this->client->call('mass_edit_dns_zone', [
+            'zone' => $domain,
+            'serial' => $serial,
+            'add' => array_map(static fn (DnsRecord $record): string => self::encode($record), $add),
+            'edit' => array_map(static fn (DnsRecord $record): string => self::encode(self::requireLine($record), true), $update),
+            'remove' => array_map(static fn (DnsRecord|int $record): int => is_int($record) ? $record : (int) self::requireLine($record)->lineIndex, $remove),
+        ], HttpMethod::Post);
 
         $newSerial = Value::int($response->get('new_serial'));
 
         $this->client->dispatch(new DnsZoneChanged($this->client->config()->name, $domain, $newSerial, count($add), count($update), count($remove)));
 
         return $newSerial;
+    }
+
+    /**
+     * Zone data can be arbitrary bytes (cPanel sends it base64-encoded), but
+     * mass_edit_dns_zone takes JSON, which can't carry bytes that aren't UTF-8.
+     * Such a record can still be removed, since removal only sends its line.
+     */
+    private static function encode(DnsRecord $record, bool $withLineIndex = false): string
+    {
+        try {
+            return $record->toMassEditJson($withLineIndex);
+        } catch (JsonException $jsonException) {
+            $line = $record->lineIndex === null ? '' : " (line {$record->lineIndex})";
+
+            throw new InvalidArgumentException(
+                "The {$record->type} record for {$record->name}{$line} could not be encoded: {$jsonException->getMessage()}. "
+                .'mass_edit_dns_zone only accepts UTF-8 text. To replace a record holding binary data, remove it by line index '
+                .'with Whm::dns()->remove($domain, $lineIndex) and add a new one.',
+                0,
+                $jsonException,
+            );
+        }
     }
 
     private static function requireLine(DnsRecord $record): DnsRecord
@@ -198,5 +223,31 @@ class Dns extends Module
         }
 
         return $record;
+    }
+
+    /**
+     * The serial of the zone() read the updated and removed records came from,
+     * or null when none of them carries one.
+     *
+     * @param  list<DnsRecord>  $update
+     * @param  list<DnsRecord|int>  $remove
+     *
+     * @throws InvalidArgumentException when the records come from different reads
+     */
+    private static function readSerial(array $update, array $remove): ?int
+    {
+        $serials = [];
+
+        foreach ([...$update, ...$remove] as $record) {
+            if ($record instanceof DnsRecord && $record->zoneSerial !== null) {
+                $serials[$record->zoneSerial] = true;
+            }
+        }
+
+        if (count($serials) > 1) {
+            throw new InvalidArgumentException('The records come from different reads of the zone (serials '.implode(', ', array_keys($serials)).'). Read the zone again and edit records from that one read.');
+        }
+
+        return $serials === [] ? null : (int) array_key_first($serials);
     }
 }

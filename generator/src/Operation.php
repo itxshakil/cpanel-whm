@@ -8,6 +8,8 @@ final readonly class Operation
 {
     /**
      * @param  list<Parameter>  $parameters
+     * @param  list<string>  $collisions  spec parameters with no typed argument, because their
+     *                                    PHP name is already taken; they still go through $extra
      */
     public function __construct(
         public string $function,
@@ -22,6 +24,7 @@ final readonly class Operation
         public ?string $skipReason = null,
         public ?string $module = null,
         public string $title = '',
+        public array $collisions = [],
     ) {}
 
     public function key(): string

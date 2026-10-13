@@ -8,6 +8,8 @@ namespace Itxshakil\CpanelWhm\Support;
  * Which WHM API 1 functions have a hand-written method with typed results.
  * Every other documented function has a generated method under Whm::api()
  * (see FunctionCatalog), and anything at all is one Whm::call() away.
+ *
+ * @internal
  */
 final class CuratedFunctions
 {
