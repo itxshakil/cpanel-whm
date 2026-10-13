@@ -33,10 +33,10 @@ After that, Dependabot's monthly PR for GitHub Actions merges itself when CI is 
 
 1. Make sure CI on `main` is green.
 2. Move `## [Unreleased]` entries in `CHANGELOG.md` under a dated version heading and commit.
-3. Tag and push:
+3. Tag and push. Sign release tags (`-s`), so users can check a tag came from you; GitHub shows them as verified once your GPG or SSH signing key is added to your account:
 
     ```bash
-    git tag -a v0.1.0 -m "v0.1.0"
+    git tag -s v0.1.0 -m "v0.1.0"
     git push origin v0.1.0
     ```
 
@@ -45,8 +45,19 @@ After that, Dependabot's monthly PR for GitHub Actions merges itself when CI is 
 
 ## Versioning
 
-- Patch: bug fixes, docs, tolerance for another WHM response shape.
-- Minor: new typed methods, modules, commands or options.
-- Major: a changed method signature or return type, a renamed config key, or an exception that moves in the hierarchy.
+What counts as public API is listed in the README, under "Stability and versioning".
 
-Until 1.0, minor versions may still change the public API; the changelog says so when they do. 1.0 ships once the package has run in production for six weeks and every documented WHM API 1 function has a typed method (see docs/roadmap.md).
+- Patch: bug fixes, docs, tolerance for another WHM response shape.
+- Minor: new typed methods, modules, commands or options; methods added to `Contracts\WhmClient` or `Contracts\Transport`; regenerating from a newer cPanel spec when it only adds functions or optional parameters.
+- Major: a changed method signature or return type, a renamed config key, an exception that moves in the hierarchy, or a generated method or parameter removed because cPanel removed it (mark it `@deprecated` in a minor release first).
+
+Until 1.0, minor versions may still change the public API; the changelog says so when they do.
+
+## 1.0
+
+1.0 ships when the package has run in production for six weeks with no breaking change needed (see docs/roadmap.md). Functions that take a JSON body or a file upload don't need a typed method first: they stay callable with `Whm::call()`, and `docs/coverage.md` lists them.
+
+At 1.0, also:
+
+- update the supported versions table in SECURITY.md;
+- check the cPanel & WHM range stated in the README's requirements against the servers you tested on.

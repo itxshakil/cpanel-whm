@@ -12,6 +12,8 @@ namespace Itxshakil\CpanelWhm\Support;
  * - a list becomes WHM's repeated parameters: name, name-1, name-2, ...
  *
  * Associative arrays are passed through unchanged.
+ *
+ * @internal
  */
 final class Params
 {

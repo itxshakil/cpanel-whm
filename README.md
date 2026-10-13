@@ -59,6 +59,8 @@ Most WHM clients for PHP were written for Laravel 5, log in with a password or t
 - Laravel 12 or 13
 - cPanel & WHM with an API token (WHM › Development › Manage API Tokens)
 
+The typed API is generated from cPanel & WHM 11.138's API specification, and that is the version the package is developed against. `whm:doctor` warns below 11.110 (`doctor.minimum_version`), the oldest version we expect to work. Older servers may answer for most functions, but they aren't tested. A function your server doesn't have yet fails with WHM's own error, and `php artisan whm:functions --server --missing` lists the differences.
+
 ## Installation
 
 ```bash
@@ -302,6 +304,28 @@ Read-only calls are retried after a connection error or HTTP 5xx, and `Whm::cach
 Set `WHM_LOG_CHANNEL=stack` to log every call: function, connection, duration and outcome. Parameters are redacted (passwords, tokens and login URLs never reach the log). `WhmRequestSending`, `WhmResponseReceived` and `WhmRequestFailed` fire for every call, with secrets already masked.
 
 With spatie/laravel-health, add `WhmCheck::new()->failWhenTokenExpiresWithin(7)` to your checks.
+
+## Stability and versioning
+
+The package follows [semantic versioning](https://semver.org/). Before 1.0, a minor release may still break the public API, and the [changelog](https://github.com/itxshakil/cpanel-whm/blob/main/CHANGELOG.md) says so when it does. From 1.0, only a major release will.
+
+**Public API**, covered by that promise:
+
+- the `Whm` facade and `WhmManager`, `WhmClient`, `WhmResponse`, `WhmRequest`, `WhmBatch`, `BatchResults`;
+- the modules (`Whm::accounts()`, `Whm::dns()`, ... and `Whm::asUser()`), `Data\*`, `Enums\*`, `Events\*` and `Exceptions\*`, including the exception hierarchy;
+- `Testing\WhmFake` and the `Whm::fake()` helpers;
+- `Support\ConnectionConfig` and `Support\Filter`;
+- config keys, environment variables, and Artisan command names and options.
+
+**Contracts.** Type-hint `Contracts\WhmClient` and `Contracts\Transport` freely. Implementing them yourself (a decorator, a hand-written double) isn't covered: a minor release may add methods to them. Use `Whm::fake()` for tests.
+
+**The generated API** (`Whm::api()`, `asUser()->api()`) follows cPanel's spec:
+
+- Call generated methods with **named arguments**. Required parameters come first, but the order of the rest isn't covered and can change when the spec does.
+- A minor release may add methods and optional parameters from a newer spec.
+- A method or parameter cPanel removes is marked `@deprecated` first, and removed only in a major release.
+
+**Internal**: anything marked `@internal`, everything else under `Support\` and `Transport\`, `Support\FunctionCatalog`'s array shape, and the generator in `generator/` (which isn't shipped). These can change in any release.
 
 ## Documentation
 
