@@ -148,8 +148,15 @@ Whm::dns()->add('acme.example',
     DnsRecord::txt('@', 'v=spf1 include:_spf.example.com ~all'),
     DnsRecord::mx('@', 10, 'mail.acme.example.'),
 );
-Whm::dns()->update('acme.example', $zone->first('www', 'A')->withData('203.0.113.30'));
-Whm::dns()->remove('acme.example', $zone->first('old', 'CNAME'));
+
+// first() returns null when there's no such record.
+if (($www = $zone->first('www', 'A')) !== null) {
+    Whm::dns()->update('acme.example', $www->withData('203.0.113.30'));
+}
+
+if (($old = $zone->first('old', 'CNAME')) !== null) {
+    Whm::dns()->remove('acme.example', $old);
+}
 
 Whm::dns()->create('acme.example', '203.0.113.10');   // adddns
 Whm::dns()->reset('acme.example');                     // resetzone
