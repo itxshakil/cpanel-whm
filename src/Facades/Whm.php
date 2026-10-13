@@ -40,6 +40,8 @@ use Itxshakil\CpanelWhm\WhmManager;
  * @method static string getDefaultConnection()
  * @method static list<string> connectionNames()
  * @method static bool isFaked()
+ * @method static \Itxshakil\CpanelWhm\Testing\WhmFake|null getFake()
+ * @method static void dispatch(object $event)
  * @method static void purge(?string $name = null)
  *
  * @see WhmManager

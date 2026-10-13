@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- The `Whm` facade documents `getFake()` and `dispatch()`, and a test keeps its `@method` lines in step with the manager and the client contract.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
