@@ -9,8 +9,10 @@ use Illuminate\Support\Collection;
 use Itxshakil\CpanelWhm\Data\RestoreQueue;
 use Itxshakil\CpanelWhm\Data\Value;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
+use Itxshakil\CpanelWhm\Exceptions\RestoreNotStarted;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\Support\UsernameRules;
+use Itxshakil\CpanelWhm\WhmResponse;
 
 /**
  * Server backups and account restores: backup_config_get, backup_date_list,
@@ -76,6 +78,7 @@ class Backups extends Module
      * Queue an account restore from a backup date and, unless $start is false,
      * start the queue. Returns WHM's queue id. Track it with queue().
      *
+     * @throws RestoreNotStarted when the task was queued but starting the queue failed; it carries the queue id
      * @throws WhmException
      */
     public function restore(
@@ -98,11 +101,29 @@ class Backups extends Module
             'destid' => $destination,
         ], HttpMethod::Post);
 
+        $queueId = Value::string($response->get('queue_id'));
+
         if ($start) {
-            $this->client->call('restore_queue_activate', [], HttpMethod::Post);
+            // The task is already queued: losing its id here would make a retry
+            // queue the same restore twice.
+            try {
+                $this->activateQueue();
+            } catch (WhmException $whmException) {
+                throw new RestoreNotStarted($queueId, $whmException);
+            }
         }
 
-        return Value::string($response->get('queue_id'));
+        return $queueId;
+    }
+
+    /**
+     * Start the restore queue, e.g. after restore(start: false) or a RestoreNotStarted.
+     *
+     * @throws WhmException
+     */
+    public function activateQueue(): WhmResponse
+    {
+        return $this->client->call('restore_queue_activate', [], HttpMethod::Post);
     }
 
     /**

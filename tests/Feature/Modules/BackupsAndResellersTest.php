@@ -6,6 +6,8 @@ namespace Itxshakil\CpanelWhm\Tests\Feature\Modules;
 
 use Carbon\CarbonImmutable;
 use InvalidArgumentException;
+use Itxshakil\CpanelWhm\Exceptions\RestoreNotStarted;
+use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
 use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
@@ -60,6 +62,31 @@ final class BackupsAndResellersTest extends TestCase
         $fake->assertCalled('restore_queue_add_task', static fn (array $p): bool => $p === [
             'user' => 'acme', 'restore_point' => '2026-10-02', 'mysql' => 1, 'mail_config' => 0, 'subdomains' => 1, 'give_ip' => 0,
         ])->assertCalledTimes('restore_queue_activate', 1);
+    }
+
+    #[Test]
+    public function a_queued_restore_whose_queue_fails_to_start_keeps_its_queue_id(): void
+    {
+        $fake = Whm::fake([
+            'restore_queue_add_task' => Whm::response(['queue_id' => 'q-123']),
+            'restore_queue_activate' => Whm::sequence(Whm::failure('The restore queue is locked.'), Whm::response()),
+        ]);
+
+        try {
+            Whm::backups()->restore('acme', '2026-10-02');
+            self::fail('Expected RestoreNotStarted');
+        } catch (RestoreNotStarted $restoreNotStarted) {
+            self::assertSame('q-123', $restoreNotStarted->queueId());
+            self::assertStringContainsString('The restore queue is locked.', $restoreNotStarted->getMessage());
+            self::assertInstanceOf(WhmCommandFailed::class, $restoreNotStarted->getPrevious());
+            self::assertStringContainsString('activateQueue()', $restoreNotStarted->hint());
+        }
+
+        // Start the waiting task instead of queueing it again.
+        Whm::backups()->activateQueue();
+
+        $fake->assertCalledTimes('restore_queue_add_task', 1)
+            ->assertCalledTimes('restore_queue_activate', 2);
     }
 
     #[Test]

@@ -30,6 +30,7 @@ All notable changes to this project are documented here. The format follows
 - `WhmHttpError::body()`: the start of the response body (up to 2,000 characters), with secrets masked, for error pages and JSON errors.
 - `Whm::fake()` accepts `uapi:Module::function` keys to answer one UAPI function, falling back to `uapi_cpanel` and `*`; `assertCalled()`, `assertNotCalled()`, `assertCalledTimes()` and `recorded()` take the same keys.
 - `log_responses` (`WHM_LOG_RESPONSES`): the request log also records WHM's answer, redacted. `log_levels` sets the level for successes, command failures and HTTP or connection errors (defaults unchanged: info, warning, warning).
+- `Backups::activateQueue()` starts the restore queue on its own.
 
 ### Changed
 - Parameters: backed enums are sent as their value and `Stringable` objects as their string. A nested array, a date or any other object throws `InvalidArgumentException` before anything is sent, instead of reaching WHM as `name[key]=…` and being ignored.
@@ -81,6 +82,7 @@ All notable changes to this project are documented here. The format follows
 - Generated methods for parameters the spec documents as JSON (`format: json`), such as `massEditDnsZone(add:, edit:)`, encode arrays to JSON strings, one per item; strings still pass through. Ten parameters across WHM and UAPI are affected.
 - The generator records parameters it can't give a typed argument because their PHP name is taken: `bin/generate` warns about them and `docs/coverage.md` lists them (none in spec 11.138.0.10).
 - `WhmFake` no longer imports PHPUnit: its assertions use PHPUnit when it is installed and throw `FakeAssertionFailed` otherwise, so a production (`--no-dev`) install analyses cleanly. `phpunit/phpunit` is listed under `suggest`.
+- `Backups::restore()` no longer loses the queue id when the task is queued but starting the queue fails: it throws `RestoreNotStarted`, which carries `queueId()`, so a retry starts the waiting task instead of queueing the restore twice.
 
 ## [0.3.0] - 2026-10-08
 
