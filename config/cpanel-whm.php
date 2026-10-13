@@ -36,6 +36,14 @@ return [
             'user' => env('WHM_USER', 'root'),
             'token' => env('WHM_TOKEN'),
             'verify_tls' => (bool) env('WHM_VERIFY_TLS', true),
+
+            // A self-signed or private-CA certificate can stay verified: point
+            // ca_bundle at the CA (or the certificate itself) when you connect
+            // by hostname, or pin the public key (sha256//..., as whm:doctor
+            // prints it) when you connect by IP with verify_tls off.
+            'ca_bundle' => env('WHM_CA_BUNDLE'),
+            'pinned_public_key' => env('WHM_PINNED_PUBLIC_KEY'),
+
             'timeout' => (int) env('WHM_TIMEOUT', 30),
             'connect_timeout' => (int) env('WHM_CONNECT_TIMEOUT', 10),
 
@@ -62,9 +70,22 @@ return [
     | connection, duration, outcome). Parameters are redacted: passwords,
     | tokens and login URLs never reach the log.
     |
+    | log_responses adds WHM's answer to each entry (redacted the same way),
+    | which is where the reason, the warnings and UAPI's errors are. The
+    | levels apply to a success, to WHM or UAPI saying no, and to HTTP or
+    | connection errors.
+    |
     */
 
     'log_channel' => env('WHM_LOG_CHANNEL'),
+
+    'log_responses' => (bool) env('WHM_LOG_RESPONSES', false),
+
+    'log_levels' => [
+        'success' => 'info',
+        'command_failed' => 'warning',
+        'error' => 'warning',
+    ],
 
     /*
     |--------------------------------------------------------------------------

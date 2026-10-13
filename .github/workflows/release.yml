@@ -1,6 +1,8 @@
 name: Release
 
-# Validates that a tagged commit installs cleanly as a Composer package.
+# Runs the full CI on the tagged commit, then validates that it installs
+# cleanly as a Composer package. A tag pushed from a commit that never went
+# through CI (a local tag, a hotfix) is tested here before anyone installs it.
 # Release notes are drafted continuously by release-drafter.yml; publish the
 # draft (or `gh release create`) after this workflow passes.
 on:
@@ -8,9 +10,17 @@ on:
         tags:
             - "v*.*.*"
 
+permissions:
+    contents: read
+
 jobs:
+    ci:
+        name: CI
+        uses: ./.github/workflows/ci.yml
+
     release:
         name: Release Validation
+        needs: ci
         runs-on: ubuntu-latest
 
         steps:

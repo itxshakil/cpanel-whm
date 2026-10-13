@@ -499,7 +499,7 @@ final class Accounts extends WhmGroup
      *
      * This function forces a user to change the account password after the next login attempt.
      *
-     * @param  string  $usersJson  The list of users.
+     * @param  array<array-key, mixed>|string  $usersJson  The list of users. Sent as JSON: an array is encoded for you, a string is sent as it is.
      * @param  bool|int|null  $stopOnFailure  Whether to halt the function if it experiences an error.
      * @param  array<string, mixed>  $extra  Further parameters, sent as given.
      *
@@ -508,12 +508,12 @@ final class Accounts extends WhmGroup
      * @see https://api.docs.cpanel.net/specifications/whm.openapi/passwords/accounts-forcepasswordchange
      */
     public function forcepasswordchange(
-        string $usersJson,
+        array|string $usersJson,
         bool|int|null $stopOnFailure = null,
         array $extra = [],
     ): WhmResponse {
         return $this->invoke('forcepasswordchange', [
-            'users_json' => $usersJson,
+            'users_json' => self::json($usersJson),
             'stop_on_failure' => $stopOnFailure,
         ], $extra, HttpMethod::Post);
     }

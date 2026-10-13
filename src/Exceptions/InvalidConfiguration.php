@@ -48,6 +48,14 @@ final class InvalidConfiguration extends WhmException
         return $exception;
     }
 
+    public static function invalidTls(string $connection, string $problem, string $hint): self
+    {
+        $exception = new self("WHM connection [{$connection}] {$problem}");
+        $exception->hintText = $hint;
+
+        return $exception;
+    }
+
     public function hint(): ?string
     {
         return $this->hintText;
