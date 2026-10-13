@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `BatchResults::failures()`, `successful()` and `throw()` report a `uapi_cpanel` or `cpanel` command whose cPanel function failed as `UapiCallFailed`, as a single call does. The check now lives in `UapiCallFailed::fromInnerCall()`.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
