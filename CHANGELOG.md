@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `composer.json` requires `ext-openssl`, which `whm:doctor`'s TLS check and HTTPS calls need.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
