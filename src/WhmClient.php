@@ -92,12 +92,13 @@ final class WhmClient implements WhmClientContract
         private readonly int|DateInterval|DateTimeInterface|null $cacheTtl = null,
         private readonly ?string $cacheStore = null,
         private readonly string $cachePrefix = 'cpanel-whm',
+        private readonly ?HttpMethod $httpMethod = null,
     ) {}
 
     public function call(string $function, #[SensitiveParameter] array $params = [], ?HttpMethod $method = null, ?int $timeout = null): WhmResponse
     {
         $params = Params::normalise($params);
-        $method = HttpMethod::for($function, $params, $method);
+        $method = HttpMethod::for($function, $params, $this->httpMethod ?? $method);
         $readOnly = FunctionCatalog::isReadOnly($function);
 
         // An explicit $timeout is the caller's choice and wins.
@@ -150,24 +151,29 @@ final class WhmClient implements WhmClientContract
             throw new InvalidConfiguration('Whm::cache() needs Laravel\'s cache; this client was built without it.');
         }
 
-        return new self($this->config, $this->transport, $this->events, $this->cache, $ttl, $store ?? $this->cacheStore, $this->cachePrefix);
+        return new self($this->config, $this->transport, $this->events, $this->cache, $ttl, $store ?? $this->cacheStore, $this->cachePrefix, $this->httpMethod);
     }
 
     public function withoutCache(): static
     {
         return $this->cacheTtl === null
             ? $this
-            : new self($this->config, $this->transport, $this->events, $this->cache, null, $this->cacheStore, $this->cachePrefix);
+            : new self($this->config, $this->transport, $this->events, $this->cache, null, $this->cacheStore, $this->cachePrefix, $this->httpMethod);
     }
 
     public function withoutRetries(): static
     {
-        return new self($this->config->withoutRetries(), $this->transport, $this->events, $this->cache, $this->cacheTtl, $this->cacheStore, $this->cachePrefix);
+        return new self($this->config->withoutRetries(), $this->transport, $this->events, $this->cache, $this->cacheTtl, $this->cacheStore, $this->cachePrefix, $this->httpMethod);
+    }
+
+    public function withHttpMethod(HttpMethod $method): static
+    {
+        return new self($this->config, $this->transport, $this->events, $this->cache, $this->cacheTtl, $this->cacheStore, $this->cachePrefix, $method);
     }
 
     public function timeout(int $seconds, ?int $connect = null): static
     {
-        return new self($this->config->withTimeouts($seconds, $connect), $this->transport, $this->events, $this->cache, $this->cacheTtl, $this->cacheStore, $this->cachePrefix);
+        return new self($this->config->withTimeouts($seconds, $connect), $this->transport, $this->events, $this->cache, $this->cacheTtl, $this->cacheStore, $this->cachePrefix, $this->httpMethod);
     }
 
     public function dispatch(object $event): void
