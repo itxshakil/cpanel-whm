@@ -100,6 +100,7 @@ All notable changes to this project are documented here. The format follows
 - Under `Whm::fake()`, a misspelled connection name or a connection production would reject (a cPanel port, for example) now throws `InvalidConfiguration`, as in production. The placeholder connection is used only when no connections are configured or the connection's host or token is unset.
 - `whm:install` warns when the configuration is cached: the doctor checks the new values, but the app keeps the cached ones until `php artisan config:clear`.
 - `whm:doctor` no longer skips checks silently when a `doctor` setting has the wrong type. A `minimum_version` written as a number (`11.110`, which PHP reads as 11.11) and lists that aren't lists produce a warning naming the setting. Comma-separated strings are accepted as lists.
+- `whm:doctor`'s TLS check shows when an untrusted certificate expired (or until when it's valid), also with verification off. A timeout or refused connection during the handshake is reported as a handshake failure, not as an untrusted certificate, and the reported reason is OpenSSL's own ("certificate verify failed", a name mismatch).
 
 ## [0.3.0] - 2026-10-08
 

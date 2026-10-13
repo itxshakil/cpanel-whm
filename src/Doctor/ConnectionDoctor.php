@@ -175,6 +175,14 @@ final readonly class ConnectionDoctor
         $expiry = $certificate->validTo?->format('Y-m-d');
         $pinHint = $certificate->publicKeyPin !== null ? " Its public key pin is {$certificate->publicKeyPin}." : '';
 
+        // Expiry matters even when verification is off: an expired
+        // certificate is often why it isn't trusted in the first place.
+        $validity = match (true) {
+            $certificate->validTo === null => '',
+            $certificate->validTo->isPast() => "; it expired on {$expiry}",
+            default => "; valid until {$expiry}",
+        };
+
         if ($config->pinnedPublicKey !== null && $certificate->publicKeyPin !== null) {
             if (! in_array($certificate->publicKeyPin, explode(';', $config->pinnedPublicKey), true)) {
                 return CheckResult::fail(
@@ -185,7 +193,7 @@ final readonly class ConnectionDoctor
             }
 
             if (! $certificate->trusted) {
-                return CheckResult::pass(self::TLS, 'certificate not trusted by a CA, but its public key matches the pin');
+                return CheckResult::pass(self::TLS, "certificate not trusted by a CA, but its public key matches the pin{$validity}");
             }
         }
 
@@ -195,10 +203,10 @@ final readonly class ConnectionDoctor
             return $config->verifyTls
                 ? CheckResult::fail(
                     self::TLS,
-                    "certificate not trusted: {$why}",
+                    "certificate not trusted: {$why}{$validity}",
                     "Install a valid certificate for {$config->host} (AutoSSL covers the server hostname), set WHM_CA_BUNDLE to the CA that signed it, or set WHM_VERIFY_TLS=false and pin its key with WHM_PINNED_PUBLIC_KEY if you connect by IP.{$pinHint}",
                 )
-                : CheckResult::warn(self::TLS, 'certificate not trusted; verification is off (WHM_VERIFY_TLS=false)', "Pin the certificate's key with WHM_PINNED_PUBLIC_KEY so the token cannot be intercepted.{$pinHint}");
+                : CheckResult::warn(self::TLS, "certificate not trusted; verification is off (WHM_VERIFY_TLS=false){$validity}", "Pin the certificate's key with WHM_PINNED_PUBLIC_KEY so the token cannot be intercepted.{$pinHint}");
         }
 
         if ($certificate->validTo !== null && $certificate->validTo->lessThan(now()->addDays(self::CERTIFICATE_WARNING_DAYS))) {

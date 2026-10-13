@@ -106,6 +106,13 @@ final class SocketProbe implements NetworkProbe
             return $this->describe($verified['certificate'], true, null);
         }
 
+        // Only a rejected certificate is worth a second, unverified look. A
+        // timeout or reset is a network problem; retrying and succeeding would
+        // report it as an untrusted certificate.
+        if (! self::isCertificateProblem($verified['error'] ?? '')) {
+            throw new ProbeFailed($verified['error'] ?? 'TLS handshake failed');
+        }
+
         $unverified = $this->handshake($host, $port, $timeoutSeconds, false, null);
 
         if ($unverified['certificate'] === null) {
@@ -132,12 +139,24 @@ final class SocketProbe implements NetworkProbe
 
         $errorCode = 0;
         $errorMessage = '';
+        $warnings = [];
         $socket = $this->quietly(static function () use ($host, $port, $timeoutSeconds, $context, &$errorCode, &$errorMessage): mixed {
             return stream_socket_client('ssl://'.self::address($host, $port), $errorCode, $errorMessage, $timeoutSeconds, STREAM_CLIENT_CONNECT, $context);
-        });
+        }, $warnings);
 
         if (! is_resource($socket)) {
-            return ['certificate' => null, 'error' => is_string($errorMessage) && $errorMessage !== '' ? $errorMessage : 'TLS handshake failed'];
+            // OpenSSL's reason ("certificate verify failed") only reaches the
+            // warnings, among generic ones such as "Failed to enable crypto".
+            $reasons = array_values(array_filter(
+                array_map(
+                    static fn (string $reason): string => trim((string) preg_replace('/\s+/', ' ', $reason)),
+                    [...$warnings, is_string($errorMessage) ? $errorMessage : ''],
+                ),
+                static fn (string $reason): bool => $reason !== '',
+            ));
+            $certificateReasons = array_values(array_filter($reasons, self::isCertificateProblem(...)));
+
+            return ['certificate' => null, 'error' => $certificateReasons[0] ?? $reasons[0] ?? 'TLS handshake failed'];
         }
 
         $params = stream_context_get_params($socket);
@@ -153,16 +172,30 @@ final class SocketProbe implements NetworkProbe
      * the return value is all the probe needs.
      *
      * @param  callable(): mixed  $callback
+     * @param  list<string>  $warnings  the warning messages, without the function prefix
      */
-    private function quietly(callable $callback): mixed
+    private function quietly(callable $callback, array &$warnings = []): mixed
     {
-        set_error_handler(static fn (): bool => true);
+        set_error_handler(static function (int $level, string $message) use (&$warnings): bool {
+            $warnings[] = (string) preg_replace('/^stream_socket_client\(\): /', '', $message);
+
+            return true;
+        });
 
         try {
             return $callback();
         } finally {
             restore_error_handler();
         }
+    }
+
+    /**
+     * Whether a handshake failed because of the certificate (untrusted, self
+     * signed, expired, wrong name) rather than the network.
+     */
+    public static function isCertificateProblem(string $error): bool
+    {
+        return preg_match('/certificate|verify failed|self[- ]signed|issuer|did not match expected CN|peer_name/i', $error) === 1;
     }
 
     private function describe(mixed $certificate, bool $trusted, ?string $error): CertificateInfo

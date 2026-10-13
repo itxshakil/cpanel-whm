@@ -164,6 +164,20 @@ final class DoctorCommandTest extends TestCase
     }
 
     #[Test]
+    public function an_expired_certificate_is_reported_even_with_verification_off(): void
+    {
+        $this->healthyServer();
+        config()->set('cpanel-whm.connections.main.verify_tls', false);
+        $expired = CarbonImmutable::now()->subDay();
+        $this->probe(new FakeProbe(certificate: new CertificateInfo(false, $expired, error: 'certificate verify failed')));
+
+        $report = Whm::ping();
+
+        self::assertSame(CheckStatus::Warn, $report->check('TLS')?->status);
+        self::assertStringContainsString("expired on {$expired->format('Y-m-d')}", (string) $report->check('TLS')?->message);
+    }
+
+    #[Test]
     public function a_self_signed_certificate_passes_when_its_key_matches_the_pin(): void
     {
         $pin = 'sha256//'.base64_encode(str_repeat('k', 32));
@@ -176,6 +190,22 @@ final class DoctorCommandTest extends TestCase
 
         self::assertSame(CheckStatus::Pass, $tls?->status);
         self::assertStringContainsString('matches the pin', (string) $tls?->message);
+    }
+
+    #[Test]
+    public function a_pinned_certificate_still_shows_when_it_expired(): void
+    {
+        $pin = 'sha256//'.base64_encode(str_repeat('k', 32));
+        $expired = CarbonImmutable::now()->subDay();
+        $this->healthyServer();
+        config()->set('cpanel-whm.connections.main.verify_tls', false);
+        config()->set('cpanel-whm.connections.main.pinned_public_key', $pin);
+        $this->probe(new FakeProbe(certificate: new CertificateInfo(false, $expired, error: 'self-signed', publicKeyPin: $pin)));
+
+        $tls = Whm::ping()->check('TLS');
+
+        self::assertSame(CheckStatus::Pass, $tls?->status);
+        self::assertStringContainsString("expired on {$expired->format('Y-m-d')}", (string) $tls?->message);
     }
 
     #[Test]

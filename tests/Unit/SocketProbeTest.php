@@ -18,6 +18,30 @@ final class SocketProbeTest extends TestCase
     }
 
     #[Test]
+    public function certificate_problems_are_told_apart_from_network_errors(): void
+    {
+        // Messages as PHP and OpenSSL word them (seen against badssl.com).
+        self::assertTrue(SocketProbe::isCertificateProblem('SSL operation failed with code 1. OpenSSL Error messages: error:0A000086:SSL routines::certificate verify failed'));
+        self::assertTrue(SocketProbe::isCertificateProblem("Peer certificate CN=`*.badssl.com' did not match expected CN=`wrong.host.badssl.com'"));
+
+        self::assertFalse(SocketProbe::isCertificateProblem('Unable to connect to ssl://10.255.255.1:443 (Connection timed out)'));
+        self::assertFalse(SocketProbe::isCertificateProblem('Unable to connect to ssl://127.0.0.1:1 (Connection refused)'));
+        self::assertFalse(SocketProbe::isCertificateProblem('TLS handshake failed'));
+    }
+
+    #[Test]
+    public function a_network_error_during_the_handshake_is_not_blamed_on_the_certificate(): void
+    {
+        try {
+            (new SocketProbe)->certificate('127.0.0.1', 1, 1);
+            self::fail('Expected ProbeFailed');
+        } catch (ProbeFailed $probeFailed) {
+            self::assertFalse(SocketProbe::isCertificateProblem($probeFailed->getMessage()));
+            self::assertStringContainsString('127.0.0.1:1', $probeFailed->getMessage());
+        }
+    }
+
+    #[Test]
     public function a_name_with_only_an_aaaa_record_resolves(): void
     {
         $probe = new SocketProbe(
