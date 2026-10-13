@@ -8,7 +8,9 @@ use Illuminate\Contracts\Config\Repository;
 use Itxshakil\CpanelWhm\Contracts\WhmClient;
 use Itxshakil\CpanelWhm\Enums\CheckStatus;
 use Itxshakil\CpanelWhm\Exceptions\InvalidConfiguration;
+use Itxshakil\CpanelWhm\Exceptions\WhmAuthenticationFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
 use Itxshakil\CpanelWhm\Support\ConnectionConfig;
 use Itxshakil\CpanelWhm\WhmManager;
 
@@ -27,6 +29,8 @@ final readonly class ConnectionDoctor
 
     public const string TLS = 'TLS';
 
+    public const string API = 'API';
+
     public const string AUTH = 'Auth';
 
     public const string PRIVILEGES = 'Privileges';
@@ -41,7 +45,7 @@ final readonly class ConnectionDoctor
      * @var list<string>
      */
     public const array ORDER = [
-        self::CONFIG, self::DNS, self::NETWORK, self::TLS, self::AUTH,
+        self::CONFIG, self::DNS, self::NETWORK, self::TLS, self::API, self::AUTH,
         self::PRIVILEGES, self::FUNCTIONS, self::VERSION, self::LATENCY,
     ];
 
@@ -86,17 +90,21 @@ final readonly class ConnectionDoctor
 
         try {
             $version = $client->server()->version();
+        } catch (WhmAuthenticationFailed|WhmPermissionDenied $whmException) {
+            // WHM answered and refused the token: the API itself is fine.
+            $results[] = CheckResult::pass(self::API, 'WHM answered');
+            $results[] = CheckResult::fail(self::AUTH, $whmException->getMessage(), $whmException->hint());
+
+            return $this->finish($connection, $target, $results);
         } catch (WhmException $whmException) {
-            $results[] = CheckResult::fail(
-                self::AUTH,
-                $whmException->getMessage(),
-                $whmException->hint(),
-            );
+            // A timeout, an HTTP 5xx or a proxy's HTML page says nothing about the token.
+            $results[] = CheckResult::fail(self::API, $whmException->getMessage(), $whmException->hint());
 
             return $this->finish($connection, $target, $results);
         }
 
         $latencyMs = (hrtime(true) - $startedAt) / 1_000_000;
+        $results[] = CheckResult::pass(self::API, 'WHM answered');
         $results[] = CheckResult::pass(self::AUTH, "token accepted for {$config->user}");
 
         foreach ([$this->privileges($client), $this->functions($client)] as $result) {
