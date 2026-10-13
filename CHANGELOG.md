@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- `Whm::fake()` answers a batch with a failed command the way WHM does: the batch itself has `result = 0` and still carries every command's answer. A `connectionError()` stub for one command becomes a failed command instead of failing the whole batch.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
