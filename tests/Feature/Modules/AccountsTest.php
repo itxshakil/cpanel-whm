@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Itxshakil\CpanelWhm\Tests\Feature\Modules;
 
 use Illuminate\Support\Facades\Event;
+use InvalidArgumentException;
 use Itxshakil\CpanelWhm\Data\Account;
 use Itxshakil\CpanelWhm\Data\NewAccount;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
@@ -59,6 +60,29 @@ final class AccountsTest extends TestCase
                 'password' => 'S3cure!pass',
                 'contactemail' => 'ops@acme.example',
             ]);
+    }
+
+    #[Test]
+    public function create_takes_a_shorter_timeout_for_queued_jobs(): void
+    {
+        $fake = Whm::fake(['createacct' => Whm::response(['user' => 'acme'])]);
+
+        Whm::accounts()->create(new NewAccount(username: 'acme', domain: 'acme.example', password: 'S3cure!pass'), timeout: 60);
+
+        $fake->assertCalled('createacct', static fn (array $params, WhmRequest $request): bool => $request->timeout === 60);
+    }
+
+    #[Test]
+    public function create_refuses_a_timeout_below_one_second(): void
+    {
+        $fake = Whm::fake();
+
+        try {
+            Whm::accounts()->create(new NewAccount(username: 'acme', domain: 'acme.example'), timeout: 0);
+            self::fail('Expected InvalidArgumentException');
+        } catch (InvalidArgumentException) {
+            $fake->assertNothingSent();
+        }
     }
 
     #[Test]
