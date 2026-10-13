@@ -53,6 +53,8 @@ paths:
       tags: [cPHulk]
       parameters:
         - { in: query, name: ip, required: true, schema: { type: array, items: { type: string } } }
+        - { in: query, name: rules, schema: { type: array, items: { type: string, format: json } } }
+        - { in: query, name: settings, schema: { type: string, format: json } }
   /addzonerecord:
     post:
       operationId: DNS-addzonerecord
@@ -67,6 +69,7 @@ paths:
               properties:
                 zone: { type: string, description: The zone. }
                 ttl: { type: number }
+                TTL: { type: number }
   /personalization_set:
     post:
       operationId: Personalization-set
