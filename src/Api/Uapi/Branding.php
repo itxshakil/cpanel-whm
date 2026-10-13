@@ -118,7 +118,7 @@ final class Branding extends UapiModule
      * file, the system processes it and returns the rendered output.
      *
      * @param  string  $file  The relative path to the branding file within the theme directory.
-     * @param  string|null  $data  A JSON-encoded object containing additional variables to pass to the Template Toolkit template when rendering a `.tt` file.
+     * @param  array<array-key, mixed>|string|null  $data  A JSON-encoded object containing additional variables to pass to the Template Toolkit template when rendering a `.tt` file. Sent as JSON: an array is encoded for you, a string is sent as it is.
      * @param  bool|int|null  $raw  Whether to return the raw file content without HTML encoding.
      * @param  bool|int|null  $skipDefault  Whether to skip the default branding fallback.
      * @param  array<string, mixed>  $extra  Further parameters, sent as given.
@@ -130,14 +130,14 @@ final class Branding extends UapiModule
      */
     public function include(
         string $file,
-        ?string $data = null,
+        array|string|null $data = null,
         bool|int|null $raw = null,
         bool|int|null $skipDefault = null,
         array $extra = [],
     ): UapiResult {
         return $this->invoke('include', [
             'file' => $file,
-            'data' => $data,
+            'data' => self::json($data),
             'raw' => $raw,
             'skip_default' => $skipDefault,
         ], $extra);

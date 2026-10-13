@@ -20,6 +20,8 @@ use Itxshakil\CpanelWhm\WhmRequest;
  * The token travels only in the Authorization header. POST bodies are
  * form-encoded (WHM reads parameters as form fields), which keeps passwords
  * out of URLs and therefore out of cURL error messages and server logs.
+ *
+ * @internal Type-hint Contracts\Transport instead.
  */
 final readonly class HttpTransport implements Transport
 {
@@ -35,6 +37,14 @@ final readonly class HttpTransport implements Transport
 
         if (! $config->verifyTls) {
             $pending = $pending->withoutVerifying();
+        } elseif ($config->caBundle !== null) {
+            $pending = $pending->withOptions(['verify' => $config->caBundle]);
+        }
+
+        // curl checks the pin whether or not the chain is verified, so a server
+        // reached by IP with a self-signed certificate can still be trusted.
+        if ($config->pinnedPublicKey !== null && defined('CURLOPT_PINNEDPUBLICKEY')) {
+            $pending = $pending->withOptions(['curl' => [CURLOPT_PINNEDPUBLICKEY => $config->pinnedPublicKey]]);
         }
 
         $url = $config->endpoint($request->function);
