@@ -248,6 +248,7 @@ Everything extends `Itxshakil\CpanelWhm\Exceptions\WhmException`, and each has a
 | `WhmHttpError` | Another HTTP error, or an answer that isn't JSON (wrong port or a proxy). |
 | `WhmCommandFailed` | WHM ran the function and reported failure. Has `reason()`, `function()`, `response()`, `rawOutput()`. |
 | `WhmPermissionDenied` | Like `WhmCommandFailed`, but the token's ACL doesn't allow the function. |
+| `AccountNotFound` | Like `WhmCommandFailed`, but the named cPanel account doesn't exist. |
 | `UapiCallFailed` | The UAPI function inside `uapi_cpanel` (or `cpanel`) failed. Has `errors()`. |
 | `InvalidUsername` | A username broke a cPanel rule (checked before sending). |
 | `InvalidConfiguration` | Missing host or token, unknown connection, or a cPanel port. |

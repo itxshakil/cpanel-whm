@@ -13,6 +13,7 @@ use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Tests\Fixtures\Responses;
 use Itxshakil\CpanelWhm\Tests\TestCase;
 use Itxshakil\CpanelWhm\WhmManager;
+use Itxshakil\CpanelWhm\WhmRequest;
 use PHPUnit\Framework\Attributes\Test;
 
 final class ManagerTest extends TestCase
@@ -44,6 +45,41 @@ final class ManagerTest extends TestCase
 
         Http::assertSent(static fn (Request $request): bool => str_starts_with($request->url(), 'https://ca1.example.com:2087/')
             && $request->header('Authorization') === ['whm reseller:OTHER-TOKEN']);
+    }
+
+    #[Test]
+    public function a_connection_can_be_built_at_runtime_from_an_array(): void
+    {
+        Http::fake(['*' => Http::response(Responses::envelope(['version' => '11.134.0.5']))]);
+
+        $client = Whm::build(['host' => 'db-server.example.com', 'user' => 'reseller', 'token' => 'DB-TOKEN', 'timeout' => 15], name: 'server-42');
+
+        self::assertSame('11.134.0.5', $client->server()->version());
+        self::assertSame('server-42', $client->config()->name);
+        self::assertSame(15, $client->config()->timeout);
+        Http::assertSent(static fn (Request $request): bool => str_starts_with($request->url(), 'https://db-server.example.com:2087/')
+            && $request->header('Authorization') === ['whm reseller:DB-TOKEN']);
+
+        // Built clients are not added to the configured connections.
+        self::assertNotContains('server-42', Whm::connectionNames());
+    }
+
+    #[Test]
+    public function a_built_connection_is_validated_like_a_configured_one(): void
+    {
+        $this->expectException(InvalidConfiguration::class);
+
+        Whm::build(['host' => 'server.example.com:2083', 'token' => 'x']);
+    }
+
+    #[Test]
+    public function the_fake_covers_built_connections(): void
+    {
+        $fake = Whm::fake(['version' => Whm::response(['version' => '11.138.0.10'])]);
+
+        self::assertSame('11.138.0.10', Whm::build(['host' => 'db-server.example.com', 'token' => 'DB-TOKEN'], name: 'server-42')->server()->version());
+
+        $fake->assertCalled('version', static fn (array $params, WhmRequest $request): bool => $request->connection === 'server-42');
     }
 
     #[Test]
