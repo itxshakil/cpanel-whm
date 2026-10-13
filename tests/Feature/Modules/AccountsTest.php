@@ -14,6 +14,7 @@ use Itxshakil\CpanelWhm\Events\AccountRemoved;
 use Itxshakil\CpanelWhm\Exceptions\AccountNotFound;
 use Itxshakil\CpanelWhm\Exceptions\InvalidUsername;
 use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
+use Itxshakil\CpanelWhm\Exceptions\WhmConnectionFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
 use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Modules\Accounts;
@@ -58,6 +59,53 @@ final class AccountsTest extends TestCase
                 'password' => 'S3cure!pass',
                 'contactemail' => 'ops@acme.example',
             ]);
+    }
+
+    #[Test]
+    public function create_or_recover_returns_an_account_whm_made_before_the_timeout(): void
+    {
+        Event::fake([AccountCreated::class]);
+        $fake = Whm::fake([
+            'createacct' => Whm::connectionError('cURL error 28: Operation timed out after 120000 milliseconds with 0 bytes received'),
+            'accountsummary' => Whm::response(['acct' => [Responses::account(['user' => 'acme', 'domain' => 'acme.example'])]]),
+        ]);
+
+        $account = Whm::accounts()->createOrRecover(new NewAccount(username: 'acme', domain: 'Acme.Example'));
+
+        self::assertTrue($account->recovered);
+        self::assertSame('acme', $account->username);
+        self::assertSame('acme.example', $account->domain);
+
+        // The password handed back is the one createacct was sent.
+        $sent = $fake->recorded('createacct')[0]->params['password'] ?? null;
+        self::assertIsString($sent);
+        self::assertSame($sent, $account->password);
+
+        Event::assertDispatched(AccountCreated::class, static fn (AccountCreated $event): bool => $event->account->recovered && $event->account->password === null);
+    }
+
+    #[Test]
+    public function create_or_recover_rethrows_when_retrying_is_safe_or_the_name_is_someone_elses(): void
+    {
+        $timedOut = Whm::connectionError('cURL error 28: Operation timed out after 120000 milliseconds with 0 bytes received');
+
+        $cases = [
+            'never reached WHM' => [Whm::connectionError('cURL error 7: Failed to connect'), Whm::response(['acct' => [Responses::account(['user' => 'acme', 'domain' => 'acme.example'])]])],
+            'nothing was created' => [$timedOut, Whm::accountNotFound('acme')],
+            'another domain owns the name' => [$timedOut, Whm::response(['acct' => [Responses::account(['user' => 'acme', 'domain' => 'other.example'])]])],
+        ];
+
+        foreach ($cases as $case => [$createacct, $accountsummary]) {
+            Event::fake([AccountCreated::class]);
+            Whm::fake(['createacct' => $createacct, 'accountsummary' => $accountsummary]);
+
+            try {
+                Whm::accounts()->createOrRecover(new NewAccount(username: 'acme', domain: 'acme.example'));
+                self::fail("Expected WhmConnectionFailed: {$case}");
+            } catch (WhmConnectionFailed) {
+                Event::assertNotDispatched(AccountCreated::class);
+            }
+        }
     }
 
     #[Test]
