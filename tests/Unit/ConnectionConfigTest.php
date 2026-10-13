@@ -25,6 +25,17 @@ final class ConnectionConfigTest extends TestCase
     }
 
     #[Test]
+    public function an_ipv6_host_keeps_its_brackets_in_urls_only(): void
+    {
+        $config = ConnectionConfig::fromArray('main', ['host' => 'https://[2001:db8::1]:2087', 'token' => 'abc']);
+
+        self::assertSame('https://[2001:db8::1]:2087', $config->baseUrl());
+        self::assertSame('2001:db8::1', $config->bareHost());
+        self::assertTrue($config->isIpAddress());
+        self::assertSame('server.example.com', ConnectionConfig::fromArray('main', ['host' => 'server.example.com', 'token' => 'abc'])->bareHost());
+    }
+
+    #[Test]
     public function an_explicit_scheme_and_port_are_kept(): void
     {
         $config = ConnectionConfig::fromArray('main', ['host' => 'http://203.0.113.5', 'token' => 'abc', 'user' => 'reseller']);
