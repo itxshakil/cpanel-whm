@@ -173,7 +173,7 @@ final class WhmClient implements WhmClientContract
 
     public function timeout(int $seconds, ?int $connect = null): static
     {
-        return new self($this->config->withTimeouts($seconds, $connect), $this->transport, $this->events, $this->cache, $this->cacheTtl, $this->cacheStore, $this->cachePrefix);
+        return new self($this->config->withTimeouts($seconds, $connect), $this->transport, $this->events, $this->cache, $this->cacheTtl, $this->cacheStore, $this->cachePrefix, $this->httpMethod);
     }
 
     public function dispatch(object $event): void

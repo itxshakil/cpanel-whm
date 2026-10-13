@@ -41,6 +41,7 @@ final class GeneratedApiTest extends TestCase
         Whm::withHttpMethod(HttpMethod::Post)->api()->dns()->parseDnsZone(zone: 'example.com');
         Whm::withHttpMethod(HttpMethod::Get)->withoutRetries()->suspensions()->suspend('acme');
         Whm::withHttpMethod(HttpMethod::Get)->accounts()->changePassword('acme', 'hunter2');
+        Whm::withHttpMethod(HttpMethod::Post)->timeout(5)->api()->dns()->parseDnsZone(zone: 'example.net');
         Whm::api()->dns()->parseDnsZone(zone: 'example.org');
 
         $method = static fn (string $function, array $match): ?HttpMethod => collect($fake->recorded($function))
@@ -50,6 +51,7 @@ final class GeneratedApiTest extends TestCase
         self::assertSame(HttpMethod::Get, $method('suspendacct', ['user' => 'acme']));
         self::assertSame(HttpMethod::Post, $method('passwd', ['user' => 'acme']));
         self::assertSame(HttpMethod::Get, $method('parse_dns_zone', ['zone' => 'example.org']));
+        self::assertSame(HttpMethod::Post, $method('parse_dns_zone', ['zone' => 'example.net']));
     }
 
     #[Test]
