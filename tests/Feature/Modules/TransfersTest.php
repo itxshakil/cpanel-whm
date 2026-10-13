@@ -8,6 +8,8 @@ use InvalidArgumentException;
 use Itxshakil\CpanelWhm\Data\RemoteServer;
 use Itxshakil\CpanelWhm\Data\TransferOptions;
 use Itxshakil\CpanelWhm\Enums\TransferState;
+use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
+use Itxshakil\CpanelWhm\Exceptions\WhmConnectionFailed;
 use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Tests\TestCase;
 use Itxshakil\CpanelWhm\WhmRequest;
@@ -153,6 +155,43 @@ final class TransfersTest extends TestCase
 
         $order = array_map(static fn (WhmRequest $r): string => $r->function, $fake->recorded());
         self::assertSame(['create_remote_root_transfer_session', 'enqueue_transfer_item', 'enqueue_transfer_item', 'start_transfer_session'], $order);
+    }
+
+    #[Test]
+    public function migrate_aborts_the_session_when_a_step_fails(): void
+    {
+        $fake = Whm::fake([
+            'create_remote_root_transfer_session' => Whm::response(['transfer_session_id' => 'sess9']),
+            'enqueue_transfer_item' => Whm::sequence(Whm::response(), Whm::failure('No such account on the remote server.')),
+            'abort_transfer_session' => Whm::response(),
+        ]);
+
+        try {
+            Whm::transfers()->migrate(new RemoteServer('old.example.com', password: 'p'), ['acme', 'ghost']);
+            self::fail('Expected WhmCommandFailed');
+        } catch (WhmCommandFailed $whmCommandFailed) {
+            self::assertStringContainsString('No such account', $whmCommandFailed->getMessage());
+        }
+
+        $fake->assertCalled('abort_transfer_session', static fn (array $p): bool => $p === ['transfer_session_id' => 'sess9'])
+            ->assertNotCalled('start_transfer_session');
+    }
+
+    #[Test]
+    public function migrate_leaves_a_session_alone_when_start_may_have_run(): void
+    {
+        $fake = Whm::fake([
+            'create_remote_root_transfer_session' => Whm::response(['transfer_session_id' => 'sess9']),
+            'enqueue_transfer_item' => Whm::response(),
+            'start_transfer_session' => Whm::connectionError('cURL error 28: Operation timed out after 30000 milliseconds with 0 bytes received'),
+        ]);
+
+        try {
+            Whm::transfers()->migrate(new RemoteServer('old.example.com', password: 'p'), ['acme']);
+            self::fail('Expected WhmConnectionFailed');
+        } catch (WhmConnectionFailed) {
+            $fake->assertNotCalled('abort_transfer_session');
+        }
     }
 
     /**
