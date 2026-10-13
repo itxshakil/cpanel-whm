@@ -52,7 +52,11 @@ class Tokens extends Module
     }
 
     /**
-     * Tokens that expire within $days or have expired.
+     * Tokens that are still valid but expire within $days.
+     *
+     * Already expired tokens are left out: WHM keeps them in the list until
+     * someone revokes them, and one can't be the token in use, since that
+     * token just listed them. Counting them would fail a check forever.
      *
      * @return Collection<int, ApiToken>
      *
@@ -60,7 +64,7 @@ class Tokens extends Module
      */
     public function expiringWithin(int $days): Collection
     {
-        return $this->list()->filter(static fn (ApiToken $token): bool => $token->expiresWithin($days))->values();
+        return $this->list()->filter(static fn (ApiToken $token): bool => ! $token->isExpired() && $token->expiresWithin($days))->values();
     }
 
     /**
