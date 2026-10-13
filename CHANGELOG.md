@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `whm:doctor`'s TLS check shows when an untrusted certificate expired (or until when it's valid), also with verification off. A timeout or refused connection during the handshake is reported as a handshake failure, not as an untrusted certificate, and the reported reason is OpenSSL's own ("certificate verify failed", a name mismatch).
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

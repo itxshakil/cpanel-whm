@@ -160,13 +160,21 @@ final readonly class ConnectionDoctor
         if (! $certificate->trusted) {
             $why = $certificate->error ?? 'the certificate is not trusted';
 
+            // Expiry matters even when verification is off: an expired
+            // certificate is often why it isn't trusted in the first place.
+            $validity = match (true) {
+                $certificate->validTo === null => '',
+                $certificate->validTo->isPast() => "; it expired on {$expiry}",
+                default => "; valid until {$expiry}",
+            };
+
             return $config->verifyTls
                 ? CheckResult::fail(
                     self::TLS,
-                    "certificate not trusted: {$why}",
+                    "certificate not trusted: {$why}{$validity}",
                     "Install a valid certificate for {$config->host} (AutoSSL covers the server hostname), or set WHM_VERIFY_TLS=false if you connect by IP and accept the risk.",
                 )
-                : CheckResult::warn(self::TLS, 'certificate not trusted; verification is off (WHM_VERIFY_TLS=false)', 'Prefer a hostname with a valid certificate so the token cannot be intercepted.');
+                : CheckResult::warn(self::TLS, "certificate not trusted; verification is off (WHM_VERIFY_TLS=false){$validity}", 'Prefer a hostname with a valid certificate so the token cannot be intercepted.');
         }
 
         if ($certificate->validTo !== null && $certificate->validTo->lessThan(now()->addDays(self::CERTIFICATE_WARNING_DAYS))) {

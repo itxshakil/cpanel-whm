@@ -129,6 +129,20 @@ final class DoctorCommandTest extends TestCase
     }
 
     #[Test]
+    public function an_expired_certificate_is_reported_even_with_verification_off(): void
+    {
+        $this->healthyServer();
+        config()->set('cpanel-whm.connections.main.verify_tls', false);
+        $expired = CarbonImmutable::now()->subDay();
+        $this->probe(new FakeProbe(certificate: new CertificateInfo(false, $expired, error: 'certificate verify failed')));
+
+        $report = Whm::ping();
+
+        self::assertSame(CheckStatus::Warn, $report->check('TLS')?->status);
+        self::assertStringContainsString("expired on {$expired->format('Y-m-d')}", (string) $report->check('TLS')?->message);
+    }
+
+    #[Test]
     public function an_expiring_certificate_and_an_old_server_only_warn(): void
     {
         $this->healthyServer();
