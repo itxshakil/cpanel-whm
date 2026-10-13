@@ -20,6 +20,7 @@ You don't need any WHM config in tests: under the fake, missing connections get 
 | `Whm::failure(string $reason, array $data = [])` | WHM failure (`result = 0`) → `WhmCommandFailed` (or `WhmPermissionDenied` for "Access denied") |
 | `Whm::httpError(int $status = 500)` | HTTP error; 401/403 → `WhmAuthenticationFailed` |
 | `Whm::connectionError(string $message)` | `WhmConnectionFailed` |
+| `Whm::timedOutAfterSending(int $seconds = 30)` | `WhmConnectionFailed` whose `mayHaveReachedServer()` is true: WHM got the call and may have acted |
 | `Whm::uapi(mixed $data, array $warnings = [], array $messages = [])` | successful `uapi_cpanel` |
 | `Whm::uapiFailure(string\|array $errors)` | `UapiCallFailed` |
 | `Whm::sequence(...$responses)` | one per call, in order; `->whenEmpty($response)` to keep answering |
@@ -37,6 +38,11 @@ $whm->assertCalledTimes('suspendacct', 1);
 $whm->assertSentCount(3);
 $whm->assertNothingSent();
 $whm->recorded('createacct');   // list<WhmRequest>
+
+// UAPI calls made with Whm::asUser(): by account, module and function.
+// $params holds the function's own parameters, without the cpanel.* ones.
+$whm->assertUapiCalled('acme', 'Email', 'add_pop', fn (array $params) => $params['email'] === 'info');
+$whm->assertUapiNotCalled('acme', 'Email', 'delete_pop');
 ```
 
 ## Batches
