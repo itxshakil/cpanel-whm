@@ -18,6 +18,7 @@ Failures always throw a `WhmException`; no method signals failure through its re
 | Method | WHM function | Returns |
 | --- | --- | --- |
 | `create(NewAccount $account)` | `createacct` (POST, ≥ 120 s timeout) | `CreatedAccount` |
+| `createOrRecover(NewAccount $account)` | `createacct`; after a timeout that may have reached WHM, `accountsummary` | `CreatedAccount` (`recovered` is true when it was found afterwards) |
 | `list(?Filter $filter = null)` | `listaccts` | `Collection<Account>` |
 | `search(string $term, SearchType $by = User, bool $exact = false)` | `listaccts` | `Collection<Account>` |
 | `find(string $user)` | `accountsummary` | `?Account` (null when it does not exist) |
@@ -27,6 +28,7 @@ Failures always throw a `WhmException`; no method signals failure through its re
 | `changePackage(string $user, string $package)` | `changepackage` | `WhmResponse` |
 | `modify(string $user, array $changes)` | `modifyacct` (POST) | `WhmResponse` |
 | `remove(string $user, bool $keepDns = false)` | `removeacct` (POST) | `WhmResponse` |
+| `removeIfExists(string $user, bool $keepDns = false)` | `removeacct` (POST); a missing account counts as done | `bool`: true when this call removed it |
 
 ### Creating
 
@@ -193,6 +195,7 @@ Whm::resellers()->saveAcl('basic', ['create-acct', 'list-accts']);
 Whm::resellers()->assignAcl('res1', 'basic');
 Whm::resellers()->acls();                         // ['basic' => ['create-acct', 'list-accts'], ...]
 Whm::resellers()->setLimits('res1', accounts: 25, diskMb: 51_200, bandwidthMb: 512_000);
+Whm::resellers()->setLimits('res1', limitAccounts: false, limitResources: false); // back to unlimited
 Whm::resellers()->stats('res1');                  // ResellerStats: disk, bandwidth, owned accounts
 Whm::resellers()->accountCounts('res1')->remaining();
 Whm::resellers()->suspend('res1', 'Unpaid', lock: true);
@@ -295,6 +298,8 @@ Whm::cache(now()->addHour(), 'redis')->packages()->list();
 
 `cache()` returns a copy of the client; only read-only calls are cached, and failures never are. `verify_new_username` is never cached, DNS edits read the zone's serial uncached, and `withoutCache()` gives you an uncached copy back. Cache keys include the server and user, not just the connection name.
 
+A successful call that changes something (`create()`, `suspend()`, a batch, ...) drops that server's cached reads, so `Whm::cache(300)->accounts()->list()` never shows an account list from before your own change. The drop happens in the store set as `cpanel-whm.cache.store`; if you cache with an explicit store (`Whm::cache(300, 'redis')`), write through `Whm::cache(300, 'redis')` too, or call `flushCache()` on it. After a change made elsewhere (WHM's UI, another app), call `Whm::flushCache()` or `Whm::connection('ca-1')->flushCache()`.
+
 ## Batches
 
 `Whm::batch()` sends several functions in one request through WHM's `batch` function:
@@ -308,11 +313,11 @@ $results = Whm::batch()
 
 $results[0]->get('acct.0.domain');   // one WhmResponse per command, in order
 $results->successful();              // every command ran and succeeded
-$results->failures();                // [index => WhmCommandFailed|WhmPermissionDenied]
+$results->failures();                // [index => WhmCommandFailed|WhmPermissionDenied|UapiCallFailed]
 $results->throw();                   // throw the first failure, if any
 ```
 
-Parameters are normalised like `Whm::call()`. A failed command does not throw from `send()`; only a failure of the batch request itself does. The batch is sent as POST and is never retried or cached, whatever its commands are. Secrets inside commands are masked in events and logs.
+Parameters are normalised like `Whm::call()`. A `uapi_cpanel` or `cpanel` command whose cPanel function failed is a failure too (`UapiCallFailed`), as it is for a single call. A failed command does not throw from `send()`; only a failure of the batch request itself does. The batch is sent as POST and is never retried or cached, whatever its commands are. Secrets inside commands are masked in events and logs.
 
 ## Macros
 

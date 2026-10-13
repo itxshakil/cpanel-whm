@@ -73,6 +73,15 @@ final class WhmFake implements Transport
     }
 
     /**
+     * WHM's answer when the named cPanel account doesn't exist, worded the way
+     * suspendacct, modifyacct and removeacct word it.
+     */
+    public static function accountNotFound(string $user = 'acme'): TransportResponse
+    {
+        return self::failure("You do not have a user named \"{$user}\".");
+    }
+
+    /**
      * An HTTP error, e.g. 401 for a rejected token.
      */
     public static function httpError(int $status = 500, string $body = ''): TransportResponse
@@ -145,7 +154,9 @@ final class WhmFake implements Transport
      */
     public static function fixture(string $path): TransportResponse
     {
-        $resolved = str_starts_with($path, '/') || ! function_exists('base_path') ? $path : base_path($path);
+        // Absolute on any OS: /unix, C:\windows, C:/windows or \\server\share.
+        $isAbsolute = preg_match('#^(?:[/\\\\]|[A-Za-z]:[/\\\\])#', $path) === 1;
+        $resolved = $isAbsolute || ! function_exists('base_path') ? $path : base_path($path);
         $contents = is_file($resolved) ? file_get_contents($resolved) : false;
         $json = is_string($contents) ? json_decode($contents, true) : null;
 
