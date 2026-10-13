@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `Tokens::expiringWithin()`, `whm:token` and `WhmCheck::failWhenTokenExpiresWithin()` ignore tokens that have already expired, so one old token left in WHM no longer fails them forever. `whm:token` lists expired tokens as a reminder to revoke them.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
