@@ -67,6 +67,13 @@ interface WhmClient
     public function withoutCache(): static;
 
     /**
+     * Forget every cached read for this server and user. Calls that change
+     * something do this on their own; use it after a change made elsewhere
+     * (WHM's UI, another app).
+     */
+    public function flushCache(): void;
+
+    /**
      * A copy of this client that makes one attempt per call, for probes such
      * as health checks that time a single request.
      */

@@ -10,9 +10,12 @@ All notable changes to this project are documented here. The format follows
 - `AccountNotFound` (extends `WhmCommandFailed`): thrown by every call when WHM says the named account doesn't exist, including the "You do not have a user named …" wording of `suspendacct`, `modifyacct` and `removeacct`. `Whm::accountNotFound()` fakes it.
 - `Accounts::removeIfExists()`: removes an account, or returns false when it is already gone, so a retried job doesn't fail.
 - `Accounts::createOrRecover()`: like `create()`, but after a timeout that may have reached WHM it looks the account up and returns it (`CreatedAccount::$recovered`), with the password the request carried, when it exists with the requested domain.
+- `WhmClient::flushCache()` (and `Whm::flushCache()`): forget every cached read for the server.
 
 ### Changed
 - Parameters: backed enums are sent as their value and `Stringable` objects as their string. A nested array, a date or any other object throws `InvalidArgumentException` before anything is sent, instead of reaching WHM as `name[key]=…` and being ignored.
+- A successful call that changes something drops that server's cached reads, so `Whm::cache()` never returns data from before your own change. Cache keys gained a generation segment.
+- The `WhmClient` contract gains `flushCache()`.
 
 ### Fixed
 - `whm:record` prints a replay hint with the path relative to the project root, so it can be committed.
