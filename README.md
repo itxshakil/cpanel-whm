@@ -299,6 +299,23 @@ The modules dispatch `AccountCreated`, `AccountRemoved`, `AccountSuspended`, `Ac
 
 Read-only calls are retried after a connection error or HTTP 5xx, and `Whm::cache(300)->packages()->list()` caches them. Calls that change something are never retried or cached.
 
+### Retries
+
+Retries are **on by default**: a read-only call that fails with a connection error or an HTTP 5xx is tried **twice more**, 250 ms and then 500 ms later. A function that changes something (`createacct`, `suspendacct`, a batch, …) is sent once, whatever happens. That's why nothing is ever created twice.
+
+That means a read against a server that's down can wait up to three times `WHM_TIMEOUT`. Turn retries down where that matters:
+
+```php
+Whm::withoutRetries()->server()->version();   // one attempt, e.g. in a health check
+```
+
+```dotenv
+WHM_RETRY_TIMES=0        # no retries for the connection
+WHM_RETRY_SLEEP_MS=250   # base back-off; attempt n waits n × this
+```
+
+If your queued jobs already retry, consider `WHM_RETRY_TIMES=0` so a failing read isn't retried at two levels. `WhmCheck` always makes a single attempt.
+
 Set `WHM_LOG_CHANNEL=stack` to log every call: function, connection, duration and outcome. Parameters are redacted (passwords, tokens and login URLs never reach the log). `WhmRequestSending`, `WhmResponseReceived` and `WhmRequestFailed` fire for every call, with secrets already masked.
 
 With spatie/laravel-health, add `WhmCheck::new()->failWhenTokenExpiresWithin(7)` to your checks.

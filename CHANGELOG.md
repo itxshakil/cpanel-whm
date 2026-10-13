@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Docs: the README has a "Retries" section naming the default (two retries for read-only calls), the worst-case wait, `WHM_RETRY_TIMES=0` and `withoutRetries()`.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

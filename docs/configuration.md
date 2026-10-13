@@ -48,7 +48,7 @@ In WHM: **Development › Manage API Tokens › Generate Token**. Give it only t
 ],
 ```
 
-Only read-only functions are retried, and only after a connection error or an HTTP 5xx. The wait grows with each attempt (250 ms, then 500 ms). Set `times` to `0` to turn retries off.
+Retries are on by default (two more attempts). Only read-only functions are retried, and only after a connection error or an HTTP 5xx. The wait grows with each attempt (250 ms, then 500 ms), so a read against a server that's down can take up to three times the timeout. Set `times` to `0` to turn retries off for the connection, or use `Whm::withoutRetries()` for one call site. If your queued jobs already retry, `0` avoids retrying at two levels.
 
 ## Cache
 
