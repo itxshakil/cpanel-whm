@@ -81,7 +81,9 @@ final readonly class ConnectionDoctor
             }
         }
 
-        $client = $manager->connection($connection);
+        // One attempt per check: a retry would hide a flaky server and fold the
+        // failed attempt and its back-off into the latency figure.
+        $client = $manager->connection($connection)->withoutRetries();
         $startedAt = hrtime(true);
 
         try {

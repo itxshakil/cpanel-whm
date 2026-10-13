@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `whm:doctor` makes one attempt per check, so a server that only answers on retry is reported, and the latency figure no longer includes a failed attempt and its back-off.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
