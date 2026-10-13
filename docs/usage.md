@@ -194,6 +194,7 @@ Whm::resellers()->saveAcl('basic', ['create-acct', 'list-accts']);
 Whm::resellers()->assignAcl('res1', 'basic');
 Whm::resellers()->acls();                         // ['basic' => ['create-acct', 'list-accts'], ...]
 Whm::resellers()->setLimits('res1', accounts: 25, diskMb: 51_200, bandwidthMb: 512_000);
+Whm::resellers()->setLimits('res1', limitAccounts: false, limitResources: false); // back to unlimited
 Whm::resellers()->stats('res1');                  // ResellerStats: disk, bandwidth, owned accounts
 Whm::resellers()->accountCounts('res1')->remaining();
 Whm::resellers()->suspend('res1', 'Unpaid', lock: true);
@@ -309,11 +310,11 @@ $results = Whm::batch()
 
 $results[0]->get('acct.0.domain');   // one WhmResponse per command, in order
 $results->successful();              // every command ran and succeeded
-$results->failures();                // [index => WhmCommandFailed|WhmPermissionDenied]
+$results->failures();                // [index => WhmCommandFailed|WhmPermissionDenied|UapiCallFailed]
 $results->throw();                   // throw the first failure, if any
 ```
 
-Parameters are normalised like `Whm::call()`. A failed command does not throw from `send()`; only a failure of the batch request itself does. The batch is sent as POST and is never retried or cached, whatever its commands are. Secrets inside commands are masked in events and logs.
+Parameters are normalised like `Whm::call()`. A `uapi_cpanel` or `cpanel` command whose cPanel function failed is a failure too (`UapiCallFailed`), as it is for a single call. A failed command does not throw from `send()`; only a failure of the batch request itself does. The batch is sent as POST and is never retried or cached, whatever its commands are. Secrets inside commands are masked in events and logs.
 
 ## Macros
 

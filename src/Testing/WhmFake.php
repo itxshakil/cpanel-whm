@@ -145,7 +145,9 @@ final class WhmFake implements Transport
      */
     public static function fixture(string $path): TransportResponse
     {
-        $resolved = str_starts_with($path, '/') || ! function_exists('base_path') ? $path : base_path($path);
+        // Absolute on any OS: /unix, C:\windows, C:/windows or \\server\share.
+        $isAbsolute = preg_match('#^(?:[/\\\\]|[A-Za-z]:[/\\\\])#', $path) === 1;
+        $resolved = $isAbsolute || ! function_exists('base_path') ? $path : base_path($path);
         $contents = is_file($resolved) ? file_get_contents($resolved) : false;
         $json = is_string($contents) ? json_decode($contents, true) : null;
 
