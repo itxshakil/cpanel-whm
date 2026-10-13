@@ -75,6 +75,7 @@ All notable changes to this project are documented here. The format follows
 - `UserMysql::grant()` refuses an empty privilege list (blank entries are ignored) instead of sending `privileges=''`; use `revoke()` to take privileges away.
 - `extra:` on the generated WHM and UAPI methods, and `$options` on `Backups::backupAccount()`, can add parameters but no longer replace a typed argument the caller gave (or the normalised username).
 - `createacct` (120 s) and `terminatereseller` (600 s) get their minimum timeouts on every path, including `Whm::call()`, `Whm::api()` and `whm:call`, not just through the modules. An explicit timeout still wins (`WhmClient::MINIMUM_TIMEOUTS`).
+- Generated methods for parameters the spec documents as JSON (`format: json`), such as `massEditDnsZone(add:, edit:)`, encode arrays to JSON strings, one per item; strings still pass through. Ten parameters across WHM and UAPI are affected.
 
 ## [0.3.0] - 2026-10-08
 

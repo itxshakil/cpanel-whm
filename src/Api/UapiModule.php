@@ -8,6 +8,7 @@ use Itxshakil\CpanelWhm\Data\UapiResult;
 use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\Modules\CpanelUser;
+use JsonException;
 
 /**
  * Base for the generated UAPI modules in Api\Uapi. Calls run through WHM's
@@ -29,5 +30,15 @@ abstract class UapiModule
     protected function invoke(string $function, array $params, array $extra = []): UapiResult
     {
         return $this->user->uapi(static::MODULE, $function, WhmGroup::merge($params, $extra));
+    }
+
+    /**
+     * @see WhmGroup::json()
+     *
+     * @throws JsonException
+     */
+    public static function json(mixed $value): mixed
+    {
+        return WhmGroup::json($value);
     }
 }

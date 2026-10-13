@@ -157,6 +157,11 @@ final class Writer
 
         foreach ($parameters as $parameter) {
             $description = $parameter->description !== '' ? '  '.$parameter->description : '';
+
+            if ($parameter->json) {
+                $description .= ' Sent as JSON: an array is encoded for you, a string is sent as it is.';
+            }
+
             $doc[] = " * @param  {$parameter->docType()}  \${$parameter->variable}{$description}";
         }
 
@@ -182,7 +187,10 @@ final class Writer
         $signature = array_map(static fn (Parameter $p): string => '        '.$p->signature().',', $parameters);
         $signature[] = '        array $extra = [],';
 
-        $params = array_map(static fn (Parameter $p): string => '            '.Text::quote($p->name).' => $'.$p->variable.',', $parameters);
+        $params = array_map(
+            static fn (Parameter $p): string => '            '.Text::quote($p->name).' => '.($p->json ? 'self::json($'.$p->variable.')' : '$'.$p->variable).',',
+            $parameters,
+        );
         $paramsCode = $params === [] ? '[]' : "[\n".implode("\n", $params)."\n        ]";
 
         $function = Text::quote($operation->function);

@@ -52,7 +52,7 @@ final class Market extends UapiModule
      * `Market::request_ssl_certificates` function.
      *
      * @param  string  $accessToken  The access token to connect to the provider.
-     * @param  array<array-key, mixed>  $item  The items to add to the shopping cart.
+     * @param  array<array-key, mixed>  $item  The items to add to the shopping cart. Sent as JSON: an array is encoded for you, a string is sent as it is.
      * @param  string  $provider  The cPanel Market provider’s name.
      * @param  string  $urlAfterCheckout  The location to which the provider directs the user after the checkout process is complete.
      * @param  array<string, mixed>  $extra  Further parameters, sent as given.
@@ -71,7 +71,7 @@ final class Market extends UapiModule
     ): UapiResult {
         return $this->invoke('create_shopping_cart', [
             'access_token' => $accessToken,
-            'item' => $item,
+            'item' => self::json($item),
             'provider' => $provider,
             'url_after_checkout' => $urlAfterCheckout,
         ], $extra);

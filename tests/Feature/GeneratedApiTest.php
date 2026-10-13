@@ -49,6 +49,21 @@ final class GeneratedApiTest extends TestCase
     }
 
     #[Test]
+    public function json_parameters_take_arrays_and_send_one_json_string_per_item(): void
+    {
+        $fake = Whm::fake(['mass_edit_dns_zone' => Whm::response(['new_serial' => 2])]);
+
+        Whm::api()->dns()->massEditDnsZone(
+            serial: 1,
+            zone: 'acme.test',
+            add: [['dname' => 'www', 'ttl' => 300, 'record_type' => 'A', 'data' => ['203.0.113.9']], '{"dname":"mail"}'],
+        );
+
+        $fake->assertCalled('mass_edit_dns_zone', static fn (array $p): bool => $p['add'] === '{"dname":"www","ttl":300,"record_type":"A","data":["203.0.113.9"]}'
+            && $p['add-1'] === '{"dname":"mail"}');
+    }
+
+    #[Test]
     public function slow_functions_get_their_long_timeout_on_every_path(): void
     {
         $fake = Whm::fake(['*' => Whm::response()]);
