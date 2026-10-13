@@ -18,9 +18,10 @@ use JsonException;
 /**
  * DNS zones: listzones, parse_dns_zone, mass_edit_dns_zone, adddns, killdns, resetzone.
  *
- * Record changes go through mass_edit_dns_zone with the zone's current SOA
- * serial, so an edit made from a stale copy of the zone fails instead of
- * overwriting someone else's change.
+ * Record changes go through mass_edit_dns_zone with an SOA serial. Updates and
+ * removals send the serial of the zone() read their records came from, so an
+ * edit made from a stale copy of the zone fails instead of changing the wrong
+ * line. Adds alone send the current serial.
  *
  *     $zone = Whm::dns()->zone('example.com');
  *     Whm::dns()->add('example.com', DnsRecord::a('www', '203.0.113.10'));
@@ -148,7 +149,13 @@ class Dns extends Module
             return $serial;
         }
 
-        // Read the serial uncached: a cached one goes stale after the first edit.
+        // Line indexes are only valid for the read they came from, so updates and
+        // removals carry that read's serial. A fresh serial would let a stale
+        // line index through and edit whatever line is there now.
+        $serial ??= self::readSerial($update, $remove);
+
+        // Nothing read: only adds (or raw line indexes). Read the serial uncached,
+        // because a cached one goes stale after the first edit.
         $serial ??= (new self($this->client->withoutCache()))->zone($domain)->serial;
 
         if ($serial === null) {
@@ -181,5 +188,31 @@ class Dns extends Module
         }
 
         return $record;
+    }
+
+    /**
+     * The serial of the zone() read the updated and removed records came from,
+     * or null when none of them carries one.
+     *
+     * @param  list<DnsRecord>  $update
+     * @param  list<DnsRecord|int>  $remove
+     *
+     * @throws InvalidArgumentException when the records come from different reads
+     */
+    private static function readSerial(array $update, array $remove): ?int
+    {
+        $serials = [];
+
+        foreach ([...$update, ...$remove] as $record) {
+            if ($record instanceof DnsRecord && $record->zoneSerial !== null) {
+                $serials[$record->zoneSerial] = true;
+            }
+        }
+
+        if (count($serials) > 1) {
+            throw new InvalidArgumentException('The records come from different reads of the zone (serials '.implode(', ', array_keys($serials)).'). Read the zone again and edit records from that one read.');
+        }
+
+        return $serials === [] ? null : (int) array_key_first($serials);
     }
 }
