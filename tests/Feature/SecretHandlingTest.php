@@ -14,6 +14,7 @@ use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Events\WhmRequestFailed;
 use Itxshakil\CpanelWhm\Events\WhmRequestSending;
 use Itxshakil\CpanelWhm\Events\WhmResponseReceived;
+use Itxshakil\CpanelWhm\Exceptions\TransportFailure;
 use Itxshakil\CpanelWhm\Exceptions\WhmConnectionFailed;
 use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Tests\Fixtures\Responses;
@@ -172,8 +173,31 @@ final class SecretHandlingTest extends TestCase
             self::fail('Expected WhmConnectionFailed');
         } catch (WhmConnectionFailed $whmConnectionFailed) {
             self::assertTrue($whmConnectionFailed->mayHaveReachedServer());
-            self::assertNull($whmConnectionFailed->getPrevious());
             self::assertStringNotContainsString('private-customer', $whmConnectionFailed->getMessage());
+
+            // The chain keeps a safe stand-in, never the Guzzle exception with its request.
+            $previous = $whmConnectionFailed->getPrevious();
+            self::assertInstanceOf(TransportFailure::class, $previous);
+            // Laravel's HTTP client wraps the Guzzle error in its ConnectionException.
+            self::assertContains($previous->originalClass(), [ConnectionException::class, GuzzleRequestException::class]);
+            self::assertSame(52, $previous->curlError());
+            self::assertNull($previous->getPrevious());
+            self::assertStringNotContainsString('private-customer', $previous->getMessage());
+        }
+    }
+
+    #[Test]
+    public function a_connection_failure_exposes_the_curl_error_number(): void
+    {
+        Http::fake(static fn () => throw new ConnectionException('cURL error 7: Failed to connect to server.example.com port 2087'));
+
+        try {
+            Whm::withoutRetries()->call('version');
+            self::fail('Expected WhmConnectionFailed');
+        } catch (WhmConnectionFailed $whmConnectionFailed) {
+            self::assertSame(7, $whmConnectionFailed->curlError());
+            self::assertInstanceOf(TransportFailure::class, $whmConnectionFailed->getPrevious());
+            self::assertSame(ConnectionException::class, $whmConnectionFailed->getPrevious()->originalClass());
         }
     }
 

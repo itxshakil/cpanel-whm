@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `WhmConnectionFailed` keeps a `TransportFailure` as its previous exception (the HTTP client's exception class, the cURL error number as the code, and the sanitised message), and has `curlError()`. The original exception is still not chained, since it carries the URL and the Authorization header.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
