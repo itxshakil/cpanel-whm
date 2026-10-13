@@ -89,6 +89,8 @@ final class DoctorCommandTest extends TestCase
             'bad certificate' => ['TLS', static fn (self $test) => $test->probe(new FakeProbe(certificate: new CertificateInfo(false, null, null, 'self-signed certificate'))), 'self-signed', 'WHM_VERIFY_TLS=false'],
             'TLS handshake' => ['TLS', static fn (self $test) => $test->probe(new FakeProbe(tlsError: 'wrong version number')), 'handshake failed', 'HTTPS'],
             'rejected token' => ['Auth', static fn () => Http::fake(['*' => Http::response('denied', 401)]), 'HTTP 401', 'Manage API Tokens'],
+            'login page instead of WHM' => ['API', static fn () => Http::fake(['*' => Http::response('<html>Login</html>', 200)]), 'version', 'login page or proxy'],
+            'server error' => ['API', static fn () => Http::fake(['*' => Http::response('', 500)]), 'HTTP 500', ''],
             'missing privilege' => ['Privileges', static function (self $test): void {
                 config()->set('cpanel-whm.doctor.required_privileges', ['create-acct', 'kill-acct']);
                 $test->healthyServer(privileges: ['create-acct' => 1]);
