@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `Whm::timedOutAfterSending()`: fakes a read timeout after the call was sent, so `mayHaveReachedServer()` paths can be tested without a magic cURL string.
+- `WhmFake::assertUapiCalled()` and `assertUapiNotCalled()`: assert UAPI calls by account, module and function.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

@@ -91,6 +91,15 @@ final class WhmFake implements Transport
     }
 
     /**
+     * WHM got the call but stopped answering: a read timeout after the request
+     * was sent. The WhmConnectionFailed it raises says mayHaveReachedServer().
+     */
+    public static function timedOutAfterSending(int $seconds = 30): FakeConnectionFailure
+    {
+        return new FakeConnectionFailure("cURL error 28: Operation timed out after {$seconds}000 milliseconds with 0 bytes received");
+    }
+
+    /**
      * A successful uapi_cpanel answer.
      *
      * @param  list<string>  $warnings
@@ -249,6 +258,36 @@ final class WhmFake implements Transport
         return $this;
     }
 
+    /**
+     * Assert a UAPI function ran as an account (through uapi_cpanel):
+     * assertUapiCalled('acme', 'Email', 'add_pop', fn (array $params) => $params['email'] === 'info').
+     * $params holds the function's own parameters, without the cpanel.* ones.
+     *
+     * @param  (Closure(array<string, mixed>, WhmRequest): bool)|null  $callback
+     */
+    public function assertUapiCalled(string $user, string $module, string $function, ?Closure $callback = null): self
+    {
+        PHPUnit::assertNotEmpty(
+            $this->matchingUapi($user, $module, $function, $callback),
+            "Expected UAPI {$module}::{$function} to be called as [{$user}]".($callback instanceof Closure ? ' with matching parameters' : '').', but no call matched.',
+        );
+
+        return $this;
+    }
+
+    /**
+     * @param  (Closure(array<string, mixed>, WhmRequest): bool)|null  $callback
+     */
+    public function assertUapiNotCalled(string $user, string $module, string $function, ?Closure $callback = null): self
+    {
+        PHPUnit::assertEmpty(
+            $this->matchingUapi($user, $module, $function, $callback),
+            "Expected UAPI {$module}::{$function} not to be called as [{$user}], but it was.",
+        );
+
+        return $this;
+    }
+
     public function assertCalledTimes(string $function, int $times): self
     {
         $count = count($this->recorded($function));
@@ -280,6 +319,25 @@ final class WhmFake implements Transport
             $this->recorded($function),
             static fn (WhmRequest $request): bool => ! $callback instanceof Closure || $callback($request->params, $request),
         ));
+    }
+
+    /**
+     * @param  (Closure(array<string, mixed>, WhmRequest): bool)|null  $callback
+     * @return list<WhmRequest>
+     */
+    private function matchingUapi(string $user, string $module, string $function, ?Closure $callback): array
+    {
+        return $this->matching('uapi_cpanel', static function (array $params, WhmRequest $request) use ($user, $module, $function, $callback): bool {
+            if (($params['cpanel.user'] ?? null) !== mb_strtolower(trim($user))
+                || ($params['cpanel.module'] ?? null) !== $module
+                || ($params['cpanel.function'] ?? null) !== $function) {
+                return false;
+            }
+
+            unset($params['cpanel.user'], $params['cpanel.module'], $params['cpanel.function']);
+
+            return ! $callback instanceof Closure || $callback($params, $request);
+        });
     }
 
     private function resolve(mixed $stub, ConnectionConfig $config, WhmRequest $request): TransportResponse
