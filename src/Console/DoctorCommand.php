@@ -31,8 +31,10 @@ final class DoctorCommand extends Command
         $reports = array_map(static fn (string $name): ConnectionReport => $whm->ping($name), $names);
 
         if ($this->option('json') === true) {
+            // --all always prints a list, so a script that loops over it keeps
+            // working when only one server is left. One connection prints its report.
             $this->line((string) json_encode(
-                count($reports) === 1 ? $reports[0]->toArray() : array_map(static fn (ConnectionReport $report): array => $report->toArray(), $reports),
+                $this->option('all') === true ? array_map(static fn (ConnectionReport $report): array => $report->toArray(), $reports) : $reports[0]->toArray(),
                 JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
             ));
         } else {

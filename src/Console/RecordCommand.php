@@ -45,6 +45,24 @@ final class RecordCommand extends Command
             return self::FAILURE;
         }
 
+        // The fixture must land inside the project: --name=../../composer would
+        // otherwise overwrite composer.json, and an absolute --path was quietly
+        // turned into a relative one.
+        $nameOption = $this->stringOption('name');
+        $pathOption = $this->stringOption('path');
+
+        if ($nameOption !== '' && (preg_match('/^[A-Za-z0-9._-]+$/', $nameOption) !== 1 || str_contains($nameOption, '..'))) {
+            $this->components->error('--name is a file name: letters, digits, dots, dashes and underscores, without a path.');
+
+            return self::FAILURE;
+        }
+
+        if (preg_match('#^(?:[/\\\\]|[A-Za-z]:)#', $pathOption) === 1 || preg_match('#(?:^|[/\\\\])\.\.(?:[/\\\\]|$)#', $pathOption) === 1) {
+            $this->components->error('--path is a directory inside the project, such as tests/Fixtures/whm: no absolute paths or "..".');
+
+            return self::FAILURE;
+        }
+
         $params = [];
 
         foreach ((array) $this->argument('params') as $pair) {
@@ -65,14 +83,16 @@ final class RecordCommand extends Command
         }
 
         $name = $this->stringOption('name') !== '' ? $this->stringOption('name') : str_replace('/', '_', $function);
+        // The replay hint uses the path relative to the project root, so it can be committed as is.
+        $relative = trim($this->stringOption('path'), '/').'/'.$name.'.json';
         $directory = base_path(trim($this->stringOption('path'), '/'));
-        $path = $directory.'/'.$name.'.json';
+        $path = base_path($relative);
 
         $files->ensureDirectoryExists($directory);
         $files->put($path, json_encode(Redactor::redact($json), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)."\n");
 
         $this->components->info("Saved {$path}");
-        $this->line('  Replay it: <fg=gray>Whm::fake(["'.$function.'" => Whm::fixture(\''.$path.'\')]);</>');
+        $this->line('  Replay it: <fg=gray>Whm::fake(["'.$function.'" => Whm::fixture(\''.$relative.'\')]);</>');
         $this->line('  Check it for customer data before committing: only secrets are redacted.');
 
         return self::SUCCESS;
