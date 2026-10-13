@@ -13,6 +13,7 @@ use Itxshakil\CpanelWhm\WhmManager;
 
 /**
  * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient connection(?string $name = null)
+ * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient build(array<string, mixed> $config, string $name = 'runtime')
  * @method static \Itxshakil\CpanelWhm\WhmResponse call(string $function, array<string, mixed> $params = [], ?\Itxshakil\CpanelWhm\Enums\HttpMethod $method = null, ?int $timeout = null)
  * @method static \Itxshakil\CpanelWhm\WhmBatch batch()
  * @method static \Itxshakil\CpanelWhm\Modules\Accounts accounts()
@@ -29,10 +30,13 @@ use Itxshakil\CpanelWhm\WhmManager;
  * @method static \Itxshakil\CpanelWhm\Modules\Ssl ssl()
  * @method static \Itxshakil\CpanelWhm\Modules\Tokens tokens()
  * @method static \Itxshakil\CpanelWhm\Modules\Transfers transfers()
+ * @method static \Itxshakil\CpanelWhm\Modules\FeatureLists featureLists()
  * @method static \Itxshakil\CpanelWhm\Api\WhmApi api()
  * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient cache(int|\DateInterval|\DateTimeInterface $ttl, ?string $store = null)
  * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient withoutCache()
+ * @method static void flushCache()
  * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient withoutRetries()
+ * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient timeout(int $seconds, ?int $connect = null)
  * @method static \Itxshakil\CpanelWhm\Modules\CpanelUser asUser(string $user)
  * @method static \Itxshakil\CpanelWhm\Support\ConnectionConfig config()
  * @method static \Itxshakil\CpanelWhm\Support\ConnectionConfig configFor(string $name)
@@ -40,6 +44,8 @@ use Itxshakil\CpanelWhm\WhmManager;
  * @method static string getDefaultConnection()
  * @method static list<string> connectionNames()
  * @method static bool isFaked()
+ * @method static \Itxshakil\CpanelWhm\Testing\WhmFake|null getFake()
+ * @method static void dispatch(object $event)
  * @method static void purge(?string $name = null)
  *
  * @see WhmManager
@@ -76,6 +82,15 @@ final class Whm extends Facade
         return WhmFake::failure($reason, $data);
     }
 
+    /**
+     * WHM's answer when the named cPanel account doesn't exist; the client
+     * throws AccountNotFound for it.
+     */
+    public static function accountNotFound(string $user = 'acme'): TransportResponse
+    {
+        return WhmFake::accountNotFound($user);
+    }
+
     public static function httpError(int $status = 500, string $body = ''): TransportResponse
     {
         return WhmFake::httpError($status, $body);
@@ -84,6 +99,14 @@ final class Whm extends Facade
     public static function connectionError(string $message = 'Connection refused'): FakeConnectionFailure
     {
         return WhmFake::connectionError($message);
+    }
+
+    /**
+     * A read timeout after the call was sent: mayHaveReachedServer() is true.
+     */
+    public static function timedOutAfterSending(int $seconds = 30): FakeConnectionFailure
+    {
+        return WhmFake::timedOutAfterSending($seconds);
     }
 
     /**

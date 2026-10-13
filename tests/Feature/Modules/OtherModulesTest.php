@@ -70,6 +70,23 @@ final class OtherModulesTest extends TestCase
     }
 
     #[Test]
+    public function a_zero_or_negative_quota_is_refused_because_whm_reads_0_as_unlimited(): void
+    {
+        $fake = Whm::fake();
+
+        foreach ([static fn () => Whm::quotas()->setDiskQuota('acme', 0), static fn () => Whm::quotas()->setBandwidthLimit('acme', 0), static fn () => Whm::quotas()->setDiskQuota('acme', -5)] as $call) {
+            try {
+                $call();
+                self::fail('Expected InvalidArgumentException');
+            } catch (InvalidArgumentException $invalidArgumentException) {
+                self::assertStringContainsString('Pass null for unlimited', $invalidArgumentException->getMessage());
+            }
+        }
+
+        $fake->assertNothingSent();
+    }
+
+    #[Test]
     public function one_time_login_links_are_created(): void
     {
         $fake = Whm::fake(['create_user_session' => Whm::response([

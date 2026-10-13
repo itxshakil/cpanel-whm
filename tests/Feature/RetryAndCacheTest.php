@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace Itxshakil\CpanelWhm\Tests\Feature;
 
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Event;
 use Itxshakil\CpanelWhm\Data\DnsRecord;
+use Itxshakil\CpanelWhm\Events\WhmRequestFailed;
+use Itxshakil\CpanelWhm\Events\WhmRequestSending;
+use Itxshakil\CpanelWhm\Events\WhmResponseReceived;
 use Itxshakil\CpanelWhm\Exceptions\WhmAuthenticationFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmConnectionFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmHttpError;
@@ -42,6 +46,33 @@ final class RetryAndCacheTest extends TestCase
         } catch (WhmConnectionFailed) {
             $fake->assertCalledTimes('version', 3);
         }
+    }
+
+    #[Test]
+    public function a_read_that_succeeds_on_retry_fires_no_failure_event(): void
+    {
+        Event::fake([WhmRequestSending::class, WhmResponseReceived::class, WhmRequestFailed::class]);
+        Whm::fake(['listaccts' => Whm::sequence(Whm::connectionError(), Whm::httpError(503), Whm::response(['acct' => []]))]);
+
+        Whm::accounts()->list();
+
+        Event::assertNotDispatched(WhmRequestFailed::class);
+        Event::assertDispatchedTimes(WhmRequestSending::class, 3);
+        Event::assertDispatchedTimes(WhmResponseReceived::class, 1);
+    }
+
+    #[Test]
+    public function the_failure_event_fires_once_for_the_error_the_caller_gets(): void
+    {
+        Event::fake([WhmRequestFailed::class]);
+        Whm::fake(['version' => Whm::connectionError(), 'removeacct' => Whm::failure('nope')]);
+
+        rescue(static fn () => Whm::server()->version(), report: false);
+        rescue(static fn () => Whm::accounts()->remove('acme'), report: false);
+
+        Event::assertDispatchedTimes(WhmRequestFailed::class, 2);
+        Event::assertDispatched(WhmRequestFailed::class, static fn (WhmRequestFailed $event): bool => $event->request->function === 'version' && $event->exception instanceof WhmConnectionFailed);
+        Event::assertDispatched(WhmRequestFailed::class, static fn (WhmRequestFailed $event): bool => $event->request->function === 'removeacct');
     }
 
     #[Test]
@@ -108,6 +139,29 @@ final class RetryAndCacheTest extends TestCase
     }
 
     #[Test]
+    public function job_status_polls_are_never_cached(): void
+    {
+        $fake = Whm::fake([
+            'get_pkgacct_session_state' => Whm::sequence(Whm::response(['state' => 'INPROGRESS']), Whm::response(['state' => 'COMPLETE'])),
+            'get_transfer_session_state' => Whm::response(['state_name' => 'RUNNING']),
+            'restore_queue_state' => Whm::response(),
+        ]);
+
+        $cached = Whm::cache(300);
+
+        self::assertSame('INPROGRESS', $cached->backups()->backupStatus('sess1'));
+        self::assertSame('COMPLETE', $cached->backups()->backupStatus('sess1'));
+        $cached->transfers()->state('t1');
+        $cached->transfers()->state('t1');
+        $cached->backups()->queue();
+        $cached->backups()->queue();
+
+        $fake->assertCalledTimes('get_pkgacct_session_state', 2)
+            ->assertCalledTimes('get_transfer_session_state', 2)
+            ->assertCalledTimes('restore_queue_state', 2);
+    }
+
+    #[Test]
     public function the_cache_key_includes_the_server_and_user(): void
     {
         $fake = Whm::fake(['listpkgs' => Whm::response(['pkg' => []])]);
@@ -147,7 +201,61 @@ final class RetryAndCacheTest extends TestCase
 
         $fake->assertCalledTimes('listaccts', 3);
         $server = hash('xxh128', 'https://server.example.com:2087|root');
-        self::assertTrue(Cache::has("cpanel-whm:main:{$server}:listaccts:".hash('xxh128', serialize(['searchtype' => 'user', 'search' => 'a', 'searchmethod' => 'regex']))));
+        self::assertTrue(Cache::has("cpanel-whm:main:{$server}:g0:listaccts:".hash('xxh128', serialize(['search' => 'a', 'searchmethod' => 'regex', 'searchtype' => 'user']))));
+    }
+
+    #[Test]
+    public function a_change_drops_that_servers_cached_reads(): void
+    {
+        $fake = Whm::fake(['listaccts' => Whm::response(['acct' => []]), 'suspendacct' => Whm::response()]);
+
+        Whm::cache(300)->accounts()->list();
+        Whm::connection('ca-1')->cache(300)->accounts()->list();
+
+        // An uncached client's change still reaches the reads cached by Whm::cache().
+        Whm::suspensions()->suspend('acme');
+
+        Whm::cache(300)->accounts()->list();
+        Whm::connection('ca-1')->cache(300)->accounts()->list();
+
+        // main was read again; ca-1 is another server and kept its cache.
+        $fake->assertCalledTimes('listaccts', 3);
+    }
+
+    #[Test]
+    public function flush_cache_drops_cached_reads_after_a_change_made_elsewhere(): void
+    {
+        $fake = Whm::fake(['listaccts' => Whm::response(['acct' => []])]);
+
+        Whm::cache(300)->accounts()->list();
+        Whm::cache(300)->accounts()->list();
+        Whm::flushCache();
+        Whm::cache(300)->accounts()->list();
+
+        $fake->assertCalledTimes('listaccts', 2);
+    }
+
+    #[Test]
+    public function a_failed_change_leaves_the_cache_alone(): void
+    {
+        $fake = Whm::fake(['listaccts' => Whm::response(['acct' => []]), 'suspendacct' => Whm::failure('nope')]);
+
+        Whm::cache(300)->accounts()->list();
+        rescue(static fn () => Whm::suspensions()->suspend('acme'), report: false);
+        Whm::cache(300)->accounts()->list();
+
+        $fake->assertCalledTimes('listaccts', 1);
+    }
+
+    #[Test]
+    public function the_same_parameters_in_another_order_share_a_cache_entry(): void
+    {
+        $fake = Whm::fake(['listaccts' => Whm::response(['acct' => []])]);
+
+        Whm::cache(300)->call('listaccts', ['searchtype' => 'user', 'search' => 'acme']);
+        Whm::cache(300)->call('listaccts', ['search' => 'acme', 'searchtype' => 'user']);
+
+        $fake->assertCalledTimes('listaccts', 1);
     }
 
     #[Test]
