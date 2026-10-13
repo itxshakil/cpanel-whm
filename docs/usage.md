@@ -27,6 +27,7 @@ Failures always throw a `WhmException`; no method signals failure through its re
 | `changePackage(string $user, string $package)` | `changepackage` | `WhmResponse` |
 | `modify(string $user, array $changes)` | `modifyacct` (POST) | `WhmResponse` |
 | `remove(string $user, bool $keepDns = false)` | `removeacct` (POST) | `WhmResponse` |
+| `removeIfExists(string $user, bool $keepDns = false)` | `removeacct` (POST); a missing account counts as done | `bool`: true when this call removed it |
 
 ### Creating
 
