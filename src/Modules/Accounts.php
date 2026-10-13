@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Itxshakil\CpanelWhm\Modules;
 
 use Illuminate\Support\Collection;
+use InvalidArgumentException;
 use Itxshakil\CpanelWhm\Data\Account;
 use Itxshakil\CpanelWhm\Data\CreatedAccount;
 use Itxshakil\CpanelWhm\Data\NewAccount;
@@ -43,17 +44,26 @@ class Accounts extends Module
      * Without a password, a strong one is generated; CreatedAccount::$password
      * holds the one the account was created with.
      *
+     * Without $timeout, createacct gets at least CREATE_TIMEOUT seconds. In a
+     * queued job, pass one below the queue's retry_after, so a second worker
+     * can't start the same creation while the first request is still running.
+     *
      * @throws InvalidUsername
+     * @throws InvalidArgumentException when $timeout is below 1
      * @throws WhmException
      */
-    public function create(NewAccount $account): CreatedAccount
+    public function create(NewAccount $account, ?int $timeout = null): CreatedAccount
     {
+        if ($timeout !== null && $timeout < 1) {
+            throw new InvalidArgumentException("A createacct timeout must be at least 1 second, {$timeout} given.");
+        }
+
         // WHM does not return a password it generates, so one is generated here
         // and handed back on CreatedAccount.
         $password = $account->givenPassword() ?? Passwords::generate();
         $params = $account->withPassword($password)->toParams();
 
-        $response = $this->client->call('createacct', $params, HttpMethod::Post, max(self::CREATE_TIMEOUT, $this->client->config()->timeout));
+        $response = $this->client->call('createacct', $params, HttpMethod::Post, $timeout ?? max(self::CREATE_TIMEOUT, $this->client->config()->timeout));
 
         $username = $params['username'] ?? '';
         $domain = $params['domain'] ?? null;

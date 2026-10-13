@@ -17,7 +17,7 @@ Failures always throw a `WhmException`; no method signals failure through its re
 
 | Method | WHM function | Returns |
 | --- | --- | --- |
-| `create(NewAccount $account)` | `createacct` (POST, ≥ 120 s timeout) | `CreatedAccount` |
+| `create(NewAccount $account, ?int $timeout = null)` | `createacct` (POST; at least 120 s unless you pass `$timeout`, e.g. below your queue's `retry_after`) | `CreatedAccount` |
 | `list(?Filter $filter = null)` | `listaccts` | `Collection<Account>` |
 | `search(string $term, SearchType $by = User, bool $exact = false)` | `listaccts` | `Collection<Account>` |
 | `find(string $user)` | `accountsummary` | `?Account` (null when it does not exist) |

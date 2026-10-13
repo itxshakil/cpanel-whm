@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `Accounts::create()` takes an optional `$timeout`; 120 seconds stays the default but is no longer a floor, so a queued job can stay below its `retry_after`.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
