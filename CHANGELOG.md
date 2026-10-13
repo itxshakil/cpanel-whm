@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- A batch WHM marks failed because one command failed, but that still answers every command, is a response: `WhmResponseReceived` fires instead of `WhmRequestFailed`, and the request log no longer warns about it. `Whm::call('batch', …)` returns it instead of throwing.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

@@ -307,7 +307,12 @@ final class WhmClient implements WhmClientContract
 
         $response = WhmResponse::fromArray($json, $raw->status);
 
-        if ($response->failed()) {
+        // WHM marks a whole batch failed when one of its commands failed, but
+        // still answers every command. That is a batch that ran: its failures
+        // belong to BatchResults, not to a failed request.
+        $isBatchWithResults = $request->function === 'batch' && is_array($response->get('result'));
+
+        if ($response->failed() && ! $isBatchWithResults) {
             throw WhmCommandFailed::classify($request->function, $response);
         }
 

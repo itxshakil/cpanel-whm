@@ -7,7 +7,9 @@ namespace Itxshakil\CpanelWhm\Tests\Feature;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
+use Itxshakil\CpanelWhm\Events\WhmRequestFailed;
 use Itxshakil\CpanelWhm\Events\WhmRequestSending;
+use Itxshakil\CpanelWhm\Events\WhmResponseReceived;
 use Itxshakil\CpanelWhm\Exceptions\StrayWhmCall;
 use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
@@ -142,5 +144,35 @@ final class BatchTest extends TestCase
         $results = Whm::batch()->add('version')->send();
 
         self::assertInstanceOf(WhmCommandFailed::class, $results->failures()[0]);
+    }
+
+    #[Test]
+    public function a_batch_with_one_failed_command_is_a_received_response_not_a_failed_request(): void
+    {
+        Event::fake([WhmResponseReceived::class, WhmRequestFailed::class]);
+        Http::fake(['*' => Http::response(Responses::envelope(['result' => [
+            Responses::envelope(['version' => '11.138.0.10'], command: 'version'),
+            Responses::envelope(null, result: 0, reason: 'nope', command: 'removeacct'),
+        ]], result: 0, reason: 'One or more commands failed.', command: 'batch'))]);
+
+        $results = Whm::batch()->add('version')->add('removeacct', ['user' => 'ghost'])->send();
+
+        self::assertSame([1], array_keys($results->failures()));
+        Event::assertNotDispatched(WhmRequestFailed::class);
+        Event::assertDispatched(WhmResponseReceived::class, static fn (WhmResponseReceived $event): bool => $event->request->function === 'batch');
+
+        // Raw calls see the same thing: the batch ran.
+        self::assertCount(2, (array) Whm::call('batch', ['command' => ['version', 'removeacct?user=ghost']])->get('result'));
+    }
+
+    #[Test]
+    public function a_failed_batch_without_results_still_throws(): void
+    {
+        Http::fake(['*' => Http::response(Responses::envelope(null, result: 0, reason: 'Invalid batch.', command: 'batch'))]);
+
+        $this->expectException(WhmCommandFailed::class);
+        $this->expectExceptionMessage('Invalid batch.');
+
+        Whm::batch()->add('version')->send();
     }
 }
