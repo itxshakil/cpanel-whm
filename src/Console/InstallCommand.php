@@ -63,7 +63,13 @@ final class InstallCommand extends Command
             $this->components->task('Publishing config/cpanel-whm.php');
         }
 
-        $connection = $whm->getDefaultConnection();
+        // The WHM_* keys written above feed the "main" connection in the shipped
+        // config, so that is the one to update and check, whatever the default is.
+        $connection = 'main';
+
+        if ($whm->getDefaultConnection() !== $connection) {
+            $this->components->warn("The default connection is [{$whm->getDefaultConnection()}], but WHM_HOST, WHM_USER and WHM_TOKEN configure [main]. Checking [main].");
+        }
 
         $current = $config->get("cpanel-whm.connections.{$connection}", []);
 

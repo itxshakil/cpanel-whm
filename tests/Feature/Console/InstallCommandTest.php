@@ -78,6 +78,24 @@ final class InstallCommandTest extends TestCase
     }
 
     #[Test]
+    public function it_updates_and_checks_main_even_when_another_connection_is_the_default(): void
+    {
+        config()->set('cpanel-whm.default', 'ca-1');
+        $caOne = config('cpanel-whm.connections.ca-1');
+
+        $this->artisan('whm:install', ['--no-doctor' => true])
+            ->expectsQuestion('WHM host', 'new.example.com')
+            ->expectsQuestion('WHM username', 'root')
+            ->expectsQuestion('API token', 'abc')
+            ->expectsConfirmation('Verify the TLS certificate?', 'yes')
+            ->expectsOutputToContain('Checking [main]')
+            ->assertSuccessful();
+
+        self::assertSame('new.example.com', config('cpanel-whm.connections.main.host'));
+        self::assertSame($caOne, config('cpanel-whm.connections.ca-1'));
+    }
+
+    #[Test]
     public function the_doctor_can_be_skipped(): void
     {
         $this->artisan('whm:install', ['--no-doctor' => true])
