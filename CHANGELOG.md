@@ -48,6 +48,7 @@ All notable changes to this project are documented here. The format follows
 - The `Whm` facade documents `getFake()` and `dispatch()`, and a test keeps its `@method` lines in step with the manager and the client contract.
 - A null inside a list parameter no longer leaves a gap in WHM's repeated parameters (`name`, `name-1`, …), which could hide the values after it.
 - `whm:doctor --all --json` always prints a list, also when only one connection is configured.
+- `whm:install` replaces existing `.env` lines written as `export KEY=…` or `KEY = …` instead of appending a second line that the first one overrides.
 
 ## [0.3.0] - 2026-10-08
 
