@@ -155,13 +155,18 @@ final class NewCommandsTest extends TestCase
 
         $this->artisan('whm:record', ['function' => 'api_token_list', '--path' => $directory])
             ->expectsOutputToContain('Saved')
+            ->expectsOutputToContain("Whm::fixture('{$directory}/api_token_list.json')")
             ->assertSuccessful();
 
         $path = base_path($directory.'/api_token_list.json');
         self::assertFileExists($path);
         self::assertStringNotContainsString('LEAKED?', (string) file_get_contents($path));
 
+        // Both the absolute path (with this OS's separators) and the relative one from the hint replay.
         Whm::fake(['api_token_list' => Whm::fixture($path)]);
+        self::assertSame('app', Whm::tokens()->list()->first()?->name);
+
+        Whm::fake(['api_token_list' => Whm::fixture($directory.'/api_token_list.json')]);
         self::assertSame('app', Whm::tokens()->list()->first()?->name);
 
         File::deleteDirectory(base_path($directory));
