@@ -102,6 +102,8 @@ Event::assertDispatched(AccountSuspended::class, fn ($e) => $e->user === 'acme')
 
 The real transport uses Laravel's HTTP client, so `Http::fake()` and `Http::preventStrayRequests()` work too. That is how the package tests its own transport. Prefer `Whm::fake()` in app tests: it is shorter and doesn't depend on URLs.
 
+`Whm::ping()` and `whm:doctor` also check DNS, the port and the certificate with plain sockets, which `Http::fake()` can't intercept. They skip those three checks under `Whm::fake()`, and under `Http::preventStrayRequests()` unless you bound your own `Itxshakil\CpanelWhm\Doctor\NetworkProbe`.
+
 ## whm:doctor in tests
 
 Under `Whm::fake()` the DNS, network and TLS checks are skipped. To test them, bind your own `Itxshakil\CpanelWhm\Doctor\NetworkProbe`.

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Itxshakil\CpanelWhm\Doctor;
 
 use Illuminate\Contracts\Config\Repository;
+use Illuminate\Http\Client\Factory as HttpFactory;
 use Itxshakil\CpanelWhm\Contracts\WhmClient;
 use Itxshakil\CpanelWhm\Enums\CheckStatus;
 use Itxshakil\CpanelWhm\Exceptions\InvalidConfiguration;
@@ -54,6 +55,7 @@ final readonly class ConnectionDoctor
     public function __construct(
         private NetworkProbe $probe,
         private Repository $config,
+        private HttpFactory $http,
     ) {}
 
     public function diagnose(WhmManager $manager, string $connection): ConnectionReport
@@ -72,9 +74,17 @@ final readonly class ConnectionDoctor
             return $this->finish($connection, $target, $results);
         }
 
-        if ($manager->isFaked()) {
+        $skipProbes = match (true) {
+            $manager->isFaked() => 'Whm::fake() is active',
+            // The socket probes go around Laravel's HTTP client, so Http::fake()
+            // can't stop them. A test that forbids stray requests means it.
+            $this->probe instanceof SocketProbe && $this->http->preventingStrayRequests() => 'Http::preventStrayRequests() is on',
+            default => null,
+        };
+
+        if ($skipProbes !== null) {
             foreach ([self::DNS, self::NETWORK, self::TLS] as $name) {
-                $results[] = CheckResult::skip($name, 'skipped: Whm::fake() is active');
+                $results[] = CheckResult::skip($name, "skipped: {$skipProbes}");
             }
         } else {
             foreach ([$this->dns(...), $this->network(...), $this->tls(...)] as $check) {

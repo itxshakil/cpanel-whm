@@ -12,6 +12,7 @@ use Itxshakil\CpanelWhm\Doctor\CertificateInfo;
 use Itxshakil\CpanelWhm\Doctor\CheckResult;
 use Itxshakil\CpanelWhm\Doctor\ConnectionDoctor;
 use Itxshakil\CpanelWhm\Doctor\NetworkProbe;
+use Itxshakil\CpanelWhm\Doctor\SocketProbe;
 use Itxshakil\CpanelWhm\Enums\CheckStatus;
 use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Tests\Fixtures\FakeProbe;
@@ -37,6 +38,37 @@ final class DoctorCommandTest extends TestCase
         }
 
         self::assertSame('cPanel & WHM 11.134.0.5', $report->check('Version')?->message);
+    }
+
+    #[Test]
+    public function the_real_probes_stay_off_when_stray_requests_are_prevented(): void
+    {
+        // As in an app's own tests: Http::fake() plus preventStrayRequests() (set in
+        // TestCase), and the package's real socket probe. The .invalid host would
+        // fail at DNS if anything tried to reach it.
+        config()->set('cpanel-whm.connections.main.host', 'whm.example.invalid');
+        Whm::purge();
+        $this->healthyServer();
+        $this->probe(new SocketProbe);
+
+        $report = Whm::ping();
+
+        self::assertTrue($report->passed());
+
+        foreach (['DNS', 'Network', 'TLS'] as $name) {
+            self::assertSame(CheckStatus::Skip, $report->check($name)?->status, $name);
+            self::assertStringContainsString('preventStrayRequests', (string) $report->check($name)?->message);
+        }
+    }
+
+    #[Test]
+    public function a_bound_probe_still_runs_when_stray_requests_are_prevented(): void
+    {
+        $this->healthyServer();
+
+        $report = Whm::ping();
+
+        self::assertSame(CheckStatus::Pass, $report->check('DNS')?->status);
     }
 
     #[Test]
