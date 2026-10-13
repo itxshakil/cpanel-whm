@@ -23,6 +23,8 @@ final readonly class DnsRecord
 
     /**
      * @param  list<string>  $data  the record's fields, as WHM splits them (an MX has priority and exchange)
+     * @param  int|null  $zoneSerial  the serial of the zone this record was read from; Dns sends it with
+     *                                an update or removal, so an edit from a stale read is refused
      */
     public function __construct(
         public string $name,
@@ -30,6 +32,7 @@ final readonly class DnsRecord
         public array $data,
         public ?int $ttl = null,
         public ?int $lineIndex = null,
+        public ?int $zoneSerial = null,
     ) {}
 
     public static function a(string $name, string $ip, ?int $ttl = null): self
@@ -58,11 +61,25 @@ final readonly class DnsRecord
     }
 
     /**
-     * Text longer than 255 characters is split into strings of 255, as DNS requires.
+     * Text longer than 255 bytes is split into strings of at most 255 bytes, as
+     * DNS requires. The limit is in bytes, not characters, and a multibyte
+     * character is never cut in half.
      */
     public static function txt(string $name, string $text, ?int $ttl = null): self
     {
-        $chunks = $text === '' ? [''] : mb_str_split($text, 255);
+        $chunks = [];
+        $chunk = '';
+
+        foreach ($text === '' ? [] : mb_str_split($text) as $character) {
+            if (strlen($chunk.$character) > 255) {
+                $chunks[] = $chunk;
+                $chunk = '';
+            }
+
+            $chunk .= $character;
+        }
+
+        $chunks[] = $chunk;
 
         return new self($name, 'TXT', $chunks, $ttl);
     }
@@ -106,17 +123,22 @@ final readonly class DnsRecord
 
     public function withLineIndex(int $lineIndex): self
     {
-        return new self($this->name, $this->type, $this->data, $this->ttl, $lineIndex);
+        return new self($this->name, $this->type, $this->data, $this->ttl, $lineIndex, $this->zoneSerial);
     }
 
     public function withData(string ...$data): self
     {
-        return new self($this->name, $this->type, array_values($data), $this->ttl, $this->lineIndex);
+        return new self($this->name, $this->type, array_values($data), $this->ttl, $this->lineIndex, $this->zoneSerial);
     }
 
     public function withTtl(int $ttl): self
     {
-        return new self($this->name, $this->type, $this->data, $ttl, $this->lineIndex);
+        return new self($this->name, $this->type, $this->data, $ttl, $this->lineIndex, $this->zoneSerial);
+    }
+
+    public function withZoneSerial(?int $serial): self
+    {
+        return new self($this->name, $this->type, $this->data, $this->ttl, $this->lineIndex, $serial);
     }
 
     /**
