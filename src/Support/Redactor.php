@@ -76,12 +76,17 @@ final class Redactor
 
     /**
      * Masks cPanel security tokens (cpsess1234567890), login session ids
-     * (session=user:hash) and secret parameters inside URLs and query strings.
+     * (session=user:hash), "PassWord: ..." lines in command output and secret
+     * parameters inside URLs and query strings.
      */
     public static function redactString(string $value): string
     {
         $value = (string) preg_replace('/cpsess\d+/', 'cpsess'.self::MASK, $value);
         $value = (string) preg_replace('/([?&]session=)[^&\s]+/', '$1'.self::MASK, $value);
+
+        // createacct's metadata.output.raw echoes the new account's password as
+        // "| PassWord: s3cret".
+        $value = (string) preg_replace('/(\bpass(?:word|wd)?[ \t]*:[ \t]*)(?!\[REDACTED\])\S+/i', '$1'.self::MASK, $value);
 
         // Query strings inside a value, such as a batch command "passwd?user=acme&password=...".
         return (string) preg_replace_callback(

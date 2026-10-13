@@ -55,7 +55,10 @@ final readonly class CreatedAccount
      */
     public function withoutPassword(): self
     {
-        return new self($this->username, $this->domain, $this->ip, $this->package, $this->nameservers, $this->rawOutput, $this->response, recovered: $this->recovered);
+        // WHM's raw output repeats the password, so only the redacted copy is kept.
+        $response = $this->response->redacted();
+
+        return new self($this->username, $this->domain, $this->ip, $this->package, $this->nameservers, $response->rawOutput(), $response, recovered: $this->recovered);
     }
 
     /**

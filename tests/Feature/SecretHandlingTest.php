@@ -10,7 +10,9 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
+use Itxshakil\CpanelWhm\Data\NewAccount;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
+use Itxshakil\CpanelWhm\Events\AccountCreated;
 use Itxshakil\CpanelWhm\Events\WhmRequestFailed;
 use Itxshakil\CpanelWhm\Events\WhmRequestSending;
 use Itxshakil\CpanelWhm\Events\WhmResponseReceived;
@@ -125,6 +127,30 @@ final class SecretHandlingTest extends TestCase
             self::assertStringNotContainsString('hunter2', $serialized);
             self::assertStringNotContainsString('NEW-TOKEN-VALUE', $serialized);
         }
+    }
+
+    #[Test]
+    public function the_password_createacct_echoes_in_its_output_stays_out_of_events(): void
+    {
+        Event::fake([AccountCreated::class, WhmResponseReceived::class]);
+        Whm::fake(['createacct' => Whm::response([], 'Account Creation Ok', [
+            'output' => ['raw' => "| Domain: acme.test\n| UserName: acme\n| PassWord: s3cret-Generated!\n| CpanelMod: paper_lantern\n"],
+        ])]);
+
+        $created = Whm::accounts()->create(new NewAccount('acme', 'acme.test', password: 's3cret-Generated!'));
+
+        // The caller still gets the password it asked for.
+        self::assertSame('s3cret-Generated!', $created->password);
+
+        $stored = $created->withoutPassword();
+        self::assertStringContainsString('| PassWord: [REDACTED]', (string) $stored->rawOutput);
+        self::assertStringContainsString('| UserName: acme', (string) $stored->rawOutput);
+
+        $serialized = serialize(Event::dispatched(AccountCreated::class)->flatten()->all())
+            .serialize(Event::dispatched(WhmResponseReceived::class)->flatten()->all())
+            .print_r($stored, true);
+
+        self::assertStringNotContainsString('s3cret-Generated!', $serialized);
     }
 
     #[Test]
