@@ -63,7 +63,13 @@ final class InstallCommand extends Command
             $this->components->task('Publishing config/cpanel-whm.php');
         }
 
-        $connection = $whm->getDefaultConnection();
+        // The WHM_* keys written above feed the "main" connection in the shipped
+        // config, so that is the one to update and check, whatever the default is.
+        $connection = 'main';
+
+        if ($whm->getDefaultConnection() !== $connection) {
+            $this->components->warn("The default connection is [{$whm->getDefaultConnection()}], but WHM_HOST, WHM_USER and WHM_TOKEN configure [main]. Checking [main].");
+        }
 
         $current = $config->get("cpanel-whm.connections.{$connection}", []);
 
@@ -75,6 +81,13 @@ final class InstallCommand extends Command
             'verify_tls' => $verifyTls,
         ]);
         $whm->purge();
+
+        // The doctor below checks the values set in memory a few lines up. A
+        // cached config would keep the app, its queue workers and scheduler on
+        // the old ones, so a passing check would be misleading without this.
+        if ($this->laravel->configurationIsCached()) {
+            $this->components->warn('The configuration is cached, so the app will not see the new WHM settings yet. Run php artisan config:clear (or config:cache again) after this.');
+        }
 
         if ($this->option('no-doctor') === true) {
             return self::SUCCESS;
@@ -93,10 +106,13 @@ final class InstallCommand extends Command
 
         foreach ($values as $key => $value) {
             $line = $key.'='.$this->quote($value);
-            $pattern = '/^'.preg_quote($key, '/').'=.*$/m';
+
+            // phpdotenv also reads "export KEY=" and "KEY = value"; missing those
+            // would append a second line that the first one silently overrides.
+            $pattern = '/^([ \t]*(?:export[ \t]+)?)'.preg_quote($key, '/').'[ \t]*=.*$/m';
 
             $contents = preg_match($pattern, $contents) === 1
-                ? (string) preg_replace($pattern, str_replace(['\\', '$'], ['\\\\', '\\$'], $line), $contents)
+                ? (string) preg_replace_callback($pattern, static fn (array $match): string => $match[1].$line, $contents, 1)
                 : rtrim($contents, "\n").($contents === '' ? '' : "\n").$line."\n";
         }
 

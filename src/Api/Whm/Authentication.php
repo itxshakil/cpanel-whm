@@ -610,7 +610,7 @@ final class Authentication extends WhmGroup
      * This function sets the values of configuration fields for an external authentication identity
      * provider.
      *
-     * @param  string  $configurations  The configuration values to set for the identity provider.
+     * @param  array<array-key, mixed>|string  $configurations  The configuration values to set for the identity provider. Sent as JSON: an array is encoded for you, a string is sent as it is.
      * @param  string  $providerId  The identity provider's key.
      * @param  string  $serviceName  The cPanel & WHM service's name.
      * @param  array<string, mixed>  $extra  Further parameters, sent as given.
@@ -620,13 +620,13 @@ final class Authentication extends WhmGroup
      * @see https://api.docs.cpanel.net/specifications/whm.openapi/external-authentication/authentication-set_provider_client_configurations
      */
     public function setProviderClientConfigurations(
-        string $configurations,
+        array|string $configurations,
         string $providerId,
         string $serviceName,
         array $extra = [],
     ): WhmResponse {
         return $this->invoke('set_provider_client_configurations', [
-            'configurations' => $configurations,
+            'configurations' => self::json($configurations),
             'provider_id' => $providerId,
             'service_name' => $serviceName,
         ], $extra, HttpMethod::Post);

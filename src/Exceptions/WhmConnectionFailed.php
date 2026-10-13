@@ -23,23 +23,38 @@ final class WhmConnectionFailed extends WhmException
      */
     private const string AFTER_SENDING = '/cURL error (?:28: (?!Connection|Resolving)|52:|56:)/i';
 
-    private function __construct(string $message, private readonly bool $mayHaveReachedServer)
+    private function __construct(string $message, private readonly bool $mayHaveReachedServer, ?TransportFailure $previous = null)
     {
-        parent::__construct($message);
+        parent::__construct($message, 0, $previous);
     }
 
     /**
      * The original exception is not chained: its message and the HTTP request
-     * inside it hold the full URL and the Authorization header.
+     * inside it hold the full URL and the Authorization header. A sanitised
+     * TransportFailure takes its place, with its class and cURL error number.
      */
     public static function to(ConnectionConfig $config, string $function, ?Throwable $previous = null): self
     {
         $original = $previous instanceof Throwable ? $previous->getMessage() : 'connection failed';
+        $sanitised = self::sanitise($original);
 
         return new self(
-            "Could not reach WHM at {$config->host}:{$config->port} while calling {$function}: ".self::sanitise($original),
+            "Could not reach WHM at {$config->host}:{$config->port} while calling {$function}: {$sanitised}",
             preg_match(self::AFTER_SENDING, $original) === 1,
+            $previous instanceof Throwable
+                ? new TransportFailure($previous::class, $sanitised, preg_match('/cURL error (\d+)/i', $original, $match) === 1 ? (int) $match[1] : 0)
+                : null,
         );
+    }
+
+    /**
+     * The cURL error number behind the failure (28 timeout, 7 refused, 6 DNS, ...), when there was one.
+     */
+    public function curlError(): ?int
+    {
+        $previous = $this->getPrevious();
+
+        return $previous instanceof TransportFailure ? $previous->curlError() : null;
     }
 
     /**
