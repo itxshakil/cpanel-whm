@@ -56,7 +56,7 @@ Most WHM clients for PHP were written for Laravel 5, log in with a password or t
 ## Requirements
 
 - PHP 8.3 or newer
-- Laravel 12 or 13
+- Laravel 12.69+ or 13.30+
 - cPanel & WHM with an API token (WHM › Development › Manage API Tokens)
 
 The typed API is generated from cPanel & WHM 11.138's API specification, and that is the version the package is developed against. `whm:doctor` warns below 11.110 (`doctor.minimum_version`), the oldest version we expect to work. Older servers may answer for most functions, but they aren't tested. A function your server doesn't have yet fails with WHM's own error, and `php artisan whm:functions --server --missing` lists the differences.
