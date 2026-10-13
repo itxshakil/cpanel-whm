@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `AccountUsage::isNearLimit()` (and `Usage::nearLimit()`, `whm:usage`) never reports an account whose disk and bandwidth are both unlimited, even at a threshold of 0 or below.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
