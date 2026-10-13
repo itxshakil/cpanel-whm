@@ -16,6 +16,8 @@ final readonly class CreatedAccount
      * @param  list<string>  $nameservers
      * @param  string|null  $password  the password the account was created with, generated when none was given;
      *                                 null on the copy that AccountCreated carries
+     * @param  bool  $recovered  createacct timed out and the account was found afterwards
+     *                           (Accounts::createOrRecover()); $response is then the account's summary
      */
     public function __construct(
         public string $username,
@@ -27,6 +29,7 @@ final readonly class CreatedAccount
         public WhmResponse $response,
         #[SensitiveParameter]
         public ?string $password = null,
+        public bool $recovered = false,
     ) {}
 
     /**
@@ -43,6 +46,7 @@ final readonly class CreatedAccount
             'rawOutput' => $this->rawOutput,
             'response' => $this->response,
             'password' => $this->password === null ? null : '[REDACTED]',
+            'recovered' => $this->recovered,
         ];
     }
 
@@ -51,7 +55,26 @@ final readonly class CreatedAccount
      */
     public function withoutPassword(): self
     {
-        return new self($this->username, $this->domain, $this->ip, $this->package, $this->nameservers, $this->rawOutput, $this->response);
+        return new self($this->username, $this->domain, $this->ip, $this->package, $this->nameservers, $this->rawOutput, $this->response, recovered: $this->recovered);
+    }
+
+    /**
+     * An account that createacct made although the call timed out, as read back afterwards.
+     * WHM's createacct output (nameservers, raw log) is lost with the timeout.
+     */
+    public static function recovered(Account $account, #[SensitiveParameter] ?string $password): self
+    {
+        return new self(
+            username: $account->username,
+            domain: $account->domain,
+            ip: $account->ip,
+            package: $account->package,
+            nameservers: [],
+            rawOutput: null,
+            response: new WhmResponse(['acct' => [$account->raw]], ['result' => 1, 'reason' => 'OK', 'command' => 'accountsummary']),
+            password: $password,
+            recovered: true,
+        );
     }
 
     /**
