@@ -73,3 +73,15 @@ fwrite(STDOUT, sprintf(
     $uapiSpec->version(), $generated($uapi), count($uapi),
     count($written),
 ));
+
+$collisions = [];
+
+foreach ([...$whm, ...$uapi] as $operation) {
+    foreach ($operation->collisions as $parameter) {
+        $collisions[] = "{$operation->key()}: {$parameter}";
+    }
+}
+
+if ($collisions !== []) {
+    fwrite(STDERR, count($collisions)." parameter(s) have no typed argument because their PHP name is taken (listed in docs/coverage.md):\n  ".implode("\n  ", $collisions)."\n");
+}
