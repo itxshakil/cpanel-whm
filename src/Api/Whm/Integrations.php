@@ -60,7 +60,7 @@ final class Integrations extends WhmGroup
      * @param  string  $subscriberUniqueId  The subscriber's unique ID that the system will present to the URL in the `autologin_token_url` endpoint.
      * @param  string  $token  The token that the system will present to the URL in the `autologin_token_url` endpoint.
      * @param  string  $user  The cPanel account name.
-     * @param  string|null  $autologinTokenUrl  The URL to which the server will send the `app`, `token`, `user`, and `subscriber_unique_id` values through an `HTTP POST` request.
+     * @param  array<array-key, mixed>|string|null  $autologinTokenUrl  The URL to which the server will send the `app`, `token`, `user`, and `subscriber_unique_id` values through an `HTTP POST` request. Sent as JSON: an array is encoded for you, a string is sent as it is.
      * @param  string|null  $base64PngImage  The icon image.
      * @param  string|null  $groupId  The group ID in which to add the icon of the linked service.
      * @param  bool|int|null  $hide  Whether the cPanel interface will display the integration link.
@@ -79,7 +79,7 @@ final class Integrations extends WhmGroup
         string $subscriberUniqueId,
         #[SensitiveParameter] string $token,
         string $user,
-        ?string $autologinTokenUrl = null,
+        array|string|null $autologinTokenUrl = null,
         ?string $base64PngImage = null,
         ?string $groupId = null,
         bool|int|null $hide = null,
@@ -94,7 +94,7 @@ final class Integrations extends WhmGroup
             'subscriber_unique_id' => $subscriberUniqueId,
             'token' => $token,
             'user' => $user,
-            'autologin_token_url' => $autologinTokenUrl,
+            'autologin_token_url' => self::json($autologinTokenUrl),
             'base64_png_image' => $base64PngImage,
             'group_id' => $groupId,
             'hide' => $hide,
