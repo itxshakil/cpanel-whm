@@ -103,6 +103,7 @@ All notable changes to this project are documented here. The format follows
 - `whm:doctor`'s TLS check shows when an untrusted certificate expired (or until when it's valid), also with verification off. A timeout or refused connection during the handshake is reported as a handshake failure, not as an untrusted certificate, and the reported reason is OpenSSL's own ("certificate verify failed", a name mismatch).
 - `Whm::ping()` and `whm:doctor` no longer make real DNS lookups and socket connections in tests that call `Http::preventStrayRequests()`: the DNS, network and TLS checks are skipped there, unless a custom `NetworkProbe` is bound.
 - `ServiceStatus::isDown()` no longer reports enabled services that WHM doesn't monitor as down. WHM omits `running` for them, so `ServiceStatus::$running` is now `?bool` and null in that case.
+- Bandwidth usage leaves out accounts and domains removed during the month, which `showbw` still lists. A user removed and created again no longer risks `bandwidthFor()`, `all()` or `nearLimit()` picking the old row, and a removed domain no longer overwrites a live one in `byDomain`. `bandwidth(includeDeleted: true)` keeps them, flagged with `BandwidthUsage::$deleted`.
 
 ## [0.3.0] - 2026-10-08
 

@@ -142,6 +142,29 @@ final class DomainsAndUsageTest extends TestCase
     }
 
     #[Test]
+    public function accounts_and_domains_deleted_this_month_are_left_out(): void
+    {
+        // acme was removed and created again this month; shop.acme.test too.
+        Whm::fake(['showbw' => Whm::response(['acct' => [
+            ['user' => 'acme', 'totalbytes' => 10, 'limit' => 100, 'bwusage' => [
+                ['domain' => 'acme.test', 'usage' => 10, 'deleted' => 0],
+                ['domain' => 'shop.acme.test', 'usage' => 4, 'deleted' => 0],
+                ['domain' => 'shop.acme.test', 'usage' => 900, 'deleted' => 1],
+            ]],
+            ['user' => 'acme', 'totalbytes' => 900, 'limit' => 100, 'deleted' => 1],
+        ]]), 'get_disk_usage' => Whm::response(['accounts' => []])]);
+
+        self::assertSame(10, Whm::usage()->bandwidthFor('acme')?->usedBytes);
+        self::assertSame(['acme.test' => 10, 'shop.acme.test' => 4], Whm::usage()->bandwidthFor('acme')?->byDomain);
+        self::assertCount(1, Whm::usage()->bandwidth());
+        self::assertSame(10, Whm::usage()->all()->sole()->bandwidth?->usedBytes);
+
+        $all = Whm::usage()->bandwidth(includeDeleted: true);
+        self::assertCount(2, $all);
+        self::assertTrue($all[1]->deleted);
+    }
+
+    #[Test]
     public function account_usage_combines_disk_and_bandwidth(): void
     {
         Whm::fake([
