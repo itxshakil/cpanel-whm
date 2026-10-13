@@ -12,6 +12,8 @@ final readonly class Package
 {
     /**
      * @param  array<array-key, mixed>  $raw
+     * @param  bool|null  $shell  null when WHM didn't say
+     * @param  bool|null  $cgi  null when WHM didn't say
      */
     public function __construct(
         public string $name,
@@ -25,6 +27,14 @@ final readonly class Package
         public ?string $maxFtpAccounts,
         public bool $dedicatedIp,
         public array $raw = [],
+        public ?string $maxAliases = null,
+        public ?string $maxMailingLists = null,
+        public ?string $maxEmailsPerHour = null,
+        public ?string $maxEmailQuota = null,
+        public ?string $theme = null,
+        public ?string $language = null,
+        public ?bool $shell = null,
+        public ?bool $cgi = null,
     ) {}
 
     /**
@@ -44,6 +54,44 @@ final readonly class Package
             maxFtpAccounts: Value::string($row['MAXFTP'] ?? null),
             dedicatedIp: Value::bool($row['IP'] ?? false),
             raw: $row,
+            maxAliases: Value::string($row['MAXPARK'] ?? null),
+            maxMailingLists: Value::string($row['MAXLST'] ?? null),
+            maxEmailsPerHour: Value::string($row['MAX_EMAIL_PER_HOUR'] ?? null),
+            maxEmailQuota: Value::string($row['MAX_EMAILACCT_QUOTA'] ?? null),
+            theme: Value::string($row['CPMOD'] ?? null),
+            language: Value::string($row['LANG'] ?? null),
+            shell: isset($row['HASSHELL']) ? Value::bool($row['HASSHELL']) : null,
+            cgi: isset($row['CGI']) ? Value::bool($row['CGI']) : null,
+        );
+    }
+
+    /**
+     * The same settings as a PackageDefinition, so a package can be saved
+     * elsewhere without losing anything, e.g. copied to another server:
+     *
+     *     Whm::connection('ca-1')->packages()->create(Whm::packages()->info('starter')->toDefinition());
+     */
+    public function toDefinition(): PackageDefinition
+    {
+        return new PackageDefinition(
+            name: $this->name,
+            diskQuotaMb: $this->diskQuota,
+            bandwidthMb: $this->bandwidthLimit,
+            maxAddonDomains: $this->maxAddonDomains,
+            maxAliases: $this->maxAliases,
+            maxSubdomains: $this->maxSubdomains,
+            maxEmailAccounts: $this->maxEmailAccounts,
+            maxEmailQuotaMb: $this->maxEmailQuota,
+            maxDatabases: $this->maxDatabases,
+            maxFtpAccounts: $this->maxFtpAccounts,
+            maxMailingLists: $this->maxMailingLists,
+            maxEmailsPerHour: $this->maxEmailsPerHour,
+            featureList: $this->featureList,
+            theme: $this->theme,
+            language: $this->language,
+            shell: $this->shell,
+            cgi: $this->cgi,
+            dedicatedIp: $this->dedicatedIp,
         );
     }
 }
