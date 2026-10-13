@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Itxshakil\CpanelWhm\Modules;
 
 use Illuminate\Support\Collection;
+use Itxshakil\CpanelWhm\Data\AccountLimits;
 use Itxshakil\CpanelWhm\Data\DiskPartition;
 use Itxshakil\CpanelWhm\Data\LoadAverage;
 use Itxshakil\CpanelWhm\Data\ServiceStatus;
@@ -15,7 +16,8 @@ use Itxshakil\CpanelWhm\WhmResponse;
 
 /**
  * The server and the token itself: version, applist, myprivs, gethostname,
- * systemloadavg, servicestatus, restartservice, getdiskusage.
+ * systemloadavg, servicestatus, restartservice, getdiskusage,
+ * get_current_users_count, get_maximum_users.
  */
 class Server extends Module
 {
@@ -85,6 +87,24 @@ class Server extends Module
         $privileges = $this->privileges();
 
         return in_array('all', $privileges, true) || in_array($privilege, $privileges, true);
+    }
+
+    /**
+     * The number of cPanel accounts against the licence's limit, e.g. to stop
+     * selling before provisioning fails. Two calls: get_current_users_count
+     * and get_maximum_users.
+     *
+     * @throws WhmException
+     */
+    public function accountLimits(): AccountLimits
+    {
+        $maximum = Value::int($this->client->call('get_maximum_users')->get('users'));
+
+        return new AccountLimits(
+            current: Value::int($this->client->call('get_current_users_count')->get('users')) ?? 0,
+            // cPanel reports an unlimited licence as 0.
+            maximum: $maximum === null || $maximum === 0 ? null : $maximum,
+        );
     }
 
     /**

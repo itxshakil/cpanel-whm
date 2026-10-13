@@ -5,7 +5,7 @@
 | | WHM API 1 | UAPI |
 | --- | --- | --- |
 | Typed method (generated) | 621 of 630 (98.6%) | 680 of 693 (98.1%) |
-| Hand-written, typed results | 74 functions | through `asUser()` |
+| Hand-written, typed results | 77 functions | through `asUser()` |
 | Callable by name | every function that takes form fields, with `Whm::call()` | every function that takes form fields, with `uapi()` |
 
 The functions without a typed method take a JSON body or a file upload; see [coverage](coverage.md).

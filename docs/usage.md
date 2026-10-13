@@ -133,6 +133,7 @@ Whm::server()->loadAverage();                      // LoadAverage: one, five, fi
 Whm::server()->services()->filter->isDown();       // ServiceStatus: enabled but not running
 Whm::server()->restartService('exim', queue: true);
 Whm::server()->partitions();                       // DiskPartition: mount, totalBytes, usedBytes, percentUsed
+Whm::server()->accountLimits();                    // AccountLimits: current, maximum (null = unlimited licence), remaining(), isFull()
 ```
 
 ## DNS
@@ -141,6 +142,7 @@ Whm::server()->partitions();                       // DiskPartition: mount, tota
 use Itxshakil\CpanelWhm\Data\DnsRecord;
 
 Whm::dns()->zones();                                   // Collection<string>
+Whm::dns()->nameservers();                             // ['ns1.example.com', 'ns2.example.com'], the token user's defaults
 $zone = Whm::dns()->zone('acme.example');              // DnsZone: domain, serial, records
 $zone->first('www', 'A')?->value();                    // "203.0.113.10"
 $zone->ofType('MX');

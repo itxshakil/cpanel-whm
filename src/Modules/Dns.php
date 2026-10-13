@@ -16,7 +16,8 @@ use Itxshakil\CpanelWhm\WhmResponse;
 use JsonException;
 
 /**
- * DNS zones: listzones, parse_dns_zone, mass_edit_dns_zone, adddns, killdns, resetzone.
+ * DNS zones: listzones, parse_dns_zone, mass_edit_dns_zone, adddns, killdns, resetzone,
+ * and the default nameservers (get_nameserver_config).
  *
  * Record changes go through mass_edit_dns_zone with an SOA serial. Updates and
  * removals send the serial of the zone() read their records came from, so an
@@ -52,6 +53,22 @@ class Dns extends Module
         }
 
         return collect($zones);
+    }
+
+    /**
+     * The default nameservers of the token's user (root's, or a reseller's own),
+     * from get_nameserver_config. These are what new accounts are pointed at.
+     *
+     * @return list<string>
+     *
+     * @throws WhmException
+     */
+    public function nameservers(): array
+    {
+        return array_values(array_filter(
+            Value::strings($this->client->call('get_nameserver_config')->get('nameservers')),
+            static fn (string $nameserver): bool => $nameserver !== '',
+        ));
     }
 
     /**
