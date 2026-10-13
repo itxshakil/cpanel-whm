@@ -45,6 +45,7 @@ All notable changes to this project are documented here. The format follows
 - `whm:doctor` makes one attempt per check, so a server that only answers on retry is reported, and the latency figure no longer includes a failed attempt and its back-off.
 - `whm:install` updates and checks the `main` connection, which the `WHM_*` keys it writes belong to, instead of whichever connection is the default; it warns when they differ.
 - `whm:call --json` prints only JSON on stdout; the "typed on the command line" warning goes to stderr.
+- The `Whm` facade documents `getFake()` and `dispatch()`, and a test keeps its `@method` lines in step with the manager and the client contract.
 
 ## [0.3.0] - 2026-10-08
 
