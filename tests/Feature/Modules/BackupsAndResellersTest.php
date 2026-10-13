@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Itxshakil\CpanelWhm\Tests\Feature\Modules;
 
 use Carbon\CarbonImmutable;
+use InvalidArgumentException;
 use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
@@ -73,8 +74,18 @@ final class BackupsAndResellersTest extends TestCase
         self::assertSame('RUNNING', Whm::backups()->backupStatus('acme2026abc'));
 
         $fake->assertCalled('start_background_pkgacct', static fn (array $p): bool => $p === [
-            'user' => 'acme', 'compressionsetting' => 'compress', 'skiphomedir' => 1, 'skiplogs' => 1,
+            'skiplogs' => 1, 'user' => 'acme', 'compressionsetting' => 'compress', 'skiphomedir' => 1,
         ]);
+    }
+
+    #[Test]
+    public function backup_options_cannot_replace_the_normalised_user(): void
+    {
+        $fake = Whm::fake(['start_background_pkgacct' => Whm::response(['session_id' => 's1'])]);
+
+        Whm::backups()->backupAccount('Acme', options: ['user' => 'other', 'skiplogs' => true]);
+
+        $fake->assertCalled('start_background_pkgacct', static fn (array $p): bool => $p['user'] === 'acme' && $p['skiplogs'] === 1);
     }
 
     #[Test]
@@ -153,5 +164,33 @@ final class BackupsAndResellersTest extends TestCase
             ->assertCalled('suspendreseller', static fn (array $p): bool => $p === ['user' => 'res1', 'reason' => 'Unpaid', 'disallow' => 1, 'reseller-only' => 0])
             ->assertCalled('unsuspendreseller', static fn (array $p): bool => $p === ['user' => 'res1', 'reseller-only' => 1])
             ->assertCalled('terminatereseller', static fn (array $p, $r): bool => $p === ['user' => 'res1', 'terminatereseller' => 0] && $r->timeout === 600);
+    }
+
+    #[Test]
+    public function reseller_limits_can_be_turned_off(): void
+    {
+        $fake = Whm::fake(['setresellerlimits' => Whm::response()]);
+
+        Whm::resellers()->setLimits('res1', limitAccounts: false, limitResources: false);
+        Whm::resellers()->setLimits('res1', accounts: 10, limitResources: false);
+
+        $fake->assertCalled('setresellerlimits', static fn (array $p): bool => $p === [
+            'user' => 'res1', 'enable_account_limit' => 0, 'enable_resource_limits' => 0,
+        ])->assertCalled('setresellerlimits', static fn (array $p): bool => $p === [
+            'user' => 'res1', 'enable_account_limit' => 1, 'account_limit' => 10, 'enable_resource_limits' => 0,
+        ]);
+    }
+
+    #[Test]
+    public function a_limit_given_while_turning_it_off_is_refused(): void
+    {
+        $fake = Whm::fake();
+
+        try {
+            Whm::resellers()->setLimits('res1', diskMb: 1024, limitResources: false);
+            self::fail('Expected InvalidArgumentException');
+        } catch (InvalidArgumentException) {
+            $fake->assertNothingSent();
+        }
     }
 }

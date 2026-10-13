@@ -49,6 +49,35 @@ final class GeneratedApiTest extends TestCase
     }
 
     #[Test]
+    public function slow_functions_get_their_long_timeout_on_every_path(): void
+    {
+        $fake = Whm::fake(['*' => Whm::response()]);
+
+        Whm::call('createacct', ['username' => 'acme', 'domain' => 'acme.test']);
+        Whm::api()->accounts()->createacct(username: 'acme', domain: 'acme.test');
+        Whm::call('terminatereseller', ['user' => 'res1']);
+        Whm::call('createacct', ['username' => 'acme'], timeout: 45);
+
+        $timeouts = array_map(static fn (WhmRequest $request): ?int => $request->timeout, $fake->recorded());
+
+        // An explicit timeout is the caller's choice and wins.
+        self::assertSame([120, 120, 600, 45], $timeouts);
+    }
+
+    #[Test]
+    public function extra_adds_parameters_but_never_replaces_a_typed_argument(): void
+    {
+        $fake = Whm::fake(['createacct' => Whm::response(), 'uapi_cpanel' => Whm::uapi([])]);
+
+        Whm::api()->accounts()->createacct(username: 'acme', domain: 'acme.test', extra: ['username' => 'other', 'plan' => 'gold']);
+        Whm::asUser('acme')->api()->email()->listPops(regex: 'info', extra: ['regex' => 'sales', 'skip_main' => 1]);
+
+        // A typed argument that was given wins; one left as null can still come from extra.
+        $fake->assertCalled('createacct', static fn (array $p): bool => $p['username'] === 'acme' && $p['plan'] === 'gold')
+            ->assertCalled('uapi_cpanel', static fn (array $p): bool => $p['regex'] === 'info' && $p['skip_main'] === 1);
+    }
+
+    #[Test]
     public function uapi_functions_run_as_the_account(): void
     {
         $fake = Whm::fake(['uapi_cpanel' => Whm::sequence(Whm::uapi([['email' => 'info@acme.test']]), Whm::uapiFailure('The account does not exist.'))]);

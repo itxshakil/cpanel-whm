@@ -53,10 +53,17 @@ final class TokenCommand extends Command
             ])->all(),
         );
 
-        $expiring = $tokens->filter(static fn (ApiToken $token): bool => $token->expiresWithin($days));
+        // An expired token can't be the one in use (it just listed the tokens), so
+        // it only gets a nudge to revoke it; failing on it would fail forever.
+        $expired = $tokens->filter(static fn (ApiToken $token): bool => $token->isExpired());
+        $expiring = $tokens->filter(static fn (ApiToken $token): bool => ! $token->isExpired() && $token->expiresWithin($days));
+
+        if ($expired->isNotEmpty()) {
+            $this->components->info($expired->count().' expired token(s): '.$expired->map(static fn (ApiToken $token): string => $token->name)->implode(', ').'. Revoke them in WHM › Manage API Tokens.');
+        }
 
         if ($expiring->isNotEmpty()) {
-            $this->components->warn($expiring->count()." token(s) expired or expire within {$days} days. Create a new token in WHM › Manage API Tokens and update WHM_TOKEN.");
+            $this->components->warn($expiring->count()." token(s) expire within {$days} days. Create a new token in WHM › Manage API Tokens and update WHM_TOKEN.");
 
             return self::FAILURE;
         }
