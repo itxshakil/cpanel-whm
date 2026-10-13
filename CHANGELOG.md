@@ -52,6 +52,7 @@ All notable changes to this project are documented here. The format follows
 - The README states what the public API is and how versions treat it: contracts may gain methods in a minor release, generated methods need named arguments, and removals from cPanel's spec are deprecated first. It also states the supported cPanel & WHM versions (developed against 11.138, warned below 11.110).
 - `Support\Params`, `Support\CuratedFunctions` and `Transport\HttpTransport` are marked `@internal`.
 - RELEASING.md aligns the 1.0 criterion with the roadmap and signs release tags; SECURITY.md says which versions get fixes.
+- The docs and the Boost guideline say which method fires each account and DNS event, that `Whm::api()`, `Whm::call()` and batches fire none of them, and how to use `WhmResponseReceived` for those paths.
 
 ### Fixed
 - `whm:record` prints a replay hint with the path relative to the project root, so it can be committed.
