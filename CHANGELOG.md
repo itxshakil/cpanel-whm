@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `Backups::activateQueue()` starts the restore queue on its own.
+
+### Fixed
+- `Backups::restore()` no longer loses the queue id when the task is queued but starting the queue fails: it throws `RestoreNotStarted`, which carries `queueId()`, so a retry starts the waiting task instead of queueing the restore twice.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
