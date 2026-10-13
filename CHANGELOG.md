@@ -8,6 +8,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Security
 - `ConnectionConfig` leaves the API token out of `json_encode()` and log context, and refuses `serialize()`, so the token can't reach logs, queue payloads, the cache or the session.
+- `Tokens::create()` refuses an empty privilege or IP list, which WHM would read as "every privilege" and "any address". Pass null to mean that.
 - The password `createacct` echoes in its raw output (`| PassWord: ...`) is now redacted from `CreatedAccount::withoutPassword()`, the `AccountCreated` event, `WhmResponseReceived` and logs.
 
 ### Fixed

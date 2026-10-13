@@ -223,4 +223,21 @@ final class ProvisioningTest extends TestCase
             $fake->assertNothingSent();
         }
     }
+
+    #[Test]
+    public function an_empty_privilege_or_ip_list_never_creates_an_unrestricted_token(): void
+    {
+        $fake = Whm::fake();
+
+        foreach ([['privileges' => []], ['allowedIps' => []]] as $arguments) {
+            try {
+                Whm::tokens()->create('billing', ...$arguments);
+                self::fail('Expected InvalidArgumentException for '.array_key_first($arguments));
+            } catch (InvalidArgumentException $invalidArgumentException) {
+                self::assertStringContainsString('Pass null', $invalidArgumentException->getMessage());
+            }
+        }
+
+        $fake->assertNothingSent();
+    }
 }

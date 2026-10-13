@@ -73,12 +73,24 @@ class Tokens extends Module
      * @param  list<string>|null  $privileges  ACL names; null gives the token all of the user's privileges
      * @param  list<string>|null  $allowedIps  IPs or CIDR ranges; null allows any address
      *
+     * @throws InvalidArgumentException when $privileges or $allowedIps is an empty list
      * @throws WhmException
      */
     public function create(string $name, ?array $privileges = null, ?DateTimeInterface $expiresAt = null, ?array $allowedIps = null): CreatedToken
     {
         if (preg_match('/^[A-Za-z0-9_-]{1,50}$/', $name) !== 1) {
             throw new InvalidArgumentException('A WHM API token name is 1 to 50 letters, digits, dashes and underscores.');
+        }
+
+        // WHM reads "no acl" as every privilege and "no whitelist_ip" as any address,
+        // so an empty list (say, a form where nothing was ticked) would create the
+        // most powerful token there is. Only an explicit null may mean that.
+        if ($privileges === []) {
+            throw new InvalidArgumentException('An empty privilege list would give the token every privilege. Pass null to mean that, or list at least one.');
+        }
+
+        if ($allowedIps === []) {
+            throw new InvalidArgumentException('An empty IP list would let the token be used from any address. Pass null to mean that, or list at least one.');
         }
 
         $params = ['token_name' => $name, 'expires_at' => $expiresAt?->getTimestamp()];
