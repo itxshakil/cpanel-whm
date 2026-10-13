@@ -49,11 +49,17 @@ final class WhmClient implements WhmClientContract
 {
     /**
      * Read-only functions whose answer must always be current: whether a
-     * username is free is checked right before an account is created.
+     * username is free is checked right before an account is created, and the
+     * status of a running job is polled until it changes.
      *
      * @var list<string>
      */
-    private const array NEVER_CACHED = ['verify_new_username'];
+    private const array NEVER_CACHED = [
+        'verify_new_username',
+        'get_pkgacct_session_state',
+        'get_transfer_session_state',
+        'restore_queue_state',
+    ];
 
     /**
      * @var array<class-string, object>
