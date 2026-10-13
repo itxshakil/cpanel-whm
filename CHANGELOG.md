@@ -57,6 +57,7 @@ All notable changes to this project are documented here. The format follows
 - Job status polls (`get_pkgacct_session_state`, `get_transfer_session_state`, `restore_queue_state`) are never cached, so `backupStatus()`, `transfers()->state()` and `backups()->queue()` on a `Whm::cache()` client see the job finish.
 - `Passwords::generate()` throws `InvalidArgumentException` below `Passwords::MIN_LENGTH` (12) instead of quietly returning a 4-character password.
 - `AccountUsage::isNearLimit()` (and `Usage::nearLimit()`, `whm:usage`) never reports an account whose disk and bandwidth are both unlimited, even at a threshold of 0 or below.
+- `whm:record` refuses a `--name` with a path in it and an absolute or `..` `--path`, before calling WHM, so a fixture can't overwrite files outside the fixtures directory.
 
 ## [0.3.0] - 2026-10-08
 
