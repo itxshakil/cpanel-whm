@@ -47,15 +47,16 @@ class Usage extends Module
 
     /**
      * Bandwidth for every account in a month (default: this month), optionally
-     * only a reseller's accounts.
+     * only a reseller's accounts. Accounts removed during the month are left
+     * out unless $includeDeleted.
      *
      * @return Collection<int, BandwidthUsage>
      *
      * @throws WhmException
      */
-    public function bandwidth(?int $month = null, ?int $year = null, ?string $reseller = null): Collection
+    public function bandwidth(?int $month = null, ?int $year = null, ?string $reseller = null, bool $includeDeleted = false): Collection
     {
-        return $this->showbw(['month' => $month, 'year' => $year, 'showres' => $reseller]);
+        return $this->showbw(['month' => $month, 'year' => $year, 'showres' => $reseller], $includeDeleted);
     }
 
     /**
@@ -122,14 +123,17 @@ class Usage extends Module
      *
      * @throws WhmException
      */
-    private function showbw(array $params): Collection
+    private function showbw(array $params, bool $includeDeleted = false): Collection
     {
         $response = $this->client->call('showbw', $params);
         $month = Value::int($response->get('month')) ?? (int) date('n');
         $year = Value::int($response->get('year')) ?? (int) date('Y');
 
+        // showbw keeps accounts removed this month. A user removed and created
+        // again appears twice, and keyBy() or first() could pick the old row.
         return collect($this->rows($response->get('acct')))
             ->map(static fn (array $row): BandwidthUsage => BandwidthUsage::fromArray($row, $month, $year))
+            ->reject(static fn (BandwidthUsage $usage): bool => ! $includeDeleted && $usage->deleted)
             ->values();
     }
 }

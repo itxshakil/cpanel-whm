@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Itxshakil\CpanelWhm\Modules;
 
 use Illuminate\Support\Collection;
+use InvalidArgumentException;
 use Itxshakil\CpanelWhm\Data\ResellerAccountCounts;
 use Itxshakil\CpanelWhm\Data\ResellerStats;
 use Itxshakil\CpanelWhm\Data\Value;
@@ -143,8 +144,11 @@ class Resellers extends Module
 
     /**
      * Limit a reseller's accounts, disk (MB) and bandwidth (MB). Leave an
-     * argument null to keep its current setting.
+     * argument null to keep its current setting. Giving a limit turns that
+     * kind of limit on; pass $limitAccounts or $limitResources false to turn
+     * it off again (unlimited).
      *
+     * @throws InvalidArgumentException when a limit is given while turning that limit off
      * @throws WhmException
      */
     public function setLimits(
@@ -155,12 +159,23 @@ class Resellers extends Module
         ?bool $overselling = null,
         ?bool $oversellDisk = null,
         ?bool $oversellBandwidth = null,
+        ?bool $limitAccounts = null,
+        ?bool $limitResources = null,
     ): WhmResponse {
-        $limitResources = $diskMb !== null || $bandwidthMb !== null ? true : null;
+        if ($limitAccounts === false && $accounts !== null) {
+            throw new InvalidArgumentException('An account limit was given while turning the account limit off.');
+        }
+
+        if ($limitResources === false && ($diskMb !== null || $bandwidthMb !== null)) {
+            throw new InvalidArgumentException('A disk or bandwidth limit was given while turning resource limits off.');
+        }
+
+        $limitAccounts ??= $accounts !== null ? true : null;
+        $limitResources ??= $diskMb !== null || $bandwidthMb !== null ? true : null;
 
         return $this->client->call('setresellerlimits', [
             'user' => UsernameRules::normalise($user),
-            'enable_account_limit' => $accounts !== null ? true : null,
+            'enable_account_limit' => $limitAccounts,
             'account_limit' => $accounts,
             'enable_resource_limits' => $limitResources,
             'diskspace_limit' => $diskMb,
