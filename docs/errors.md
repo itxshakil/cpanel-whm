@@ -20,7 +20,7 @@ try {
 
 | Exception | Meaning | Retry? |
 | --- | --- | --- |
-| `WhmConnectionFailed` | DNS, refused connection, TLS failure or timeout. `mayHaveReachedServer()` is true when the call was sent and WHM stopped answering (a read timeout, an empty reply). | Reads, yes. Writes: only when `mayHaveReachedServer()` is false; otherwise check first. |
+| `WhmConnectionFailed` | DNS, refused connection, TLS failure or timeout. `mayHaveReachedServer()` is true when the call was sent and WHM stopped answering (a read timeout, an empty reply). `curlError()` gives the cURL error number, and `getPrevious()` is a `TransportFailure` naming the HTTP client's exception class, with the URL's query string and the request left out. | Reads, yes. Writes: only when `mayHaveReachedServer()` is false; otherwise check first. |
 | `WhmAuthenticationFailed` (extends `WhmHttpError`) | HTTP 401/403 | No: fix the token. |
 | `WhmHttpError` | Other HTTP errors; `notJson` when the host answers with HTML | Only for 5xx. |
 | `WhmCommandFailed` | `metadata.result = 0` | Depends on `reason()`. |
