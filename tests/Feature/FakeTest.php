@@ -174,4 +174,26 @@ final class FakeTest extends TestCase
 
         $fake->assertCalled('listips', static fn (array $params): bool => $params === ['a' => 2]);
     }
+
+    #[Test]
+    public function uapi_functions_can_be_stubbed_and_asserted_by_module_and_function(): void
+    {
+        $fake = Whm::fake([
+            'uapi:Quota::get_quota_info' => Whm::uapi(['megabytes_used' => 120]),
+            'uapi:Backup::list_backups' => Whm::uapi(['backup-2026-10-01.tar.gz']),
+            'uapi_cpanel' => Whm::uapi(['fallback']),
+        ]);
+
+        $user = Whm::asUser('acme');
+
+        self::assertSame(120, $user->uapi('Quota', 'get_quota_info')->get('megabytes_used'));
+        self::assertSame(['backup-2026-10-01.tar.gz'], $user->uapi('Backup', 'list_backups')->toArray());
+        self::assertSame(['fallback'], $user->uapi('Email', 'list_pops')->toArray());
+
+        $fake->assertCalled('uapi:Backup::list_backups')
+            ->assertCalledTimes('uapi:Quota::get_quota_info', 1)
+            ->assertNotCalled('uapi:Email::add_pop')
+            ->assertCalledTimes('uapi_cpanel', 3);
+        self::assertCount(1, $fake->recorded('uapi:Email::list_pops'));
+    }
 }

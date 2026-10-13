@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `Whm::fake()` accepts `uapi:Module::function` keys to answer one UAPI function, falling back to `uapi_cpanel` and `*`; `assertCalled()`, `assertNotCalled()`, `assertCalledTimes()` and `recorded()` take the same keys.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

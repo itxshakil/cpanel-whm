@@ -27,6 +27,17 @@ You don't need any WHM config in tests: under the fake, missing connections get 
 
 Key `'*'` answers any function. Calls with no answer throw `StrayWhmCall`; `->allowStrayCalls()` answers them with an empty success instead.
 
+UAPI calls made with `Whm::asUser()` can be answered one function at a time, with a `uapi:Module::function` key; `uapi_cpanel` then answers the rest. The same keys work in the assertions and in `recorded()`:
+
+```php
+$whm = Whm::fake([
+    'uapi:Quota::get_quota_info' => Whm::uapi(['megabytes_used' => 120]),
+    'uapi:Backup::list_backups' => Whm::uapi([...]),
+]);
+
+$whm->assertCalled('uapi:Backup::list_backups');
+```
+
 ## Assertions
 
 ```php
