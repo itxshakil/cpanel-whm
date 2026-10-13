@@ -74,6 +74,8 @@ Operators: `contains`, `begins`, `eq` (`=`), `==`, `lt` (`<`), `lt_equal` (`<=`)
 
 `suspend(string $user, string $reason = '', bool $lock = false)`, `unsuspend(string $user)` and `list()` (`Collection<SuspendedAccount>`). `lock: true` stops the account's reseller from unsuspending it.
 
+For queue jobs that may be retried, `ensureSuspended()` and `ensureUnsuspended()` take the same arguments but read the account first and act only when its state differs. They return `true` when they changed something, and fire the event only then. A missing account still throws.
+
 ## Feature lists
 
 ```php
@@ -105,6 +107,7 @@ $name = Whm::packages()->create(new PackageDefinition(
 
 Whm::packages()->update(new PackageDefinition($name, maxEmailAccounts: 25));   // only non-null settings are sent
 Whm::packages()->delete($name);                                                // WHM refuses while an account uses it
+Whm::packages()->deleteIfExists($name);                                        // false when it was already gone
 ```
 
 Anything `PackageDefinition` doesn't name goes in `extra: ['digestauth' => 1]`.
