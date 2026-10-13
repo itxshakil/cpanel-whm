@@ -17,6 +17,7 @@ Publish the config with `php artisan vendor:publish --tag=cpanel-whm-config` (or
         'pinned_public_key' => env('WHM_PINNED_PUBLIC_KEY'),
         'timeout' => (int) env('WHM_TIMEOUT', 30),
         'connect_timeout' => (int) env('WHM_CONNECT_TIMEOUT', 10),
+        'timezone' => env('WHM_TIMEZONE'),
     ],
 ],
 ```
@@ -31,6 +32,7 @@ Publish the config with `php artisan vendor:publish --tag=cpanel-whm-config` (or
 | `pinned_public_key` | `sha256//<base64>` of the certificate's public key; several separated by `;`. Calls fail unless the server's key matches, even with `verify_tls` off, which keeps a self-signed certificate reached by IP safe from interception. `whm:doctor` prints the server's pin. Needs the curl extension. |
 | `timeout` | Seconds per call. Without an explicit timeout, `createacct` gets at least 120 seconds (it sets up DNS, mail and DKIM) and `terminatereseller` at least 600, through the modules, `Whm::call()`, `Whm::api()` and `whm:call` alike. For a caller that must answer quickly, such as a status page, use a short-timeout copy: `Whm::timeout(5, connect: 2)->server()->version()`. |
 | `connect_timeout` | Seconds to open the connection. |
+| `timezone` | Optional. The server's timezone identifier, such as `America/Toronto` (`timedatectl show -p Timezone --value` prints it). Backup dates are calendar days on the server, so a date object passed to `backups()->restore()` or `backups()->users()` is converted to this timezone before the day is taken. Without it, the object's own timezone is used. Date strings are always taken as written. |
 
 Add more servers as more entries and pick one with `Whm::connection('name')` or `--connection=name`.
 

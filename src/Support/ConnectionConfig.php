@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Itxshakil\CpanelWhm\Support;
 
+use DateTimeZone;
 use Itxshakil\CpanelWhm\Exceptions\InvalidConfiguration;
 use SensitiveParameter;
 
@@ -25,6 +26,7 @@ final readonly class ConnectionConfig
     /**
      * @param  string|null  $caBundle  a CA file to verify the certificate against, instead of the system's
      * @param  string|null  $pinnedPublicKey  sha256//... pins; the certificate's public key must match one
+     * @param  string|null  $timezone  the server's timezone, for the calendar day of backup dates
      */
     public function __construct(
         public string $name,
@@ -41,6 +43,7 @@ final readonly class ConnectionConfig
         public int $retryDelayMs = 250,
         public ?string $caBundle = null,
         public ?string $pinnedPublicKey = null,
+        public ?string $timezone = null,
     ) {}
 
     /**
@@ -60,6 +63,7 @@ final readonly class ConnectionConfig
             'retryDelayMs' => $this->retryDelayMs,
             'caBundle' => $this->caBundle,
             'pinnedPublicKey' => $this->pinnedPublicKey,
+            'timezone' => $this->timezone,
         ];
     }
 
@@ -102,6 +106,12 @@ final readonly class ConnectionConfig
             throw InvalidConfiguration::invalidTls($name, 'pins a public key, but this PHP has no curl support for pinning.', 'Install the curl extension built against libcurl 7.39 or newer, or remove WHM_PINNED_PUBLIC_KEY.');
         }
 
+        $timezone = self::string($config['timezone'] ?? null);
+
+        if ($timezone !== '' && ! in_array($timezone, timezone_identifiers_list(DateTimeZone::ALL_WITH_BC), true)) {
+            throw InvalidConfiguration::invalidTimezone($name, $timezone);
+        }
+
         return new self(
             name: $name,
             scheme: $scheme,
@@ -116,6 +126,7 @@ final readonly class ConnectionConfig
             retryDelayMs: max(0, self::int(is_array($config['retry'] ?? null) ? ($config['retry']['sleep_ms'] ?? null) : null, 250)),
             caBundle: $caBundle !== '' ? $caBundle : null,
             pinnedPublicKey: $pin !== '' ? $pin : null,
+            timezone: $timezone !== '' ? $timezone : null,
         );
     }
 
@@ -141,10 +152,7 @@ final readonly class ConnectionConfig
      */
     public function withTimeouts(int $timeout, ?int $connectTimeout = null): self
     {
-        return new self(
-            $this->name, $this->scheme, $this->host, $this->port, $this->user, $this->token,
-            $this->verifyTls, max(1, $timeout), max(1, $connectTimeout ?? $this->connectTimeout), $this->retries, $this->retryDelayMs,
-        );
+        return $this->with(timeout: max(1, $timeout), connectTimeout: max(1, $connectTimeout ?? $this->connectTimeout));
     }
 
     /**
@@ -195,6 +203,7 @@ final readonly class ConnectionConfig
             retryDelayMs: $retryDelayMs ?? $this->retryDelayMs,
             caBundle: $this->caBundle,
             pinnedPublicKey: $this->pinnedPublicKey,
+            timezone: $this->timezone,
         );
     }
 

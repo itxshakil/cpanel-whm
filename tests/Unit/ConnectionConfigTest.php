@@ -132,4 +132,18 @@ final class ConnectionConfigTest extends TestCase
         self::assertSame(1, $config->timeout);
         self::assertSame(5, $config->connectTimeout);
     }
+
+    #[Test]
+    public function a_timezone_is_optional_validated_and_kept_by_copies(): void
+    {
+        self::assertNull(ConnectionConfig::fromArray('main', ['host' => 'server.example.com', 'token' => 'abc'])->timezone);
+
+        $config = ConnectionConfig::fromArray('main', ['host' => 'server.example.com', 'token' => 'abc', 'timezone' => 'America/Toronto']);
+        self::assertSame('America/Toronto', $config->withoutRetries()->withoutRetryDelay()->timezone);
+
+        $this->expectException(InvalidConfiguration::class);
+        $this->expectExceptionMessage('unknown timezone [Mars/Olympus]');
+
+        ConnectionConfig::fromArray('main', ['host' => 'server.example.com', 'token' => 'abc', 'timezone' => 'Mars/Olympus']);
+    }
 }

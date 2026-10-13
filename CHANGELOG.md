@@ -31,6 +31,7 @@ All notable changes to this project are documented here. The format follows
 - `Whm::fake()` accepts `uapi:Module::function` keys to answer one UAPI function, falling back to `uapi_cpanel` and `*`; `assertCalled()`, `assertNotCalled()`, `assertCalledTimes()` and `recorded()` take the same keys.
 - `log_responses` (`WHM_LOG_RESPONSES`): the request log also records WHM's answer, redacted. `log_levels` sets the level for successes, command failures and HTTP or connection errors (defaults unchanged: info, warning, warning).
 - `Backups::activateQueue()` starts the restore queue on its own.
+- An optional `timezone` per connection (`WHM_TIMEZONE`). Date objects passed to `backups()->restore()` and `backups()->users()` are converted to it before the day is taken, so a UTC moment no longer asks for the wrong day's backup. Unknown timezones are rejected as `InvalidConfiguration`. Without it, nothing changes.
 
 ### Changed
 - Parameters: backed enums are sent as their value and `Stringable` objects as their string. A nested array, a date or any other object throws `InvalidArgumentException` before anything is sent, instead of reaching WHM as `name[key]=…` and being ignored.
