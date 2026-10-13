@@ -69,6 +69,7 @@ All notable changes to this project are documented here. The format follows
 - `whm:usage` formats sizes itself instead of with `Number::fileSize()`, which needs ext-intl; it no longer crashes on hosts without it.
 - `Tokens::expiringWithin()`, `whm:token` and `WhmCheck::failWhenTokenExpiresWithin()` ignore tokens that have already expired, so one old token left in WHM no longer fails them forever. `whm:token` lists expired tokens as a reminder to revoke them.
 - Commands with `--json` (`whm:packages`, `whm:usage`, `whm:call`, `whm:record`, …) report a WHM failure as JSON (`error`, `hint`, `exception`) instead of a styled block on stdout.
+- `Quotas::setDiskQuota()` and `setBandwidthLimit()` refuse 0 and negative values: WHM reads 0 as unlimited, so a 0 meant as "nothing" granted the opposite. `null` still means unlimited.
 
 ## [0.3.0] - 2026-10-08
 
