@@ -41,6 +41,7 @@ All notable changes to this project are documented here. The format follows
 - `Domains::owner()` throws `WhmPermissionDenied` instead of returning null when the token lacks the privilege.
 - `composer.json` requires `ext-openssl`, which `whm:doctor`'s TLS check and HTTPS calls need.
 - `WhmRequestFailed` (and the request log's warning) fires once, for the error the caller gets, instead of for every failed attempt of a read that a retry then made succeed.
+- A batch WHM marks failed because one command failed, but that still answers every command, is a response: `WhmResponseReceived` fires instead of `WhmRequestFailed`, and the request log no longer warns about it. `Whm::call('batch', …)` returns it instead of throwing.
 
 ## [0.3.0] - 2026-10-08
 

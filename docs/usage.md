@@ -337,7 +337,7 @@ $results->failures();                // [index => WhmCommandFailed|WhmPermission
 $results->throw();                   // throw the first failure, if any
 ```
 
-Parameters are normalised like `Whm::call()`. A `uapi_cpanel` or `cpanel` command whose cPanel function failed is a failure too (`UapiCallFailed`), as it is for a single call. A failed command does not throw from `send()`; only a failure of the batch request itself does. The batch is sent as POST and is never retried or cached, whatever its commands are. Secrets inside commands are masked in events and logs.
+Parameters are normalised like `Whm::call()`. A `uapi_cpanel` or `cpanel` command whose cPanel function failed is a failure too (`UapiCallFailed`), as it is for a single call. A failed command does not throw from `send()`; only a failure of the batch request itself does. WHM marks the whole batch failed when one command fails, but as long as it answers every command the batch counts as a response: `WhmResponseReceived` fires, not `WhmRequestFailed`, and a raw `Whm::call('batch', …)` returns it too. The batch is sent as POST and is never retried or cached, whatever its commands are. Secrets inside commands are masked in events and logs.
 
 ## Macros
 
