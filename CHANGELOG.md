@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `Transfers::migrate()` aborts the session when enqueueing or starting fails, instead of leaving it half-queued on WHM; a start that timed out after reaching WHM is left running.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
