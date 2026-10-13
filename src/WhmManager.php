@@ -101,8 +101,13 @@ class WhmManager
     {
         $config = $this->config()->get("cpanel-whm.connections.{$name}");
 
+        // Under the fake, a test app with no WHM settings still works. Anything
+        // production would reject (a typo in the name, a cPanel port) still
+        // throws, so the test fails where the app would.
         if (! is_array($config)) {
-            if ($this->fake instanceof WhmFake) {
+            $connections = $this->config()->get('cpanel-whm.connections');
+
+            if ($this->fake instanceof WhmFake && (! is_array($connections) || $connections === [])) {
                 return ConnectionConfig::fake($name);
             }
 
@@ -113,12 +118,29 @@ class WhmManager
         try {
             return ConnectionConfig::fromArray($name, $config);
         } catch (InvalidConfiguration $invalidConfiguration) {
-            if ($this->fake instanceof WhmFake) {
+            if ($this->fake instanceof WhmFake && self::isUnset($config)) {
                 return ConnectionConfig::fake($name);
             }
 
             throw $invalidConfiguration;
         }
+    }
+
+    /**
+     * A connection whose host or token is empty, as in an app (or CI) without
+     * the WHM_* variables.
+     *
+     * @param  array<string, mixed>  $config
+     */
+    private static function isUnset(array $config): bool
+    {
+        foreach (['host', 'token'] as $key) {
+            if (! is_string($config[$key] ?? null) || trim($config[$key]) === '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function getDefaultConnection(): string

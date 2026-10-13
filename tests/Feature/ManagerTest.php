@@ -118,4 +118,36 @@ final class ManagerTest extends TestCase
 
         $fake->assertCalled('version');
     }
+
+    #[Test]
+    public function the_fake_works_when_the_whm_variables_are_unset(): void
+    {
+        config()->set('cpanel-whm.connections.main', ['host' => null, 'token' => null]);
+        Whm::fake(['version' => Whm::response(['version' => '11.134.0.5'])]);
+
+        self::assertSame('11.134.0.5', Whm::server()->version());
+    }
+
+    #[Test]
+    public function the_fake_still_rejects_a_misspelled_connection(): void
+    {
+        Whm::fake(['*' => Whm::response()]);
+
+        $this->expectException(InvalidConfiguration::class);
+        $this->expectExceptionMessage('WHM connection [mian] is not configured.');
+
+        Whm::connection('mian')->server()->version();
+    }
+
+    #[Test]
+    public function the_fake_still_rejects_a_connection_production_would_reject(): void
+    {
+        config()->set('cpanel-whm.connections.webmail', ['host' => 'https://server.example.com:2096', 'token' => 'abc']);
+        Whm::fake(['*' => Whm::response()]);
+
+        $this->expectException(InvalidConfiguration::class);
+        $this->expectExceptionMessage('port 2096');
+
+        Whm::connection('webmail')->server()->version();
+    }
 }

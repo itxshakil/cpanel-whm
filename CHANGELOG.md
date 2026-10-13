@@ -96,6 +96,7 @@ All notable changes to this project are documented here. The format follows
 - With a reseller's token, `Packages::find('starter')` finds the package WHM saved as `res1_starter`. An exact name still wins, and root's lookups are unchanged.
 - `whm:doctor` works with an IPv6 host such as `https://[2001:db8::1]:2087`: the address is recognised as an IP, and the network and TLS probes use it without brackets. `ConnectionConfig::bareHost()` returns the host in that form.
 - `whm:doctor`'s DNS check also looks up AAAA records, so a server with only an IPv6 address no longer fails it.
+- Under `Whm::fake()`, a misspelled connection name or a connection production would reject (a cPanel port, for example) now throws `InvalidConfiguration`, as in production. The placeholder connection is used only when no connections are configured or the connection's host or token is unset.
 
 ## [0.3.0] - 2026-10-08
 
