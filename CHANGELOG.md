@@ -51,6 +51,7 @@ All notable changes to this project are documented here. The format follows
 - `whm:doctor --all --json` always prints a list, also when only one connection is configured.
 - `whm:install` replaces existing `.env` lines written as `export KEY=…` or `KEY = …` instead of appending a second line that the first one overrides.
 - DNS updates and removals send the serial of the `zone()` read their records came from (`DnsRecord::$zoneSerial`), instead of the current serial, so an edit made from a stale read is refused rather than changing the wrong line. Records from different reads can't be edited together.
+- `Transfers::migrate()` aborts the session when enqueueing or starting fails, instead of leaving it half-queued on WHM; a start that timed out after reaching WHM is left running.
 
 ## [0.3.0] - 2026-10-08
 
