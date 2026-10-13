@@ -80,6 +80,9 @@ final class GeneratorTest extends TestCase
         self::assertSame('array<array-key, mixed>', $operations['flush_cphulk_login_history_for_ips']->parameters[0]->docType());
         self::assertSame('Other', $operations['addzonerecord']->group);
         self::assertSame(['zone', 'ttl'], array_map(static fn ($p): string => $p->name, $operations['addzonerecord']->parameters));
+        // "TTL" would also be $ttl: it gets no typed argument, but it is recorded rather than lost.
+        self::assertSame(['TTL'], $operations['addzonerecord']->collisions);
+        self::assertSame([], $operations['createacct']->collisions);
         self::assertSame('float|int|null', $operations['addzonerecord']->parameters[1]->docType());
         self::assertSame('takes a JSON request body', $operations['personalization_set']->skipReason);
     }
@@ -116,6 +119,8 @@ final class GeneratorTest extends TestCase
         $coverage = (string) file_get_contents($root.'/docs/coverage.md');
         self::assertStringContainsString('| WHM API 1 | 5 | 4 | 80.0% | 1 |', $coverage);
         self::assertStringContainsString('`personalization_set` | takes a JSON request body', $coverage);
+        self::assertStringContainsString('## Parameters without a typed argument', $coverage);
+        self::assertStringContainsString('| `addzonerecord` | `TTL` |', $coverage);
     }
 
     #[Test]

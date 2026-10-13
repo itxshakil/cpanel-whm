@@ -421,6 +421,22 @@ final class Writer
             }
         }
 
+        $collided = array_filter([...$whm, ...$uapi], static fn (Operation $operation): bool => $operation->generated() && $operation->collisions !== []);
+
+        if ($collided !== []) {
+            $lines[] = '';
+            $lines[] = '## Parameters without a typed argument';
+            $lines[] = '';
+            $lines[] = 'Their PHP name is taken by another parameter of the same function (`key_id` and `keyId` both become `$keyId`). Pass them through `extra:`.';
+            $lines[] = '';
+            $lines[] = '| Function | Parameters |';
+            $lines[] = '| --- | --- |';
+
+            foreach ($collided as $operation) {
+                $lines[] = "| `{$operation->key()}` | `".implode('`, `', $operation->collisions).'` |';
+            }
+        }
+
         $lines[] = '';
         $lines[] = '## WHM API 1 by group';
         $lines[] = '';

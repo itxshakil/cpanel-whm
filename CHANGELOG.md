@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- The generator records parameters it can't give a typed argument because their PHP name is taken: `bin/generate` warns about them and `docs/coverage.md` lists them (none in spec 11.138.0.10).
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
