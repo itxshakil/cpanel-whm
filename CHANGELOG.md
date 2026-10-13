@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `whm:doctor`'s DNS check also looks up AAAA records, so a server with only an IPv6 address no longer fails it.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
