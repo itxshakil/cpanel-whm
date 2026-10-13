@@ -54,14 +54,22 @@ jobs:
             - run: composer dump-autoload --dry-run --optimize
 
     test:
-        name: Tests (PHP ${{ matrix.php }} | Laravel ${{ matrix.laravel }} | ${{ matrix.deps }})
-        runs-on: ubuntu-latest
+        name: Tests (${{ matrix.os == 'windows-latest' && 'Windows | ' || '' }}PHP ${{ matrix.php }} | Laravel ${{ matrix.laravel }} | ${{ matrix.deps }})
+        runs-on: ${{ matrix.os }}
         strategy:
             fail-fast: false
             matrix:
+                os: [ubuntu-latest]
                 php: ["8.3", "8.4", "8.5"]
                 laravel: ["12.*", "13.*"]
                 deps: [lowest, highest]
+                # One Windows job: path handling in whm:record and Whm::fixture()
+                # has broken there before without Linux noticing.
+                include:
+                    - os: windows-latest
+                      php: "8.5"
+                      laravel: "13.*"
+                      deps: highest
         steps:
             - uses: actions/checkout@v7
             - uses: shivammathur/setup-php@v2

@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- CI also runs the test suite on Windows (PHP 8.5, Laravel 13, highest dependencies).
+
 ### Fixed
 - `whm:record` prints a replay hint with the path relative to the project root, so it can be committed.
 - `Whm::fixture()` treats Windows (`C:\…`, `C:/…`) and UNC paths as absolute.
