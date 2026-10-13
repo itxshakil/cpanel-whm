@@ -132,7 +132,7 @@ Whm::dns()->reset('acme.example');                     // resetzone
 Whm::dns()->delete('acme.example');                    // killdns
 ```
 
-Record changes go through `mass_edit_dns_zone` with the zone's SOA serial. Without one, the module reads the zone first; pass `serial:` to `edit()` to make "edit what I last read" explicit: if someone changed the zone in between, WHM refuses instead of overwriting. Each method returns the new serial and dispatches `DnsZoneChanged`.
+Record changes go through `mass_edit_dns_zone` with the zone's SOA serial. Records read from `zone()` carry that read's serial (`$record->zoneSerial`), and `update()`, `remove()` and `edit()` send it: if someone changed the zone in between, WHM refuses instead of editing whatever is now on that line. Records from two different reads can't be edited together. A pure `add()` (or a removal by raw line index) reads the current serial first; pass `serial:` to `edit()` to choose it yourself. Each method returns the new serial and dispatches `DnsZoneChanged`.
 
 Factories: `a`, `aaaa`, `cname`, `mx`, `ns`, `txt` (split into 255-character strings), `srv`, `caa`. Records read from `zone()` carry the `lineIndex` that `update()` and `remove()` need.
 

@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- DNS updates and removals send the serial of the `zone()` read their records came from (`DnsRecord::$zoneSerial`), instead of the current serial, so an edit made from a stale read is refused rather than changing the wrong line. Records from different reads can't be edited together.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
