@@ -180,6 +180,10 @@ final readonly class ConnectionDoctor
     {
         $required = $this->stringList('cpanel-whm.doctor.required_privileges');
 
+        if ($required === null) {
+            return self::badSetting(self::PRIVILEGES, 'required_privileges', "['create-acct', 'suspend-acct']");
+        }
+
         try {
             $privileges = $client->server()->privileges();
         } catch (WhmException $whmException) {
@@ -209,6 +213,10 @@ final readonly class ConnectionDoctor
     {
         $required = $this->stringList('cpanel-whm.doctor.required_functions');
 
+        if ($required === null) {
+            return self::badSetting(self::FUNCTIONS, 'required_functions', "['createacct', 'uapi_cpanel']");
+        }
+
         try {
             $functions = $client->server()->functions();
         } catch (WhmException $whmException) {
@@ -232,8 +240,21 @@ final readonly class ConnectionDoctor
 
     private function version(string $version): CheckResult
     {
-        $minimum = $this->config->get('cpanel-whm.doctor.minimum_version');
-        $minimum = is_string($minimum) ? $minimum : '0';
+        $configured = $this->config->get('cpanel-whm.doctor.minimum_version');
+
+        // A float can't be trusted: 11.110 written without quotes is 11.11.
+        $minimum = match (true) {
+            $configured === null => '0',
+            is_string($configured) => trim($configured) === '' ? '0' : trim($configured),
+            is_int($configured) => (string) $configured,
+            default => null,
+        };
+
+        if ($minimum === null) {
+            return is_float($configured)
+                ? CheckResult::warn(self::VERSION, "doctor.minimum_version is the number {$configured}, so the version was not checked", "Write it as a string: '11.110', not 11.110 (which PHP reads as 11.11).")
+                : self::badSetting(self::VERSION, 'minimum_version', "'11.110'");
+        }
 
         if ($version === '') {
             return CheckResult::warn(self::VERSION, 'the server did not report its version');
@@ -274,12 +295,40 @@ final readonly class ConnectionDoctor
     }
 
     /**
-     * @return list<string>
+     * A list setting as strings. A comma-separated string (as an env value
+     * would give) is accepted too. Null means the type can't be used, so the
+     * caller can say so instead of quietly requiring nothing.
+     *
+     * @return list<string>|null
      */
-    private function stringList(string $key): array
+    private function stringList(string $key): ?array
     {
         $value = $this->config->get($key);
 
-        return is_array($value) ? array_values(array_map(strval(...), array_filter($value, is_scalar(...)))) : [];
+        if ($value === null) {
+            return [];
+        }
+
+        if (is_string($value)) {
+            $value = explode(',', $value);
+        }
+
+        if (! is_array($value)) {
+            return null;
+        }
+
+        return array_values(array_filter(
+            array_map(static fn (mixed $item): string => is_scalar($item) ? trim((string) $item) : '', $value),
+            static fn (string $item): bool => $item !== '',
+        ));
+    }
+
+    private static function badSetting(string $check, string $key, string $example): CheckResult
+    {
+        return CheckResult::warn(
+            $check,
+            "doctor.{$key} in config/cpanel-whm.php has a type that can't be used, so it was not checked",
+            "Set it like {$example}.",
+        );
     }
 }
