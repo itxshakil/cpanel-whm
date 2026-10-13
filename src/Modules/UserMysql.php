@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Itxshakil\CpanelWhm\Modules;
 
 use Illuminate\Support\Collection;
+use InvalidArgumentException;
 use Itxshakil\CpanelWhm\Data\CreatedMysqlUser;
 use Itxshakil\CpanelWhm\Data\MysqlDatabase;
 use Itxshakil\CpanelWhm\Data\MysqlUser;
@@ -105,17 +106,29 @@ class UserMysql extends UserModule
      * Give a user privileges on a database: all of them by default, or a
      * list such as ['SELECT', 'INSERT', 'UPDATE', 'DELETE'].
      *
-     * @param  list<string>  $privileges
+     * @param  list<string>  $privileges  at least one; use revoke() to take them away
      *
+     * @throws InvalidArgumentException when $privileges is empty
      * @throws UapiCallFailed
      * @throws WhmException
      */
     public function grant(string $user, string $database, array $privileges = ['ALL PRIVILEGES']): UapiResult
     {
+        $privileges = array_values(array_filter(
+            array_map(static fn (string $privilege): string => mb_strtoupper(trim($privilege)), $privileges),
+            static fn (string $privilege): bool => $privilege !== '',
+        ));
+
+        // An empty list would send privileges='', an error or a silent no-op
+        // depending on the server, and never what the caller meant.
+        if ($privileges === []) {
+            throw new InvalidArgumentException("Name at least one privilege to grant {$user} on {$database}, or use revoke() to remove them.");
+        }
+
         return $this->user->api()->mysql()->setPrivilegesOnDatabase(
             database: $database,
             user: $user,
-            privileges: implode(',', array_map(static fn (string $privilege): string => mb_strtoupper(trim($privilege)), $privileges)),
+            privileges: implode(',', $privileges),
         );
     }
 
