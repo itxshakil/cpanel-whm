@@ -8,3 +8,6 @@ updates:
     groups:
       github-actions:
         patterns: ["*"]
+    # "ci:" titles get the "type: ci" label from the release-drafter autolabeler.
+    commit-message:
+      prefix: ci

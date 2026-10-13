@@ -1,51 +1,57 @@
 name-template: "v$RESOLVED_VERSION"
 tag-template: "v$RESOLVED_VERSION"
 
+# The version and the section come from "type: …" labels, which the autolabeler
+# sets from the PR title's Conventional Commit prefix. The area labels from
+# labeler.yml (client, modules, tests, documentation, …) say where a change is,
+# not what it is: a bug fix touches src/ and tests/ too.
+sync-labels: true
+autolabeler:
+    - labels: [breaking-change]
+      title: ['/^[a-z]+(\(.+\))?!:/']
+    - labels: ["type: feature"]
+      stop-on-match: true
+      title: ['/^feat(\(.+\))?!?:/']
+    - labels: ["type: fix"]
+      stop-on-match: true
+      title: ['/^fix(\(.+\))?!?:/']
+    - labels: ["type: docs"]
+      stop-on-match: true
+      title: ['/^docs(\(.+\))?!?:/']
+    - labels: ["type: test"]
+      stop-on-match: true
+      title: ['/^test(\(.+\))?!?:/']
+    - labels: ["type: ci"]
+      stop-on-match: true
+      title: ['/^(ci|build)(\(.+\))?!?:/']
+    - labels: ["type: chore"]
+      stop-on-match: true
+      title: ['/^(chore|refactor|perf|style|deps)(\(.+\))?!?:/']
+
 version-resolver:
     major:
         labels:
             - breaking-change
     minor:
         labels:
-            - feature
-            - client
-            - modules
-            - console
-            - testing
-            - config
-            - events
-    patch:
-        labels:
-            - bug
-            - fix
-            - dependencies
-            - docs
-            - documentation
-            - ci
-            - tooling
-            - tests
-            - meta
+            - "type: feature"
     default: patch
 
 categories:
-    - title: "🚀 New Features"
-      labels: [feature, client, console, testing, config, events]
-    - title: "🧩 WHM functions"
-      labels: [modules]
-    - title: "🐛 Bug Fixes"
-      labels: [bug, fix]
-    - title: "🧪 Tests"
-      labels: [tests]
-    - title: "🔧 CI / Tooling"
-      labels: [ci, tooling]
-    - title: "⬆️ Dependencies"
-      labels: [dependencies]
-    - title: "📚 Documentation"
-      labels: [docs, documentation]
-    - title: "🧹 Maintenance"
-      labels: [meta]
     - title: "⚠️ Breaking Changes"
       labels: [breaking-change]
+    - title: "🚀 New Features"
+      labels: ["type: feature"]
+    - title: "🐛 Bug Fixes"
+      labels: ["type: fix"]
+    - title: "📚 Documentation"
+      labels: ["type: docs"]
+    - title: "🧪 Tests"
+      labels: ["type: test"]
+    - title: "🔧 CI / Tooling"
+      labels: ["type: ci"]
+    - title: "🧹 Maintenance"
+      labels: ["type: chore"]
 
 change-template: "- $TITLE (#$NUMBER) @$AUTHOR"
 
@@ -54,6 +60,6 @@ template: |
 
     $CHANGES
 
-exclude:
-    labels:
-        - skip-changelog
+# Release Drafter's key is exclude-labels; it ignores an "exclude:" block.
+exclude-labels:
+    - skip-changelog

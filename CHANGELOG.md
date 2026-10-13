@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Release drafts take the version and the section from the PR title's Conventional Commit type (`feat:`, `fix:`, `docs:`, ...), via `type: …` labels set automatically, instead of from area labels. `skip-changelog` now actually excludes a PR.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
