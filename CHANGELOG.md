@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Requires Laravel 12.69+ or 13.30+, the lowest versions CI can install (Composer skips releases with security advisories), so every allowed version is tested.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

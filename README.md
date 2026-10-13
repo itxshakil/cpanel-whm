@@ -56,7 +56,7 @@ Most WHM clients for PHP were written for Laravel 5, log in with a password or t
 ## Requirements
 
 - PHP 8.3 or newer
-- Laravel 12 or 13
+- Laravel 12.69+ or 13.30+
 - cPanel & WHM with an API token (WHM › Development › Manage API Tokens)
 
 ## Installation
