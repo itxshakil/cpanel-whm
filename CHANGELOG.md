@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `Resellers::setLimits()` can turn account and resource limits off again with `limitAccounts: false` and `limitResources: false`.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
