@@ -66,6 +66,7 @@ All notable changes to this project are documented here. The format follows
 - `AccountUsage::isNearLimit()` (and `Usage::nearLimit()`, `whm:usage`) never reports an account whose disk and bandwidth are both unlimited, even at a threshold of 0 or below.
 - `whm:record` refuses a `--name` with a path in it and an absolute or `..` `--path`, before calling WHM, so a fixture can't overwrite files outside the fixtures directory.
 - `UserEmail::list()` asks UAPI for mailbox restrictions (`get_restrictions=1`), so `EmailAccount`'s suspension flags reflect the server instead of always being false.
+- `whm:usage` formats sizes itself instead of with `Number::fileSize()`, which needs ext-intl; it no longer crashes on hosts without it.
 
 ## [0.3.0] - 2026-10-08
 
