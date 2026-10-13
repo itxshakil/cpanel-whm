@@ -28,6 +28,20 @@ abstract class WhmGroup
      */
     protected function invoke(string $function, array $params, array $extra = [], HttpMethod $method = HttpMethod::Get): WhmResponse
     {
-        return $this->client->call($function, [...$params, ...$extra], $method);
+        return $this->client->call($function, self::merge($params, $extra), $method);
+    }
+
+    /**
+     * $extra adds what has no typed argument (a newer spec parameter, a wildcard
+     * like copymysqldb-*). It never replaces a typed argument the caller gave;
+     * one left as null may still be set through $extra.
+     *
+     * @param  array<string, mixed>  $params
+     * @param  array<string, mixed>  $extra
+     * @return array<string, mixed>
+     */
+    public static function merge(array $params, array $extra): array
+    {
+        return [...$extra, ...array_filter($params, static fn (mixed $value): bool => $value !== null)];
     }
 }
