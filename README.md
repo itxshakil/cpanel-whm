@@ -299,7 +299,7 @@ The modules dispatch `AccountCreated`, `AccountRemoved`, `AccountSuspended`, `Ac
 
 Read-only calls are retried after a connection error or HTTP 5xx, and `Whm::cache(300)->packages()->list()` caches them. Calls that change something are never retried or cached.
 
-Set `WHM_LOG_CHANNEL=stack` to log every call: function, connection, duration and outcome. Parameters are redacted (passwords, tokens and login URLs never reach the log). `WhmRequestSending`, `WhmResponseReceived` and `WhmRequestFailed` fire for every call, with secrets already masked.
+Set `WHM_LOG_CHANNEL=stack` to log every call: function, connection, duration and outcome. Parameters are redacted (passwords, tokens and login URLs never reach the log). Add `WHM_LOG_RESPONSES=true` to log WHM's redacted answers too, and set `log_levels` to choose the level per outcome. `WhmRequestSending`, `WhmResponseReceived` and `WhmRequestFailed` fire for every call, with secrets already masked.
 
 With spatie/laravel-health, add `WhmCheck::new()->failWhenTokenExpiresWithin(7)` to your checks.
 
