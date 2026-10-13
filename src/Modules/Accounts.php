@@ -18,6 +18,7 @@ use Itxshakil\CpanelWhm\Events\AccountRemoved;
 use Itxshakil\CpanelWhm\Exceptions\AccountNotFound;
 use Itxshakil\CpanelWhm\Exceptions\InvalidUsername;
 use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
+use Itxshakil\CpanelWhm\Exceptions\WhmConnectionFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
 use Itxshakil\CpanelWhm\Support\Filter;
@@ -64,6 +65,53 @@ class Accounts extends Module
         $this->client->dispatch(new AccountCreated($this->client->config()->name, $created->withoutPassword()));
 
         return $created;
+    }
+
+    /**
+     * create(), made safe to call from a job that may time out. createacct can
+     * take minutes; when the connection drops after the request was sent
+     * (WhmConnectionFailed::mayHaveReachedServer()), WHM may have created the
+     * account anyway. In that case the account is looked up: if it exists with
+     * the requested domain it is returned with $recovered = true and the
+     * password the request carried, and AccountCreated fires as usual.
+     *
+     * The original WhmConnectionFailed is rethrown when nothing could have
+     * reached WHM, when no account was found (a retry is safe), or when the
+     * name belongs to an account with another domain.
+     *
+     * @throws InvalidUsername
+     * @throws WhmException
+     */
+    public function createOrRecover(NewAccount $account): CreatedAccount
+    {
+        // The password must be known before sending, so a recovered account can hand it back.
+        $password = $account->givenPassword() ?? Passwords::generate();
+        $account = $account->withPassword($password);
+
+        try {
+            return $this->create($account);
+        } catch (WhmConnectionFailed $whmConnectionFailed) {
+            if (! $whmConnectionFailed->mayHaveReachedServer()) {
+                throw $whmConnectionFailed;
+            }
+
+            $params = $account->toParams();
+            $username = is_string($params['username'] ?? null) ? $params['username'] : '';
+            $domain = is_string($params['domain'] ?? null) ? $params['domain'] : null;
+
+            // Uncached: a cached "no such account" from before the call would hide the new one.
+            $existing = $this->client->withoutCache()->accounts()->find($username);
+
+            if (! $existing instanceof Account || ($domain !== null && mb_strtolower($existing->domain) !== $domain)) {
+                throw $whmConnectionFailed;
+            }
+
+            $created = CreatedAccount::recovered($existing, $password);
+
+            $this->client->dispatch(new AccountCreated($this->client->config()->name, $created->withoutPassword()));
+
+            return $created;
+        }
     }
 
     /**

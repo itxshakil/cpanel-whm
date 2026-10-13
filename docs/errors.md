@@ -12,6 +12,7 @@ try {
 } catch (WhmConnectionFailed $e) {
     // $e->mayHaveReachedServer(): WHM stopped answering after the call was sent,
     // so check whether the account exists before creating it again.
+    // Accounts::createOrRecover() does that check for you.
 } catch (WhmException $e) {
     report($e);
 }

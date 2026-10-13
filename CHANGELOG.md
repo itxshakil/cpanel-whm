@@ -8,6 +8,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 - `AccountNotFound` (extends `WhmCommandFailed`): thrown by every call when WHM says the named account doesn't exist, including the "You do not have a user named …" wording of `suspendacct`, `modifyacct` and `removeacct`. `Whm::accountNotFound()` fakes it.
+- `Accounts::createOrRecover()`: like `create()`, but after a timeout that may have reached WHM it looks the account up and returns it (`CreatedAccount::$recovered`), with the password the request carried, when it exists with the requested domain.
 
 ## [0.3.0] - 2026-10-08
 
