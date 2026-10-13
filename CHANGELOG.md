@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `Whm::build(array $config, string $name = 'runtime')`: a client for a server that isn't in config (for example, one read from a database), validated like a configured connection and covered by `Whm::fake()`.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

@@ -30,6 +30,22 @@ Publish the config with `php artisan vendor:publish --tag=cpanel-whm-config` (or
 
 Add more servers as more entries and pick one with `Whm::connection('name')` or `--connection=name`.
 
+### Servers stored elsewhere
+
+When servers live in a database table rather than in config, build a client from the same keys:
+
+```php
+$client = Whm::build([
+    'host' => $server->host,
+    'user' => $server->whm_user,
+    'token' => decrypt($server->whm_token),
+], name: "server-{$server->id}");
+
+$client->accounts()->list();
+```
+
+The array is validated like a configured connection, and the client gets the same events, cache, retries and `Whm::fake()` support. `name` shows up in events, logs and cache keys, so give each server its own. Built clients aren't remembered; build one when you need it, or keep it for the request.
+
 ## Creating the token
 
 In WHM: **Development › Manage API Tokens › Generate Token**. Give it only the privileges your app needs, and set an expiry. Copy it immediately: WHM will not show it again. Expired tokens are not deleted automatically.

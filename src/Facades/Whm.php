@@ -13,6 +13,7 @@ use Itxshakil\CpanelWhm\WhmManager;
 
 /**
  * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient connection(?string $name = null)
+ * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient build(array<string, mixed> $config, string $name = 'runtime')
  * @method static \Itxshakil\CpanelWhm\WhmResponse call(string $function, array<string, mixed> $params = [], ?\Itxshakil\CpanelWhm\Enums\HttpMethod $method = null, ?int $timeout = null)
  * @method static \Itxshakil\CpanelWhm\WhmBatch batch()
  * @method static \Itxshakil\CpanelWhm\Modules\Accounts accounts()
