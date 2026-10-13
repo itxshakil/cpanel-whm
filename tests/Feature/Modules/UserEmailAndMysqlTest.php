@@ -163,6 +163,23 @@ final class UserEmailAndMysqlTest extends TestCase
     }
 
     #[Test]
+    public function an_empty_grant_is_refused(): void
+    {
+        $fake = Whm::fake();
+
+        foreach ([[], [' ', '']] as $privileges) {
+            try {
+                Whm::asUser('acme')->mysql()->grant('acme_app', 'acme_shop', $privileges);
+                self::fail('Expected InvalidArgumentException');
+            } catch (InvalidArgumentException $invalidArgumentException) {
+                self::assertStringContainsString('revoke()', $invalidArgumentException->getMessage());
+            }
+        }
+
+        $fake->assertNothingSent();
+    }
+
+    #[Test]
     public function databases_users_and_grants_are_managed(): void
     {
         $fake = Whm::fake(['uapi_cpanel' => Whm::uapi()]);
