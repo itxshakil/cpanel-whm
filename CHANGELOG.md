@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `whm:doctor` has a new `API` check before `Auth`. Timeouts, HTTP errors and non-JSON answers fail `API`; only a rejected token or a missing privilege fails `Auth`.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
