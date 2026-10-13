@@ -8,6 +8,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
+use Itxshakil\CpanelWhm\Data\NewAccount;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Events\WhmRequestFailed;
 use Itxshakil\CpanelWhm\Events\WhmRequestSending;
@@ -20,6 +21,7 @@ use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
 use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Tests\Fixtures\Responses;
 use Itxshakil\CpanelWhm\Tests\TestCase;
+use Itxshakil\CpanelWhm\WhmRequest;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -151,6 +153,34 @@ final class HttpTransportTest extends TestCase
         Whm::server()->version();
 
         Http::assertSentCount(1);
+    }
+
+    #[Test]
+    public function a_client_copy_can_use_shorter_timeouts(): void
+    {
+        $sent = [];
+        Http::fake(static function (Request $request, array $options) use (&$sent) {
+            $sent[] = [$options['timeout'] ?? null, $options['connect_timeout'] ?? null];
+
+            return Http::response(Responses::envelope(['version' => '11.134.0.5']));
+        });
+
+        Whm::timeout(5, connect: 2)->server()->version();
+        Whm::timeout(5, connect: 2)->call('version', timeout: 9);
+        Whm::server()->version();
+
+        // The copy's timeouts, a per-call timeout winning over them, and the original client untouched.
+        self::assertSame([[5, 2], [9, 2], [30, 10]], $sent);
+    }
+
+    #[Test]
+    public function createacct_keeps_its_long_timeout_on_a_short_timeout_client(): void
+    {
+        $fake = Whm::fake(['createacct' => Whm::response(['user' => 'acme'])]);
+
+        Whm::timeout(5)->accounts()->create(new NewAccount(username: 'acme', domain: 'acme.example', password: 'S3cure!pass'));
+
+        $fake->assertCalled('createacct', static fn (array $params, WhmRequest $request): bool => $request->timeout === 120);
     }
 
     #[Test]

@@ -109,6 +109,17 @@ final readonly class ConnectionConfig
     }
 
     /**
+     * The same connection with other timeouts, in seconds (at least 1).
+     */
+    public function withTimeouts(int $timeout, ?int $connectTimeout = null): self
+    {
+        return new self(
+            $this->name, $this->scheme, $this->host, $this->port, $this->user, $this->token,
+            $this->verifyTls, max(1, $timeout), max(1, $connectTimeout ?? $this->connectTimeout), $this->retries, $this->retryDelayMs,
+        );
+    }
+
+    /**
      * The same connection with no retries: one attempt per call.
      */
     public function withoutRetries(): self

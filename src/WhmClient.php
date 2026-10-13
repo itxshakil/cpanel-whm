@@ -137,6 +137,11 @@ final class WhmClient implements WhmClientContract
         return new self($this->config->withoutRetries(), $this->transport, $this->events, $this->cache, $this->cacheTtl, $this->cacheStore, $this->cachePrefix);
     }
 
+    public function timeout(int $seconds, ?int $connect = null): static
+    {
+        return new self($this->config->withTimeouts($seconds, $connect), $this->transport, $this->events, $this->cache, $this->cacheTtl, $this->cacheStore, $this->cachePrefix);
+    }
+
     public function dispatch(object $event): void
     {
         $this->events?->dispatch($event);
