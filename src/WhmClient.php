@@ -7,12 +7,11 @@ namespace Itxshakil\CpanelWhm;
 use DateInterval;
 use DateTimeInterface;
 use Illuminate\Contracts\Cache\Factory as CacheFactory;
+use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Contracts\Events\Dispatcher;
 use Itxshakil\CpanelWhm\Api\WhmApi;
 use Itxshakil\CpanelWhm\Contracts\Transport;
 use Itxshakil\CpanelWhm\Contracts\WhmClient as WhmClientContract;
-use Itxshakil\CpanelWhm\Data\UapiResult;
-use Itxshakil\CpanelWhm\Data\Value;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Events\WhmRequestFailed;
 use Itxshakil\CpanelWhm\Events\WhmRequestSending;
@@ -29,6 +28,7 @@ use Itxshakil\CpanelWhm\Modules\Backups;
 use Itxshakil\CpanelWhm\Modules\CpanelUser;
 use Itxshakil\CpanelWhm\Modules\Dns;
 use Itxshakil\CpanelWhm\Modules\Domains;
+use Itxshakil\CpanelWhm\Modules\FeatureLists;
 use Itxshakil\CpanelWhm\Modules\Packages;
 use Itxshakil\CpanelWhm\Modules\Quotas;
 use Itxshakil\CpanelWhm\Modules\Resellers;
@@ -82,11 +82,11 @@ final class WhmClient implements WhmClientContract
         $readOnly = FunctionCatalog::isReadOnly($function);
 
         if ($readOnly && $this->cacheTtl !== null && $this->cache instanceof CacheFactory && ! in_array($function, self::NEVER_CACHED, true)) {
-            // The server and user are part of the key, so two apps or tenants that
-            // reuse a connection name never read each other's answers.
-            $server = hash('xxh128', $this->config->baseUrl().'|'.$this->config->user);
-            $key = $this->cachePrefix.':'.$this->config->name.':'.$server.':'.$function.':'.hash('xxh128', serialize($params));
             $store = $this->cache->store($this->cacheStore);
+            // Sorted, so the same call with its parameters in another order hits the same entry.
+            $sorted = $params;
+            ksort($sorted);
+            $key = $this->cacheKeyPrefix($store).':'.$function.':'.hash('xxh128', serialize($sorted));
             $cached = $store->get($key);
 
             if ($cached instanceof WhmResponse) {
@@ -99,7 +99,25 @@ final class WhmClient implements WhmClientContract
             return $response;
         }
 
-        return $this->send($function, $params, $method, $timeout, $readOnly);
+        $response = $this->send($function, $params, $method, $timeout, $readOnly);
+
+        // A change makes this server's cached reads stale (a new account, a suspension, ...).
+        if (! $readOnly) {
+            $this->flushCache();
+        }
+
+        return $response;
+    }
+
+    public function flushCache(): void
+    {
+        if (! $this->cache instanceof CacheFactory) {
+            return;
+        }
+
+        // Bumping a generation number drops every cached read for this server at
+        // once, on any cache store, without knowing the keys.
+        $this->cache->store($this->cacheStore)->increment($this->generationKey());
     }
 
     public function cache(int|DateInterval|DateTimeInterface $ttl, ?string $store = null): static
@@ -121,6 +139,11 @@ final class WhmClient implements WhmClientContract
     public function withoutRetries(): static
     {
         return new self($this->config->withoutRetries(), $this->transport, $this->events, $this->cache, $this->cacheTtl, $this->cacheStore, $this->cachePrefix);
+    }
+
+    public function timeout(int $seconds, ?int $connect = null): static
+    {
+        return new self($this->config->withTimeouts($seconds, $connect), $this->transport, $this->events, $this->cache, $this->cacheTtl, $this->cacheStore, $this->cachePrefix);
     }
 
     public function dispatch(object $event): void
@@ -193,6 +216,11 @@ final class WhmClient implements WhmClientContract
         return $this->module(Tokens::class);
     }
 
+    public function featureLists(): FeatureLists
+    {
+        return $this->module(FeatureLists::class);
+    }
+
     public function transfers(): Transfers
     {
         return $this->module(Transfers::class);
@@ -216,6 +244,28 @@ final class WhmClient implements WhmClientContract
     public function config(): ConnectionConfig
     {
         return $this->config;
+    }
+
+    /**
+     * The server and user are part of the key, so two apps or tenants that
+     * reuse a connection name never read each other's answers. The generation
+     * changes on every flushCache().
+     */
+    private function cacheKeyPrefix(Repository $store): string
+    {
+        $generation = $store->get($this->generationKey());
+
+        return $this->cachePrefix.':'.$this->config->name.':'.$this->serverHash().':g'.(is_int($generation) ? $generation : 0);
+    }
+
+    private function generationKey(): string
+    {
+        return $this->cachePrefix.':'.$this->config->name.':'.$this->serverHash().':generation';
+    }
+
+    private function serverHash(): string
+    {
+        return hash('xxh128', $this->config->baseUrl().'|'.$this->config->user);
     }
 
     /**
@@ -246,12 +296,20 @@ final class WhmClient implements WhmClientContract
         $attempts = $readOnly ? 1 + $this->config->retries : 1;
 
         for ($attempt = 1; ; $attempt++) {
-            try {
-                return $this->attempt(new WhmRequest($this->config->name, $function, $params, $method, $timeout));
-            } catch (WhmConnectionFailed|WhmHttpError $exception) {
-                $retryable = $exception instanceof WhmConnectionFailed || $exception->status() >= 500;
+            $request = new WhmRequest($this->config->name, $function, $params, $method, $timeout);
 
+            try {
+                return $this->attempt($request);
+            } catch (WhmException $exception) {
+                $retryable = $exception instanceof WhmConnectionFailed
+                    || ($exception instanceof WhmHttpError && $exception->status() >= 500);
+
+                // WhmRequestFailed is for the failure the caller gets, not for an
+                // attempt a retry is about to make up for: listeners and the
+                // request log would otherwise report reads that succeeded.
                 if (! $retryable || $attempt >= $attempts) {
+                    $this->events?->dispatch(new WhmRequestFailed($request->redacted(), $exception));
+
                     throw $exception;
                 }
 
@@ -271,14 +329,8 @@ final class WhmClient implements WhmClientContract
         // listeners and logs, none of which may see a password or a new token.
         $this->events?->dispatch(new WhmRequestSending($request->redacted()));
 
-        try {
-            $raw = $this->transport->send($this->config, $request);
-            $response = $this->interpret($request, $raw);
-        } catch (WhmException $whmException) {
-            $this->events?->dispatch(new WhmRequestFailed($request->redacted(), $whmException));
-
-            throw $whmException;
-        }
+        $raw = $this->transport->send($this->config, $request);
+        $response = $this->interpret($request, $raw);
 
         $this->events?->dispatch(new WhmResponseReceived($request->redacted(), $response->redacted(), $raw->durationMs));
 
@@ -307,7 +359,12 @@ final class WhmClient implements WhmClientContract
 
         $response = WhmResponse::fromArray($json, $raw->status);
 
-        if ($response->failed()) {
+        // WHM marks a whole batch failed when one of its commands failed, but
+        // still answers every command. That is a batch that ran: its failures
+        // belong to BatchResults, not to a failed request.
+        $isBatchWithResults = $request->function === 'batch' && is_array($response->get('result'));
+
+        if ($response->failed() && ! $isBatchWithResults) {
             throw WhmCommandFailed::classify($request->function, $response);
         }
 
@@ -317,45 +374,17 @@ final class WhmClient implements WhmClientContract
     }
 
     /**
-     * uapi_cpanel and cpanel run a cPanel function inside a WHM call. WHM
-     * reports success when it ran the function, even if the function itself
-     * failed, so that inner status is checked here for every caller.
+     * The inner cPanel function of uapi_cpanel and cpanel is checked for every
+     * caller, including raw Whm::call().
      *
      * @throws UapiCallFailed
      */
     private function guardInnerCall(WhmRequest $request, WhmResponse $response): void
     {
-        [$moduleKey, $functionKey, $candidates] = match ($request->function) {
-            'uapi_cpanel' => ['cpanel.module', 'cpanel.function', ['uapi']],
-            // UAPI answers under result, cPanel API 2 under cpanelresult (event.result).
-            'cpanel' => ['cpanel_jsonapi_module', 'cpanel_jsonapi_func', ['uapi', 'result', 'cpanelresult']],
-            default => [null, null, []],
-        };
+        $failure = UapiCallFailed::fromInnerCall($request->function, $request->params, $response);
 
-        foreach ($candidates as $path) {
-            $inner = $response->get($path);
-
-            if (! is_array($inner)) {
-                continue;
-            }
-
-            $status = $inner['status'] ?? data_get($inner, 'event.result');
-
-            if ($status === null || Value::bool($status)) {
-                continue;
-            }
-
-            $result = UapiResult::fromArray($inner);
-
-            if ($result->errors === [] && is_string($inner['error'] ?? null) && $inner['error'] !== '') {
-                $result = new UapiResult(false, $result->data, [$inner['error']], $result->warnings, $result->messages, $result->metadata);
-            }
-
-            throw new UapiCallFailed(
-                Value::string($request->params[$moduleKey] ?? null) ?? '',
-                Value::string($request->params[$functionKey] ?? null) ?? '',
-                $result,
-            );
+        if ($failure instanceof UapiCallFailed) {
+            throw $failure;
         }
     }
 
