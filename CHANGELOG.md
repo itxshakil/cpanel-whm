@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `UserEmail::list()` asks UAPI for mailbox restrictions (`get_restrictions=1`), so `EmailAccount`'s suspension flags reflect the server instead of always being false.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

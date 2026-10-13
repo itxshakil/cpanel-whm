@@ -34,7 +34,9 @@ class UserEmail extends UserModule
      */
     public function list(?string $domain = null): Collection
     {
-        $rows = self::rows($this->user->api()->email()->listPopsWithDisk(domain: $domain)->data);
+        // Without get_restrictions, UAPI leaves out the suspended_* and hold_outgoing
+        // fields, and every mailbox would read as not suspended.
+        $rows = self::rows($this->user->api()->email()->listPopsWithDisk(domain: $domain, getRestrictions: 1)->data);
 
         return collect($rows)
             ->reject(static fn (array $row): bool => ($row['email'] ?? null) === 'Main Account')
