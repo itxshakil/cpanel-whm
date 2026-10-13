@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `DnsRecord::txt()` splits long text into strings of at most 255 bytes, the DNS limit, instead of 255 characters, and never cuts a multibyte character in half.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

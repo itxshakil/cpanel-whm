@@ -134,7 +134,7 @@ Whm::dns()->delete('acme.example');                    // killdns
 
 Record changes go through `mass_edit_dns_zone` with the zone's SOA serial. Without one, the module reads the zone first; pass `serial:` to `edit()` to make "edit what I last read" explicit: if someone changed the zone in between, WHM refuses instead of overwriting. Each method returns the new serial and dispatches `DnsZoneChanged`.
 
-Factories: `a`, `aaaa`, `cname`, `mx`, `ns`, `txt` (split into 255-character strings), `srv`, `caa`. Records read from `zone()` carry the `lineIndex` that `update()` and `remove()` need.
+Factories: `a`, `aaaa`, `cname`, `mx`, `ns`, `txt` (split into strings of at most 255 bytes, never inside a multibyte character), `srv`, `caa`. Records read from `zone()` carry the `lineIndex` that `update()` and `remove()` need.
 
 ## Domains
 
