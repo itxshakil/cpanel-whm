@@ -18,7 +18,8 @@ Checks a connection in order and stops at the first failure:
 | DNS | the host resolves (skipped for an IP) | fix the hostname |
 | Network | a TCP connection to the port opens | open the port in the server firewall; check cPHulk |
 | TLS | the certificate is trusted (warns when it expires within 14 days, or when verification is off) | install a valid certificate, or `WHM_VERIFY_TLS=false` for an IP |
-| Auth | `version` succeeds with the token | create a new token; check `WHM_USER` |
+| API | WHM answers `version` with JSON (no timeout, HTTP 5xx or proxy page) | check the host and port; look at WHM's error log |
+| Auth | WHM accepts the token for `version` | create a new token; check `WHM_USER` |
 | Privileges | the token has `all`, or every `doctor.required_privileges` entry | grant them in the token's ACL |
 | Functions | every `doctor.required_functions` entry is in `applist` | update cPanel & WHM |
 | Version | the server is at least `doctor.minimum_version` (warning only) | update the server |
@@ -57,7 +58,7 @@ php artisan whm:suspend acme --reason="Unpaid invoice #1042" --lock
 php artisan whm:unsuspend acme
 ```
 
-`whm:suspend` asks first unless you pass `--force`.
+Both ask first (the default answer is no) unless you pass `--force`. Without a terminal (cron, CI, `-n`) they refuse unless `--force` is given, so nothing is suspended or unsuspended because nobody was there to answer.
 
 ## whm:packages
 
