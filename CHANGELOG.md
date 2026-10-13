@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Docs: coverage claims say that functions taking a JSON body or a file upload may not be callable by name, `coverage.md` points UAPI functions at `asUser()->uapi()`, and the DNS examples check `first()` for null.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

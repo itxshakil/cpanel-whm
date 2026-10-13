@@ -173,7 +173,11 @@ Whm::asUser('acme')->mysql()->grant('acme_app', 'acme_shop');
 use Itxshakil\CpanelWhm\Data\DnsRecord;
 
 Whm::dns()->add('acme.example', DnsRecord::a('shop', '203.0.113.20'), DnsRecord::txt('@', 'v=spf1 -all'));
-Whm::dns()->update('acme.example', Whm::dns()->zone('acme.example')->first('www', 'A')->withData('203.0.113.30'));
+$www = Whm::dns()->zone('acme.example')->first('www', 'A');   // null when there's no such record
+
+if ($www !== null) {
+    Whm::dns()->update('acme.example', $www->withData('203.0.113.30'));
+}
 
 Whm::domains()->createSubdomain('blog.acme.example', 'public_html/blog');
 Whm::domains()->owner('acme.example');                         // "acme"
