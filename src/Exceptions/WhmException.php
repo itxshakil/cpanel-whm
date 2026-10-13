@@ -20,4 +20,13 @@ abstract class WhmException extends RuntimeException
     {
         return null;
     }
+
+    /**
+     * A copy that is safe to hand to event listeners and logs. Exceptions that
+     * carry no WHM output return themselves; the others mask secrets in it.
+     */
+    public function redacted(): static
+    {
+        return $this;
+    }
 }

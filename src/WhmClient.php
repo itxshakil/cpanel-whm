@@ -346,7 +346,8 @@ final class WhmClient implements WhmClientContract
                 // attempt a retry is about to make up for: listeners and the
                 // request log would otherwise report reads that succeeded.
                 if (! $retryable || $attempt >= $attempts) {
-                    $this->events?->dispatch(new WhmRequestFailed($request->redacted(), $exception));
+                    // A failed batch carries the other commands' results, new tokens included.
+                    $this->events?->dispatch(new WhmRequestFailed($request->redacted(), $exception->redacted()));
 
                     throw $exception;
                 }

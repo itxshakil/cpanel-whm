@@ -97,4 +97,9 @@ final class UapiCallFailed extends WhmException
     {
         return $this->result;
     }
+
+    public function redacted(): static
+    {
+        return new self($this->module, $this->function, $this->result->redacted());
+    }
 }

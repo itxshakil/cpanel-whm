@@ -17,6 +17,8 @@ use Itxshakil\CpanelWhm\Events\WhmRequestFailed;
 use Itxshakil\CpanelWhm\Events\WhmRequestSending;
 use Itxshakil\CpanelWhm\Events\WhmResponseReceived;
 use Itxshakil\CpanelWhm\Exceptions\TransportFailure;
+use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
+use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmConnectionFailed;
 use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Tests\Fixtures\Responses;
@@ -151,6 +153,61 @@ final class SecretHandlingTest extends TestCase
             .print_r($stored, true);
 
         self::assertStringNotContainsString('s3cret-Generated!', $serialized);
+    }
+
+    #[Test]
+    public function a_failed_batch_does_not_leak_the_secrets_its_other_commands_returned(): void
+    {
+        Event::fake([WhmRequestFailed::class]);
+        Http::fake(['*' => Http::response(Responses::envelope(['result' => [
+            Responses::envelope(['token' => 'NEW-TOKEN-VALUE'], command: 'api_token_create'),
+            Responses::envelope(['url' => 'https://server.example.com:2083/cpsess1234567890/login/?session=acme:SESSION-ID'], command: 'create_user_session'),
+            Responses::envelope(null, result: 0, reason: 'nope', command: 'removeacct'),
+        ]], result: 0, reason: 'One or more commands failed.', command: 'batch'))]);
+
+        $results = Whm::batch()
+            ->add('api_token_create', ['token_name' => 'ci'])
+            ->add('create_user_session', ['user' => 'acme', 'service' => 'cpaneld'])
+            ->add('removeacct', ['user' => 'ghost'])
+            ->send();
+
+        // The caller still gets the real values.
+        self::assertSame('NEW-TOKEN-VALUE', $results[0]->get('token'));
+
+        Event::assertDispatched(WhmRequestFailed::class, static function (WhmRequestFailed $event): bool {
+            if (! $event->exception instanceof WhmCommandFailed) {
+                return false;
+            }
+
+            $serialized = print_r($event->exception->response(), true);
+
+            return ! str_contains($serialized, 'NEW-TOKEN-VALUE') && ! str_contains($serialized, 'SESSION-ID') && ! str_contains($serialized, '1234567890');
+        });
+    }
+
+    #[Test]
+    public function a_failed_uapi_call_reaches_events_with_its_data_redacted(): void
+    {
+        Event::fake([WhmRequestFailed::class]);
+        Http::fake(['*' => Http::response(Responses::envelope(['uapi' => [
+            'status' => 0,
+            'errors' => ['nope'],
+            'data' => ['password' => 'hunter2'],
+        ]], command: 'uapi_cpanel'))]);
+
+        $exception = null;
+
+        try {
+            Whm::asUser('acme')->uapi('Email', 'add_pop', ['email' => 'info']);
+        } catch (UapiCallFailed $uapiCallFailed) {
+            $exception = $uapiCallFailed;
+        }
+
+        self::assertInstanceOf(UapiCallFailed::class, $exception);
+        self::assertSame(['password' => 'hunter2'], $exception->result()->data);
+
+        Event::assertDispatched(WhmRequestFailed::class, static fn (WhmRequestFailed $event): bool => $event->exception instanceof UapiCallFailed
+            && $event->exception->result()->data === ['password' => '[REDACTED]']);
     }
 
     #[Test]

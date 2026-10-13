@@ -46,6 +46,15 @@ class WhmCommandFailed extends WhmException
     }
 
     /**
+     * A failed batch carries every command's result, including ones that
+     * succeeded and returned a new token or a login URL.
+     */
+    public function redacted(): static
+    {
+        return new static($this->function, $this->reason, $this->response->redacted());
+    }
+
+    /**
      * WhmPermissionDenied when the reason says the token lacks a privilege,
      * AccountNotFound when it says the account doesn't exist, WhmCommandFailed
      * otherwise.

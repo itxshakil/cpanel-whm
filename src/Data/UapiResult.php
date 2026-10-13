@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Itxshakil\CpanelWhm\Data;
 
+use Itxshakil\CpanelWhm\Support\Redactor;
+
 /**
  * A UAPI function's own envelope, unwrapped from uapi_cpanel's data.uapi.
  */
@@ -36,6 +38,22 @@ final readonly class UapiResult
             warnings: Value::strings($uapi['warnings'] ?? null),
             messages: Value::strings($uapi['messages'] ?? null),
             metadata: is_array($uapi['metadata'] ?? null) ? $uapi['metadata'] : [],
+        );
+    }
+
+    public function redacted(): self
+    {
+        return new self(
+            $this->successful,
+            match (true) {
+                is_array($this->data) => Redactor::redact($this->data),
+                is_string($this->data) => Redactor::redactString($this->data),
+                default => $this->data,
+            },
+            $this->errors,
+            $this->warnings,
+            $this->messages,
+            Redactor::redact($this->metadata),
         );
     }
 
