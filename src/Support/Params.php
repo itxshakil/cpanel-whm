@@ -31,10 +31,12 @@ final class Params
             }
 
             if (is_array($value) && array_is_list($value)) {
-                foreach ($value as $index => $item) {
-                    if ($item !== null) {
-                        $out[$index === 0 ? $key : $key.'-'.$index] = self::scalar($item);
-                    }
+                // Nulls are dropped before numbering: WHM reads name, name-1, name-2
+                // in sequence, so a gap would hide everything after it.
+                $items = array_values(array_filter($value, static fn (mixed $item): bool => $item !== null));
+
+                foreach ($items as $index => $item) {
+                    $out[$index === 0 ? $key : $key.'-'.$index] = self::scalar($item);
                 }
 
                 continue;

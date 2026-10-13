@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- A null inside a list parameter no longer leaves a gap in WHM's repeated parameters (`name`, `name-1`, …), which could hide the values after it.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
