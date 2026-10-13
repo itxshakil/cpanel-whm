@@ -99,6 +99,14 @@ final class Whm extends Facade
     }
 
     /**
+     * A read timeout after the call was sent: mayHaveReachedServer() is true.
+     */
+    public static function timedOutAfterSending(int $seconds = 30): FakeConnectionFailure
+    {
+        return WhmFake::timedOutAfterSending($seconds);
+    }
+
+    /**
      * @param  list<string>  $warnings
      * @param  list<string>  $messages
      */

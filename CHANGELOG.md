@@ -15,6 +15,8 @@ All notable changes to this project are documented here. The format follows
 - `WhmClient::timeout(int $seconds, ?int $connect = null)` (and `Whm::timeout()`): a copy of the client with other timeouts, for status pages and health checks. `ConnectionConfig::withTimeouts()` backs it. The `WhmClient` contract gains `timeout()`.
 - `ca_bundle` (`WHM_CA_BUNDLE`): verify WHM's certificate against your own CA file instead of turning verification off.
 - `pinned_public_key` (`WHM_PINNED_PUBLIC_KEY`): calls fail unless the certificate's public key matches, even with `verify_tls` off. `whm:doctor` checks the pin and prints the server's.
+- `Whm::timedOutAfterSending()`: fakes a read timeout after the call was sent, so `mayHaveReachedServer()` paths can be tested without a magic cURL string.
+- `WhmFake::assertUapiCalled()` and `assertUapiNotCalled()`: assert UAPI calls by account, module and function.
 
 ### Changed
 - Parameters: backed enums are sent as their value and `Stringable` objects as their string. A nested array, a date or any other object throws `InvalidArgumentException` before anything is sent, instead of reaching WHM as `name[key]=…` and being ignored.
