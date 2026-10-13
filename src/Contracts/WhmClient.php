@@ -71,6 +71,14 @@ interface WhmClient
     public function withoutRetries(): static;
 
     /**
+     * A copy of this client that sends every call with one HTTP method, for
+     * proxies or WAF rules that expect it. Calls carrying a secret are still
+     * sent as POST, so a forced GET never puts one in a URL. Retries and
+     * caching still follow whether the function is read-only, not the method.
+     */
+    public function withHttpMethod(HttpMethod $method): static;
+
+    /**
      * Dispatch one of the package's events (AccountCreated, ...) through Laravel.
      */
     public function dispatch(object $event): void;

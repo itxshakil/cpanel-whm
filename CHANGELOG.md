@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `Whm::withHttpMethod(HttpMethod $method)` returns a client that sends every call with that method, for proxies and WAF rules. Calls carrying a secret stay POST. The README explains how GET or POST is chosen.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

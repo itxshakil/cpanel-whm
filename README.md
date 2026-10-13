@@ -217,7 +217,19 @@ $response->warnings();               // warnings WHM attached to a "successful" 
 Whm::call('modifyacct', $params, HttpMethod::Post);
 ```
 
-Without a method, `Whm::call()` uses the one cPanel documents for the function, and any call with a password, token or key is sent as POST.
+#### GET or POST
+
+Every call picks its HTTP method the same way, typed or by name:
+
+1. A call carrying a secret (a password, token, passphrase or key) is always **POST**, so the secret never lands in a URL, an access log or a proxy log.
+2. Otherwise a method you asked for wins: `Whm::call($function, $params, HttpMethod::Post)`, or `Whm::withHttpMethod(...)` for every call made through that client.
+3. Otherwise functions cPanel marks read-only (`x-readonly` in its spec) are **GET**, and everything else is **POST**, including functions the spec doesn't list, such as plugins.
+
+```php
+Whm::withHttpMethod(HttpMethod::Post)->accounts()->list();   // e.g. a WAF that only allows POST to /json-api
+```
+
+Retries and caching follow whether the function is read-only, not the method, so forcing a method never makes a change retried.
 
 `php artisan whm:functions --server --missing` shows what your server offers beyond the spec (plugin functions, for example).
 
