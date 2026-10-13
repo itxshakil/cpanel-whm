@@ -14,6 +14,7 @@ use Itxshakil\CpanelWhm\WhmRequest;
 use OutOfBoundsException;
 use PHPUnit\Framework\AssertionFailedError;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\Finder\Finder;
 
 final class FakeTest extends TestCase
 {
@@ -173,5 +174,70 @@ final class FakeTest extends TestCase
         $this->expectExceptionMessage('called with matching parameters');
 
         $fake->assertCalled('listips', static fn (array $params): bool => $params === ['a' => 2]);
+    }
+
+    #[Test]
+    public function uapi_functions_can_be_stubbed_and_asserted_by_module_and_function(): void
+    {
+        $fake = Whm::fake([
+            'uapi:Quota::get_quota_info' => Whm::uapi(['megabytes_used' => 120]),
+            'uapi:Backup::list_backups' => Whm::uapi(['backup-2026-10-01.tar.gz']),
+            'uapi_cpanel' => Whm::uapi(['fallback']),
+        ]);
+
+        $user = Whm::asUser('acme');
+
+        self::assertSame(120, $user->uapi('Quota', 'get_quota_info')->get('megabytes_used'));
+        self::assertSame(['backup-2026-10-01.tar.gz'], $user->uapi('Backup', 'list_backups')->toArray());
+        self::assertSame(['fallback'], $user->uapi('Email', 'list_pops')->toArray());
+
+        $fake->assertCalled('uapi:Backup::list_backups')
+            ->assertCalledTimes('uapi:Quota::get_quota_info', 1)
+            ->assertNotCalled('uapi:Email::add_pop')
+            ->assertCalledTimes('uapi_cpanel', 3);
+        self::assertCount(1, $fake->recorded('uapi:Email::list_pops'));
+    }
+
+    #[Test]
+    public function nothing_in_src_imports_phpunit_which_production_installs_lack(): void
+    {
+        // src/ is autoloaded in production, where PHPUnit is a missing dev dependency.
+        // The fake reaches it only behind class_exists(), never through an import.
+        foreach ((new Finder)->files()->in(dirname(__DIR__, 2).'/src')->name('*.php') as $file) {
+            self::assertDoesNotMatchRegularExpression('/^use PHPUnit\\\\/m', $file->getContents(), $file->getRelativePathname());
+        }
+    }
+
+    #[Test]
+    public function a_timeout_after_sending_says_whm_may_have_acted(): void
+    {
+        Whm::fake(['removeacct' => Whm::timedOutAfterSending(), 'version' => Whm::connectionError()]);
+
+        foreach (['removeacct' => true, 'version' => false] as $function => $mayHaveActed) {
+            try {
+                Whm::call($function, ['user' => 'acme']);
+                self::fail("Expected WhmConnectionFailed for {$function}");
+            } catch (WhmConnectionFailed $whmConnectionFailed) {
+                self::assertSame($mayHaveActed, $whmConnectionFailed->mayHaveReachedServer(), $function);
+            }
+        }
+    }
+
+    #[Test]
+    public function uapi_calls_can_be_asserted_by_account_module_and_function(): void
+    {
+        $fake = Whm::fake(['uapi_cpanel' => Whm::uapi()]);
+
+        Whm::asUser('Acme')->uapi('Email', 'add_pop', ['email' => 'info', 'domain' => 'acme.example']);
+
+        $fake->assertUapiCalled('acme', 'Email', 'add_pop')
+            ->assertUapiCalled('ACME', 'Email', 'add_pop', static fn (array $params): bool => $params === ['email' => 'info', 'domain' => 'acme.example'])
+            ->assertUapiNotCalled('acme', 'Email', 'delete_pop')
+            ->assertUapiNotCalled('other', 'Email', 'add_pop');
+
+        $this->expectException(AssertionFailedError::class);
+        $this->expectExceptionMessage('Expected UAPI Email::add_pop to be called as [acme] with matching parameters');
+
+        $fake->assertUapiCalled('acme', 'Email', 'add_pop', static fn (array $params): bool => $params['email'] === 'sales');
     }
 }

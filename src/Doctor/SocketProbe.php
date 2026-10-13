@@ -51,15 +51,15 @@ final class SocketProbe implements NetworkProbe
         return (hrtime(true) - $startedAt) / 1_000_000;
     }
 
-    public function certificate(string $host, int $port, int $timeoutSeconds): CertificateInfo
+    public function certificate(string $host, int $port, int $timeoutSeconds, ?string $caBundle = null): CertificateInfo
     {
-        $verified = $this->handshake($host, $port, $timeoutSeconds, true);
+        $verified = $this->handshake($host, $port, $timeoutSeconds, true, $caBundle);
 
         if ($verified['certificate'] !== null) {
             return $this->describe($verified['certificate'], true, null);
         }
 
-        $unverified = $this->handshake($host, $port, $timeoutSeconds, false);
+        $unverified = $this->handshake($host, $port, $timeoutSeconds, false, null);
 
         if ($unverified['certificate'] === null) {
             throw new ProbeFailed($unverified['error'] ?? $verified['error'] ?? 'TLS handshake failed');
@@ -71,7 +71,7 @@ final class SocketProbe implements NetworkProbe
     /**
      * @return array{certificate: mixed, error: ?string}
      */
-    private function handshake(string $host, int $port, int $timeoutSeconds, bool $verify): array
+    private function handshake(string $host, int $port, int $timeoutSeconds, bool $verify, ?string $caBundle): array
     {
         $context = stream_context_create(['ssl' => [
             'capture_peer_cert' => true,
@@ -80,6 +80,7 @@ final class SocketProbe implements NetworkProbe
             'allow_self_signed' => ! $verify,
             'peer_name' => $host,
             'SNI_enabled' => true,
+            ...($caBundle !== null ? ['cafile' => $caBundle] : []),
         ]]);
 
         $errorCode = 0;
@@ -131,6 +132,25 @@ final class SocketProbe implements NetworkProbe
 
         $subject = is_array($parsed['subject'] ?? null) ? ($parsed['subject']['CN'] ?? null) : null;
 
-        return new CertificateInfo($trusted, $validTo, is_string($subject) ? $subject : null, $error);
+        return new CertificateInfo($trusted, $validTo, is_string($subject) ? $subject : null, $error, self::publicKeyPin($certificate));
+    }
+
+    /**
+     * The certificate's public key in curl's pin format: the base64 SHA-256 of
+     * its DER-encoded SubjectPublicKeyInfo, the same value WHM_PINNED_PUBLIC_KEY takes.
+     */
+    public static function publicKeyPin(OpenSSLCertificate $certificate): ?string
+    {
+        $key = openssl_pkey_get_public($certificate);
+        $details = $key !== false ? openssl_pkey_get_details($key) : false;
+        $pem = is_array($details) && is_string($details['key'] ?? null) ? $details['key'] : null;
+
+        if ($pem === null) {
+            return null;
+        }
+
+        $der = base64_decode((string) preg_replace('/-----[^-]+-----|\s+/', '', $pem), true);
+
+        return $der === false ? null : 'sha256//'.base64_encode(hash('sha256', $der, true));
     }
 }

@@ -11,6 +11,8 @@ use Itxshakil\CpanelWhm\Doctor\ProbeFailed;
 
 final class FakeProbe implements NetworkProbe
 {
+    public ?string $caBundleSeen = null;
+
     /**
      * Every host the doctor passed to a probe, in order.
      *
@@ -46,9 +48,10 @@ final class FakeProbe implements NetworkProbe
         return 38.0;
     }
 
-    public function certificate(string $host, int $port, int $timeoutSeconds): CertificateInfo
+    public function certificate(string $host, int $port, int $timeoutSeconds, ?string $caBundle = null): CertificateInfo
     {
         $this->hosts[] = $host;
+        $this->caBundleSeen = $caBundle;
 
         if ($this->tlsError !== null) {
             throw new ProbeFailed($this->tlsError);
