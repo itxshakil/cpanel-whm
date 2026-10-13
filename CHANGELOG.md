@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `ServiceStatus::isDown()` no longer reports enabled services that WHM doesn't monitor as down. WHM omits `running` for them, so `ServiceStatus::$running` is now `?bool` and null in that case.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

@@ -103,7 +103,7 @@ Services: `Cpanel` (`cpaneld`), `Whm` (`whostmgrd`) and `Webmail` (`webmaild`, w
 
 ```php
 Whm::server()->loadAverage();                      // LoadAverage: one, five, fifteen
-Whm::server()->services()->filter->isDown();       // ServiceStatus: enabled but not running
+Whm::server()->services()->filter->isDown();       // ServiceStatus: enabled and reported not running (running is null when unmonitored)
 Whm::server()->restartService('exim', queue: true);
 Whm::server()->partitions();                       // DiskPartition: mount, totalBytes, usedBytes, percentUsed
 ```

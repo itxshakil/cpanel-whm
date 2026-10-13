@@ -138,6 +138,8 @@ final class DomainsAndUsageTest extends TestCase
             'servicestatus' => Whm::response(['service' => [
                 ['name' => 'httpd', 'display_name' => 'Apache', 'enabled' => 1, 'installed' => 1, 'running' => 1, 'monitored' => 1],
                 ['name' => 'exim', 'enabled' => 1, 'installed' => 1, 'running' => 0, 'monitored' => 1],
+                // cPanel leaves "running" out for services it doesn't monitor.
+                ['name' => 'cpdavd', 'enabled' => 1, 'installed' => 1, 'monitored' => 0],
             ]]),
             'restartservice' => Whm::response(['service' => 'exim']),
             'getdiskusage' => Whm::response(['partition' => [
@@ -153,6 +155,8 @@ final class DomainsAndUsageTest extends TestCase
         self::assertSame('exim', $services[1]->displayName);
         self::assertTrue($services[1]->isDown());
         self::assertFalse($services[0]->isDown());
+        self::assertNull($services[2]->running);
+        self::assertFalse($services[2]->isDown());
 
         Whm::server()->restartService('exim', queue: true);
 
