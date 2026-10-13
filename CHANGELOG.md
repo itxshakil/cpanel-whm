@@ -27,6 +27,7 @@ All notable changes to this project are documented here. The format follows
 - `Accounts::create()` takes an optional `$timeout`; 120 seconds stays the default but is no longer a floor, so a queued job can stay below its `retry_after`.
 - `NewAccount::asGiven()`: `accounts()->create()` sends the account exactly as given, skipping the local username rules, domain lowercasing and password generation, while still returning a typed `CreatedAccount`.
 - `WhmConnectionFailed` keeps a `TransportFailure` as its previous exception (the HTTP client's exception class, the cURL error number as the code, and the sanitised message), and has `curlError()`. The original exception is still not chained, since it carries the URL and the Authorization header.
+- `WhmHttpError::body()`: the start of the response body (up to 2,000 characters), with secrets masked, for error pages and JSON errors.
 
 ### Changed
 - Parameters: backed enums are sent as their value and `Stringable` objects as their string. A nested array, a date or any other object throws `InvalidArgumentException` before anything is sent, instead of reaching WHM as `name[key]=…` and being ignored.
@@ -35,6 +36,7 @@ All notable changes to this project are documented here. The format follows
 - `NetworkProbe::certificate()` takes an optional `$caBundle`, and `CertificateInfo` gains `publicKeyPin`. Custom probes need the new parameter.
 - The Release workflow runs the full CI (lint, PHPStan, Composer validation and the test matrix) on the tagged commit before validating the install.
 - Cache keys sort the parameters, so the same read with its parameters in another order hits the same cache entry.
+- HTTP error messages take WHM's reason from `data.reason` when `metadata.reason` is empty, as `WhmResponse::reason()` does.
 
 ### Fixed
 - `whm:record` prints a replay hint with the path relative to the project root, so it can be committed.

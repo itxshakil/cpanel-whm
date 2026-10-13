@@ -123,6 +123,34 @@ final class HttpTransportTest extends TestCase
     }
 
     #[Test]
+    public function an_http_error_keeps_the_start_of_the_body_with_secrets_masked(): void
+    {
+        $page = '<html>cpsrvd error at https://h:2087/cpsess1234567890/json-api/version '.str_repeat('x', 3000).'</html>';
+        Http::fake(['*' => Http::sequence()
+            ->push($page, 502)
+            ->push(['data' => ['reason' => 'Upgrade in progress.', 'token' => 'SECRET'], 'metadata' => []], 503)]);
+
+        foreach ([1, 2] as $attempt) {
+            try {
+                Whm::withoutRetries()->call('version');
+                self::fail('Expected WhmHttpError');
+            } catch (WhmHttpError $whmHttpError) {
+                $body = (string) $whmHttpError->body();
+
+                if ($attempt === 1) {
+                    self::assertStringStartsWith('<html>cpsrvd error', $body);
+                    self::assertStringNotContainsString('1234567890', $body);
+                    self::assertSame(WhmHttpError::BODY_LIMIT + 1, mb_strlen($body));
+                } else {
+                    // A JSON error body gives the message its reason, from data.reason when metadata has none.
+                    self::assertStringContainsString('HTTP 503 for version: Upgrade in progress.', $whmHttpError->getMessage());
+                    self::assertStringNotContainsString('SECRET', $body);
+                }
+            }
+        }
+    }
+
+    #[Test]
     public function a_404_has_no_hint(): void
     {
         self::assertNull(WhmHttpError::forStatus(404, 'version')->hint());

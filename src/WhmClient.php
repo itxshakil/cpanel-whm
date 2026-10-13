@@ -352,15 +352,15 @@ final class WhmClient implements WhmClientContract
         $reason = is_array($json) ? $this->reasonFrom($json) : null;
 
         if ($raw->status === 401 || $raw->status === 403) {
-            throw WhmAuthenticationFailed::forStatus($raw->status, $request->function, $reason);
+            throw WhmAuthenticationFailed::forStatus($raw->status, $request->function, $reason, $raw->body);
         }
 
         if ($raw->status >= 400) {
-            throw WhmHttpError::forStatus($raw->status, $request->function, $reason);
+            throw WhmHttpError::forStatus($raw->status, $request->function, $reason, $raw->body);
         }
 
         if ($json === null) {
-            throw WhmHttpError::notJson($raw->status, $request->function);
+            throw WhmHttpError::notJson($raw->status, $request->function, $raw->body);
         }
 
         $response = WhmResponse::fromArray($json, $raw->status);
@@ -399,9 +399,15 @@ final class WhmClient implements WhmClientContract
      */
     private function reasonFrom(array $json): ?string
     {
-        $metadata = $json['metadata'] ?? null;
-        $reason = is_array($metadata) ? ($metadata['reason'] ?? null) : null;
+        // Same order as WhmResponse::reason(): metadata.reason, then data.reason.
+        foreach (['metadata', 'data'] as $section) {
+            $reason = is_array($json[$section] ?? null) ? ($json[$section]['reason'] ?? null) : null;
 
-        return is_string($reason) ? $reason : null;
+            if (is_string($reason) && $reason !== '') {
+                return $reason;
+            }
+        }
+
+        return null;
     }
 }
