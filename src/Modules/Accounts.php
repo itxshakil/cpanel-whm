@@ -16,8 +16,10 @@ use Itxshakil\CpanelWhm\Events\AccountModified;
 use Itxshakil\CpanelWhm\Events\AccountPackageChanged;
 use Itxshakil\CpanelWhm\Events\AccountPasswordChanged;
 use Itxshakil\CpanelWhm\Events\AccountRemoved;
+use Itxshakil\CpanelWhm\Exceptions\AccountNotFound;
 use Itxshakil\CpanelWhm\Exceptions\InvalidUsername;
 use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
+use Itxshakil\CpanelWhm\Exceptions\WhmConnectionFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
 use Itxshakil\CpanelWhm\Support\Filter;
@@ -76,6 +78,53 @@ class Accounts extends Module
     }
 
     /**
+     * create(), made safe to call from a job that may time out. createacct can
+     * take minutes; when the connection drops after the request was sent
+     * (WhmConnectionFailed::mayHaveReachedServer()), WHM may have created the
+     * account anyway. In that case the account is looked up: if it exists with
+     * the requested domain it is returned with $recovered = true and the
+     * password the request carried, and AccountCreated fires as usual.
+     *
+     * The original WhmConnectionFailed is rethrown when nothing could have
+     * reached WHM, when no account was found (a retry is safe), or when the
+     * name belongs to an account with another domain.
+     *
+     * @throws InvalidUsername
+     * @throws WhmException
+     */
+    public function createOrRecover(NewAccount $account): CreatedAccount
+    {
+        // The password must be known before sending, so a recovered account can hand it back.
+        $password = $account->givenPassword() ?? Passwords::generate();
+        $account = $account->withPassword($password);
+
+        try {
+            return $this->create($account);
+        } catch (WhmConnectionFailed $whmConnectionFailed) {
+            if (! $whmConnectionFailed->mayHaveReachedServer()) {
+                throw $whmConnectionFailed;
+            }
+
+            $params = $account->toParams();
+            $username = is_string($params['username'] ?? null) ? $params['username'] : '';
+            $domain = is_string($params['domain'] ?? null) ? $params['domain'] : null;
+
+            // Uncached: a cached "no such account" from before the call would hide the new one.
+            $existing = $this->client->withoutCache()->accounts()->find($username);
+
+            if (! $existing instanceof Account || ($domain !== null && mb_strtolower($existing->domain) !== $domain)) {
+                throw $whmConnectionFailed;
+            }
+
+            $created = CreatedAccount::recovered($existing, $password);
+
+            $this->client->dispatch(new AccountCreated($this->client->config()->name, $created->withoutPassword()));
+
+            return $created;
+        }
+    }
+
+    /**
      * Every account, optionally narrowed with a WHM output filter.
      *
      * @return Collection<int, Account>
@@ -112,7 +161,10 @@ class Accounts extends Module
     {
         try {
             $response = $this->client->call('accountsummary', ['user' => UsernameRules::normalise($user)]);
+        } catch (AccountNotFound) {
+            return null;
         } catch (WhmCommandFailed $whmCommandFailed) {
+            // accountsummary is about one account, so any "does not exist" means that one.
             if ($this->isMissingAccount($whmCommandFailed->reason())) {
                 return null;
             }
@@ -175,6 +227,24 @@ class Accounts extends Module
     }
 
     /**
+     * Delete an account unless it is already gone, for jobs that may run twice.
+     * True when this call removed it, false when WHM had no such account (no
+     * AccountRemoved event then: nothing changed).
+     *
+     * @throws WhmException
+     */
+    public function removeIfExists(string $user, bool $keepDns = false): bool
+    {
+        try {
+            $this->remove($user, $keepDns);
+        } catch (AccountNotFound) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Change the account's password. Sent as a POST body, never in the URL.
      *
      * @throws WhmException
@@ -228,6 +298,52 @@ class Accounts extends Module
         $response = $this->client->call('modifyacct', ['user' => $user, ...$changes], HttpMethod::Post);
 
         $this->client->dispatch(new AccountModified($this->client->config()->name, $user, Redactor::redact($changes)));
+
+        return $response;
+    }
+
+    /**
+     * Change the account's main domain. WHM moves the DNS zone, the vhost and
+     * mail to the new name; the old domain stops working on this account.
+     *
+     * @throws WhmException
+     *
+     * @see https://api.docs.cpanel.net/specifications/whm.openapi/account-management/accounts-modifyacct
+     */
+    public function changePrimaryDomain(string $user, string $domain): WhmResponse
+    {
+        return $this->modify($user, ['DNS' => mb_strtolower(rtrim(trim($domain), '.'))]);
+    }
+
+    /**
+     * Rename the account. The new username is checked against cPanel's rules
+     * first. Database and database user names that carry the old prefix are
+     * renamed by WHM when database prefixing is on.
+     *
+     * @throws InvalidUsername
+     * @throws WhmException
+     *
+     * @see https://api.docs.cpanel.net/specifications/whm.openapi/account-management/accounts-modifyacct
+     */
+    public function rename(string $user, string $newUsername): WhmResponse
+    {
+        return $this->modify($user, ['newuser' => UsernameRules::assertValid($newUsername)]);
+    }
+
+    /**
+     * Move the account (and its domains) to another IP address on the server.
+     *
+     * @throws WhmException
+     *
+     * @see https://api.docs.cpanel.net/specifications/whm.openapi/ip-addresses/accounts-setsiteip
+     */
+    public function changeIp(string $user, string $ip): WhmResponse
+    {
+        $user = UsernameRules::normalise($user);
+
+        $response = $this->client->call('setsiteip', ['user' => $user, 'ip' => trim($ip)], HttpMethod::Post);
+
+        $this->client->dispatch(new AccountModified($this->client->config()->name, $user, ['ip' => trim($ip)]));
 
         return $response;
     }
