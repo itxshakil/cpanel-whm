@@ -92,6 +92,7 @@ All notable changes to this project are documented here. The format follows
 - `WhmFake` no longer imports PHPUnit: its assertions use PHPUnit when it is installed and throw `FakeAssertionFailed` otherwise, so a production (`--no-dev`) install analyses cleanly. `phpunit/phpunit` is listed under `suggest`.
 - `Backups::restore()` no longer loses the queue id when the task is queued but starting the queue fails: it throws `RestoreNotStarted`, which carries `queueId()`, so a retry starts the waiting task instead of queueing the restore twice.
 - Adding or updating a DNS record whose data isn't valid UTF-8 now names the record and its line, and explains that it can be removed by line index and added again, instead of a bare "could not be encoded".
+- With a reseller's token, `Packages::find('starter')` finds the package WHM saved as `res1_starter`. An exact name still wins, and root's lookups are unchanged.
 
 ## [0.3.0] - 2026-10-08
 

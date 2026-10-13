@@ -56,6 +56,32 @@ final class OtherModulesTest extends TestCase
     }
 
     #[Test]
+    public function a_resellers_package_is_found_by_the_name_it_was_created_with(): void
+    {
+        config()->set('cpanel-whm.connections.main.user', 'res1');
+        Whm::purge();
+        Whm::fake(['listpkgs' => Whm::response(['pkg' => [
+            ['name' => 'res1_starter', 'QUOTA' => '1024'],
+            ['name' => 'res1_pro', 'QUOTA' => '2048'],
+            ['name' => 'pro', 'QUOTA' => '4096'],
+            ['name' => 'res2_basic', 'QUOTA' => '512'],
+        ]])]);
+
+        self::assertSame('res1_starter', Whm::packages()->find('starter')?->name);
+        self::assertSame('res1_starter', Whm::packages()->find('res1_starter')?->name);
+        self::assertSame('pro', Whm::packages()->find('pro')?->name);
+        self::assertNull(Whm::packages()->find('basic'));
+    }
+
+    #[Test]
+    public function root_does_not_match_prefixed_names(): void
+    {
+        Whm::fake(['listpkgs' => Whm::response(['pkg' => [['name' => 'res1_starter']]])]);
+
+        self::assertNull(Whm::packages()->find('starter'));
+    }
+
+    #[Test]
     public function quotas_treat_null_as_unlimited(): void
     {
         $fake = Whm::fake(['*' => Whm::response()]);

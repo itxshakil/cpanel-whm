@@ -31,11 +31,19 @@ class Packages extends Module
     }
 
     /**
+     * A package by its exact name or, with a reseller's token, by the name it
+     * was created with: WHM saves a reseller's "starter" as "res1_starter".
+     * An exact match wins when both exist.
+     *
      * @throws WhmException
      */
     public function find(string $name): ?Package
     {
-        return $this->list()->first(static fn (Package $package): bool => $package->name === $name);
+        $packages = $this->list();
+        $user = $this->client->config()->user;
+
+        return $packages->first(static fn (Package $package): bool => $package->name === $name)
+            ?? ($user === 'root' ? null : $packages->first(static fn (Package $package): bool => $package->name === "{$user}_{$name}"));
     }
 
     /**

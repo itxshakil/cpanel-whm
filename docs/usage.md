@@ -90,7 +90,7 @@ Features are keyed by their id. `update()` refuses an empty list, because WHM wo
 
 ## Packages
 
-`list()` returns `Collection<Package>` with `name`, `diskQuota`, `bandwidthLimit`, `featureList`, `maxAddonDomains`, `maxSubdomains`, `maxEmailAccounts`, `maxDatabases`, `maxFtpAccounts`, `dedicatedIp`, `maxAliases`, `maxMailingLists`, `maxEmailsPerHour`, `maxEmailQuota`, `theme`, `language`, `shell`, `cgi` and `raw`. Limits are strings as WHM sends them: a number or `unlimited`. `find(string $name)` returns one or null, and `info(string $name)` reads one package's full settings with `getpkginfo`. `$package->toDefinition()` turns it back into a `PackageDefinition`, for example to copy it to another server.
+`list()` returns `Collection<Package>` with `name`, `diskQuota`, `bandwidthLimit`, `featureList`, `maxAddonDomains`, `maxSubdomains`, `maxEmailAccounts`, `maxDatabases`, `maxFtpAccounts`, `dedicatedIp`, `maxAliases`, `maxMailingLists`, `maxEmailsPerHour`, `maxEmailQuota`, `theme`, `language`, `shell`, `cgi` and `raw`. Limits are strings as WHM sends them: a number or `unlimited`. `find(string $name)` returns one or null; with a reseller's token it also finds `res1_starter` from `find('starter')`, the name it was created with. `info(string $name)` reads one package's full settings with `getpkginfo`. `$package->toDefinition()` turns it back into a `PackageDefinition`, for example to copy it to another server.
 
 ```php
 use Itxshakil\CpanelWhm\Data\PackageDefinition;
