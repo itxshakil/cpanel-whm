@@ -63,6 +63,19 @@ final class AccountsTest extends TestCase
     }
 
     #[Test]
+    public function an_account_sent_as_given_skips_local_rules_normalisation_and_password_generation(): void
+    {
+        $fake = Whm::fake(['createacct' => Whm::response(['user' => 'test-Acme'])]);
+
+        // "test-Acme" breaks the local rules (prefix, hyphen, uppercase); WHM gets to decide.
+        $created = Whm::accounts()->create((new NewAccount(username: 'test-Acme', domain: ' Acme.Example '))->asGiven());
+
+        $fake->assertCalled('createacct', static fn (array $params): bool => $params === ['username' => 'test-Acme', 'domain' => ' Acme.Example ']);
+        self::assertNull($created->password);
+        self::assertSame('test-Acme', $created->username);
+    }
+
+    #[Test]
     public function create_takes_a_shorter_timeout_for_queued_jobs(): void
     {
         $fake = Whm::fake(['createacct' => Whm::response(['user' => 'acme'])]);

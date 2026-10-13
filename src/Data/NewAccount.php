@@ -23,6 +23,8 @@ final readonly class NewAccount
      * @param  int|string|null  $bandwidthMb  monthly bandwidth in MB, or "unlimited" (bwlimit)
      * @param  string|null  $owner  the reseller that owns the account (owner)
      * @param  bool|null  $shell  whether the account gets shell access (hasshell)
+     * @param  bool  $asGiven  send exactly what was given: no local username rules, no domain
+     *                         lowercasing and no generated password; WHM does its own checks
      */
     public function __construct(
         public string $username,
@@ -41,7 +43,35 @@ final readonly class NewAccount
         public int|string|null $maxEmailsPerHour = null,
         public ?string $language = null,
         public ?bool $shell = null,
+        public bool $asGiven = false,
     ) {}
+
+    /**
+     * A copy that Accounts::create() sends exactly as given, for apps that
+     * choose usernames and passwords themselves and rely on WHM's validation.
+     * Without a password, WHM generates one and CreatedAccount::$password is null.
+     */
+    public function asGiven(): self
+    {
+        return new self(
+            username: $this->username,
+            domain: $this->domain,
+            package: $this->package,
+            password: $this->password,
+            contactEmail: $this->contactEmail,
+            dedicatedIp: $this->dedicatedIp,
+            extra: $this->extra,
+            customIp: $this->customIp,
+            quotaMb: $this->quotaMb,
+            bandwidthMb: $this->bandwidthMb,
+            featureList: $this->featureList,
+            owner: $this->owner,
+            maxEmailsPerHour: $this->maxEmailsPerHour,
+            language: $this->language,
+            shell: $this->shell,
+            asGiven: true,
+        );
+    }
 
     /**
      * @return array<string, mixed>
@@ -63,6 +93,7 @@ final readonly class NewAccount
             'maxEmailsPerHour' => $this->maxEmailsPerHour,
             'language' => $this->language,
             'shell' => $this->shell,
+            'asGiven' => $this->asGiven,
         ];
     }
 
@@ -94,6 +125,7 @@ final readonly class NewAccount
             maxEmailsPerHour: $this->maxEmailsPerHour,
             language: $this->language,
             shell: $this->shell,
+            asGiven: $this->asGiven,
         );
     }
 
@@ -105,8 +137,8 @@ final readonly class NewAccount
     public function toParams(): array
     {
         $params = [
-            'username' => UsernameRules::assertValid($this->username),
-            'domain' => $this->domain !== null ? mb_strtolower(trim($this->domain)) : null,
+            'username' => $this->asGiven ? $this->username : UsernameRules::assertValid($this->username),
+            'domain' => $this->domain === null || $this->asGiven ? $this->domain : mb_strtolower(trim($this->domain)),
             'plan' => $this->package,
             'password' => $this->password,
             'contactemail' => $this->contactEmail,

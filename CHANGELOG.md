@@ -25,6 +25,7 @@ All notable changes to this project are documented here. The format follows
 - The `WhmClient` contract gains `featureLists()`.
 - An opt-in live test suite (`tests/Live`, `composer test:live`, the manual "Live WHM" workflow) that checks reads, batch encoding, the failed-UAPI response shape and, with `WHM_LIVE_WRITE=1`, an account round trip against a real WHM. It is skipped unless `WHM_LIVE_HOST` and `WHM_LIVE_TOKEN` are set.
 - `Accounts::create()` takes an optional `$timeout`; 120 seconds stays the default but is no longer a floor, so a queued job can stay below its `retry_after`.
+- `NewAccount::asGiven()`: `accounts()->create()` sends the account exactly as given, skipping the local username rules, domain lowercasing and password generation, while still returning a typed `CreatedAccount`.
 
 ### Changed
 - Parameters: backed enums are sent as their value and `Stringable` objects as their string. A nested array, a date or any other object throws `InvalidArgumentException` before anything is sent, instead of reaching WHM as `name[key]=…` and being ignored.
