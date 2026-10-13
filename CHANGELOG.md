@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- With a reseller's token, `Packages::find('starter')` finds the package WHM saved as `res1_starter`. An exact name still wins, and root's lookups are unchanged.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
