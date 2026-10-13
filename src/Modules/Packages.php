@@ -31,11 +31,19 @@ class Packages extends Module
     }
 
     /**
+     * A package by its exact name or, with a reseller's token, by the name it
+     * was created with: WHM saves a reseller's "starter" as "res1_starter".
+     * An exact match wins when both exist.
+     *
      * @throws WhmException
      */
     public function find(string $name): ?Package
     {
-        return $this->list()->first(static fn (Package $package): bool => $package->name === $name);
+        $packages = $this->list();
+        $user = $this->client->config()->user;
+
+        return $packages->first(static fn (Package $package): bool => $package->name === $name)
+            ?? ($user === 'root' ? null : $packages->first(static fn (Package $package): bool => $package->name === "{$user}_{$name}"));
     }
 
     /**
@@ -89,5 +97,24 @@ class Packages extends Module
     public function delete(string $name): WhmResponse
     {
         return $this->client->call('killpkg', ['pkgname' => $name], HttpMethod::Post);
+    }
+
+    /**
+     * Delete the package unless it is already gone. Safe to re-run from a
+     * retried job. Returns true when this call deleted it. A package still in
+     * use is refused by WHM and throws.
+     *
+     * @throws WhmException
+     */
+    public function deleteIfExists(string $name): bool
+    {
+        // Uncached, or a package deleted a moment ago would still be listed.
+        if (! (new self($this->client->withoutCache()))->find($name) instanceof Package) {
+            return false;
+        }
+
+        $this->delete($name);
+
+        return true;
     }
 }

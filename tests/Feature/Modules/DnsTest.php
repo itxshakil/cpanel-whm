@@ -9,6 +9,7 @@ use InvalidArgumentException;
 use Itxshakil\CpanelWhm\Data\DnsRecord;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Events\DnsZoneChanged;
+use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
 use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Tests\TestCase;
 use Itxshakil\CpanelWhm\WhmRequest;
@@ -76,10 +77,52 @@ final class DnsTest extends TestCase
         Whm::dns()->edit('example.com', update: [$www->withData('198.51.100.7')], remove: [12], serial: $zone->serial);
         Whm::dns()->remove('example.com', $www);
 
+        // The removal sends the serial of the read $www came from, not a fresh one:
+        // WHM refuses it if the zone changed since, instead of removing line 9 blindly.
         $fake->assertCalled('mass_edit_dns_zone', static fn (array $p): bool => ($p['edit'] ?? null) === '{"line_index":9,"dname":"www","ttl":14400,"record_type":"A","data":["198.51.100.7"]}'
             && $p['remove'] === 12 && $p['serial'] === 2026100301)
-            ->assertCalled('mass_edit_dns_zone', static fn (array $p): bool => $p['remove'] === 9 && ! isset($p['edit']))
-            ->assertCalledTimes('parse_dns_zone', 2);
+            ->assertCalled('mass_edit_dns_zone', static fn (array $p): bool => $p['remove'] === 9 && ! isset($p['edit']) && $p['serial'] === 2026100301)
+            ->assertCalledTimes('parse_dns_zone', 1);
+    }
+
+    #[Test]
+    public function an_update_from_a_stale_read_sends_that_reads_serial_not_the_current_one(): void
+    {
+        $fresh = self::payload();
+        $fresh[0]['data_b64'][2] = base64_encode('2026100399');
+
+        $fake = Whm::fake([
+            'parse_dns_zone' => Whm::sequence(Whm::response(['payload' => self::payload()]), Whm::response(['payload' => $fresh])),
+            'mass_edit_dns_zone' => Whm::failure('The zone has been modified since you read it.'),
+        ]);
+
+        $www = Whm::dns()->zone('example.com')->first('www', 'A');
+        self::assertInstanceOf(DnsRecord::class, $www);
+        self::assertSame(2026100301, $www->zoneSerial);
+
+        // Someone else edits the zone here; this update must not use their serial.
+        try {
+            Whm::dns()->update('example.com', $www->withData('198.51.100.7'));
+            self::fail('Expected WhmCommandFailed for a stale edit');
+        } catch (WhmCommandFailed) {
+            $fake->assertCalled('mass_edit_dns_zone', static fn (array $p): bool => $p['serial'] === 2026100301)
+                ->assertCalledTimes('parse_dns_zone', 1);
+        }
+    }
+
+    #[Test]
+    public function records_from_two_reads_cannot_be_edited_together(): void
+    {
+        $fake = Whm::fake(['*' => Whm::response()]);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('different reads');
+
+        try {
+            Whm::dns()->edit('example.com', update: [DnsRecord::a('www', '203.0.113.1')->withLineIndex(9)->withZoneSerial(1)], remove: [DnsRecord::a('old', '203.0.113.2')->withLineIndex(10)->withZoneSerial(2)]);
+        } finally {
+            $fake->assertNothingSent();
+        }
     }
 
     #[Test]
@@ -91,6 +134,26 @@ final class DnsTest extends TestCase
         $this->expectExceptionMessage('has no line index');
 
         Whm::dns()->edit('example.com', update: [DnsRecord::a('www', '1.2.3.4')], serial: 1);
+    }
+
+    #[Test]
+    public function a_record_holding_binary_data_can_be_removed_and_its_update_error_says_how(): void
+    {
+        $fake = Whm::fake(['mass_edit_dns_zone' => Whm::response(['new_serial' => 2])]);
+        $binary = new DnsRecord('legacy', 'TXT', ["\xFF\xFEbinary"], 300, 14);
+
+        try {
+            Whm::dns()->edit('example.com', update: [$binary], serial: 1);
+            self::fail('Expected InvalidArgumentException');
+        } catch (InvalidArgumentException $invalidArgumentException) {
+            self::assertStringContainsString('TXT record for legacy (line 14)', $invalidArgumentException->getMessage());
+            self::assertStringContainsString('remove it by line index', $invalidArgumentException->getMessage());
+        }
+
+        $fake->assertNotCalled('mass_edit_dns_zone');
+
+        self::assertSame(2, Whm::dns()->edit('example.com', remove: [$binary], serial: 1));
+        $fake->assertCalled('mass_edit_dns_zone', static fn (array $params): bool => $params['remove'] === 14);
     }
 
     #[Test]

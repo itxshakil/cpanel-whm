@@ -40,7 +40,8 @@ final readonly class DnsZone
         $soa = $records->first(static fn (DnsRecord $record): bool => $record->is('SOA'));
         $serial = $soa instanceof DnsRecord ? Value::int($soa->data[2] ?? null) : null;
 
-        return new self($domain, $serial, $records);
+        // Each record remembers which read its line index belongs to.
+        return new self($domain, $serial, $records->map(static fn (DnsRecord $record): DnsRecord => $record->withZoneSerial($serial)));
     }
 
     /**

@@ -41,10 +41,23 @@ trait InteractsWithWhm
     }
 
     /**
-     * Print a WHM error and its hint, and return the failure exit code.
+     * Print a WHM error and its hint, and return the failure exit code. With
+     * --json the error is JSON too, so a script piping the output into jq can
+     * still read it.
      */
     protected function reportFailure(WhmException $exception): int
     {
+        // Read through the input: not every command using this trait has --json.
+        if ($this->input->hasOption('json') && $this->input->getOption('json') === true) {
+            $this->line((string) json_encode([
+                'error' => $exception->getMessage(),
+                'hint' => $exception->hint(),
+                'exception' => $exception::class,
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+
+            return self::FAILURE;
+        }
+
         $this->components->error($exception->getMessage());
 
         $hint = $exception->hint();
