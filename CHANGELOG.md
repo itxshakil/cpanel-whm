@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- An opt-in live test suite (`tests/Live`, `composer test:live`, the manual "Live WHM" workflow) that checks reads, batch encoding, the failed-UAPI response shape and, with `WHM_LIVE_WRITE=1`, an account round trip against a real WHM. It is skipped unless `WHM_LIVE_HOST` and `WHM_LIVE_TOKEN` are set.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
