@@ -83,7 +83,10 @@ final class WhmClient implements WhmClientContract
 
         if ($readOnly && $this->cacheTtl !== null && $this->cache instanceof CacheFactory && ! in_array($function, self::NEVER_CACHED, true)) {
             $store = $this->cache->store($this->cacheStore);
-            $key = $this->cacheKeyPrefix($store).':'.$function.':'.hash('xxh128', serialize($params));
+            // Sorted, so the same call with its parameters in another order hits the same entry.
+            $sorted = $params;
+            ksort($sorted);
+            $key = $this->cacheKeyPrefix($store).':'.$function.':'.hash('xxh128', serialize($sorted));
             $cached = $store->get($key);
 
             if ($cached instanceof WhmResponse) {

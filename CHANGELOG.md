@@ -31,6 +31,7 @@ All notable changes to this project are documented here. The format follows
 - The `WhmClient` contract gains `flushCache()`.
 - `NetworkProbe::certificate()` takes an optional `$caBundle`, and `CertificateInfo` gains `publicKeyPin`. Custom probes need the new parameter.
 - The Release workflow runs the full CI (lint, PHPStan, Composer validation and the test matrix) on the tagged commit before validating the install.
+- Cache keys sort the parameters, so the same read with its parameters in another order hits the same cache entry.
 
 ### Fixed
 - `whm:record` prints a replay hint with the path relative to the project root, so it can be committed.

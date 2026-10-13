@@ -178,7 +178,7 @@ final class RetryAndCacheTest extends TestCase
 
         $fake->assertCalledTimes('listaccts', 3);
         $server = hash('xxh128', 'https://server.example.com:2087|root');
-        self::assertTrue(Cache::has("cpanel-whm:main:{$server}:g0:listaccts:".hash('xxh128', serialize(['searchtype' => 'user', 'search' => 'a', 'searchmethod' => 'regex']))));
+        self::assertTrue(Cache::has("cpanel-whm:main:{$server}:g0:listaccts:".hash('xxh128', serialize(['search' => 'a', 'searchmethod' => 'regex', 'searchtype' => 'user']))));
     }
 
     #[Test]
@@ -220,6 +220,17 @@ final class RetryAndCacheTest extends TestCase
         Whm::cache(300)->accounts()->list();
         rescue(static fn () => Whm::suspensions()->suspend('acme'), report: false);
         Whm::cache(300)->accounts()->list();
+
+        $fake->assertCalledTimes('listaccts', 1);
+    }
+
+    #[Test]
+    public function the_same_parameters_in_another_order_share_a_cache_entry(): void
+    {
+        $fake = Whm::fake(['listaccts' => Whm::response(['acct' => []])]);
+
+        Whm::cache(300)->call('listaccts', ['searchtype' => 'user', 'search' => 'acme']);
+        Whm::cache(300)->call('listaccts', ['search' => 'acme', 'searchtype' => 'user']);
 
         $fake->assertCalledTimes('listaccts', 1);
     }
