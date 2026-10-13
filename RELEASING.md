@@ -40,7 +40,7 @@ After that, Dependabot's monthly PR for GitHub Actions merges itself when CI is 
     git push origin v0.1.0
     ```
 
-4. The Release workflow checks that the tag installs cleanly without dev dependencies. Then publish the draft release that release-drafter prepared, or run `gh release create v0.1.0 --notes-from-tag`.
+4. The Release workflow runs the full CI on the tagged commit, then checks that it installs cleanly without dev dependencies. Wait for both. Then publish the draft release that release-drafter prepared, or run `gh release create v0.1.0 --notes-from-tag`.
 5. First release only: submit the repository at <https://packagist.org/packages/submit>, then check the GitHub hook is active (Packagist → your package → Settings), so new tags appear automatically.
 
 ## Versioning
