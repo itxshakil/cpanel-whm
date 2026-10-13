@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Cache keys sort the parameters, so the same read with its parameters in another order hits the same cache entry.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

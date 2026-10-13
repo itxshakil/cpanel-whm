@@ -85,7 +85,10 @@ final class WhmClient implements WhmClientContract
             // The server and user are part of the key, so two apps or tenants that
             // reuse a connection name never read each other's answers.
             $server = hash('xxh128', $this->config->baseUrl().'|'.$this->config->user);
-            $key = $this->cachePrefix.':'.$this->config->name.':'.$server.':'.$function.':'.hash('xxh128', serialize($params));
+            // Sorted, so the same call with its parameters in another order hits the same entry.
+            $sorted = $params;
+            ksort($sorted);
+            $key = $this->cachePrefix.':'.$this->config->name.':'.$server.':'.$function.':'.hash('xxh128', serialize($sorted));
             $store = $this->cache->store($this->cacheStore);
             $cached = $store->get($key);
 
