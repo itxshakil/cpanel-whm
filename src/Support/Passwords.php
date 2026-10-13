@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Itxshakil\CpanelWhm\Support;
 
+use InvalidArgumentException;
+
 /**
  * Strong passwords for accounts created without one.
  */
@@ -17,12 +19,25 @@ final class Passwords
     ];
 
     /**
+     * Shorter than this is too weak to hand out, and WHM's password strength
+     * check would likely refuse it anyway.
+     */
+    public const int MIN_LENGTH = 12;
+
+    /**
      * $length characters with at least one of each class: lowercase,
      * uppercase, digit and symbol. Easily confused characters (l, I, O, 0, 1)
      * are left out, since people may have to read the password back.
+     *
+     * @throws InvalidArgumentException when $length is below MIN_LENGTH
      */
     public static function generate(int $length = 24): string
     {
+        // A misconfigured length used to come back as a 4-character password without a word.
+        if ($length < self::MIN_LENGTH) {
+            throw new InvalidArgumentException('A generated password needs at least '.self::MIN_LENGTH." characters, {$length} were asked for.");
+        }
+
         $all = implode('', self::CLASSES);
         $characters = array_map(self::pick(...), self::CLASSES);
 

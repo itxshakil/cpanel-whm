@@ -13,6 +13,10 @@
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
         </testsuite>
+        <!-- Skipped unless WHM_LIVE_HOST and WHM_LIVE_TOKEN are set; see tests/Live/LiveTestCase.php. -->
+        <testsuite name="Live">
+            <directory>tests/Live</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>
