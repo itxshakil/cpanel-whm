@@ -83,6 +83,7 @@ All notable changes to this project are documented here. The format follows
 - The generator records parameters it can't give a typed argument because their PHP name is taken: `bin/generate` warns about them and `docs/coverage.md` lists them (none in spec 11.138.0.10).
 - `WhmFake` no longer imports PHPUnit: its assertions use PHPUnit when it is installed and throw `FakeAssertionFailed` otherwise, so a production (`--no-dev`) install analyses cleanly. `phpunit/phpunit` is listed under `suggest`.
 - `Backups::restore()` no longer loses the queue id when the task is queued but starting the queue fails: it throws `RestoreNotStarted`, which carries `queueId()`, so a retry starts the waiting task instead of queueing the restore twice.
+- Adding or updating a DNS record whose data isn't valid UTF-8 now names the record and its line, and explains that it can be removed by line index and added again, instead of a bare "could not be encoded".
 
 ## [0.3.0] - 2026-10-08
 
