@@ -9,12 +9,15 @@ namespace Itxshakil\CpanelWhm\Data;
  */
 final readonly class ServiceStatus
 {
+    /**
+     * @param  bool|null  $running  null when WHM doesn't say: it only reports it for monitored services
+     */
     public function __construct(
         public string $name,
         public string $displayName,
         public bool $installed,
         public bool $enabled,
-        public bool $running,
+        public ?bool $running,
         public bool $monitored,
     ) {}
 
@@ -30,16 +33,17 @@ final readonly class ServiceStatus
             displayName: Value::string($row['display_name'] ?? null) ?? $name,
             installed: Value::bool($row['installed'] ?? false),
             enabled: Value::bool($row['enabled'] ?? false),
-            running: Value::bool($row['running'] ?? false),
+            running: array_key_exists('running', $row) && $row['running'] !== null ? Value::bool($row['running']) : null,
             monitored: Value::bool($row['monitored'] ?? false),
         );
     }
 
     /**
-     * Enabled but not running: the state worth alerting on.
+     * Enabled and reported as not running: the state worth alerting on. An
+     * unmonitored service has no running state, so it never counts as down.
      */
     public function isDown(): bool
     {
-        return $this->enabled && ! $this->running;
+        return $this->enabled && $this->running === false;
     }
 }

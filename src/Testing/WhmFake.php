@@ -14,7 +14,6 @@ use Itxshakil\CpanelWhm\Exceptions\WhmConnectionFailed;
 use Itxshakil\CpanelWhm\Support\ConnectionConfig;
 use Itxshakil\CpanelWhm\Transport\TransportResponse;
 use Itxshakil\CpanelWhm\WhmRequest;
-use PHPUnit\Framework\Assert as PHPUnit;
 
 /**
  * The transport behind Whm::fake(). It answers with the responses you give it
@@ -73,6 +72,15 @@ final class WhmFake implements Transport
     }
 
     /**
+     * WHM's answer when the named cPanel account doesn't exist, worded the way
+     * suspendacct, modifyacct and removeacct word it.
+     */
+    public static function accountNotFound(string $user = 'acme'): TransportResponse
+    {
+        return self::failure("You do not have a user named \"{$user}\".");
+    }
+
+    /**
      * An HTTP error, e.g. 401 for a rejected token.
      */
     public static function httpError(int $status = 500, string $body = ''): TransportResponse
@@ -88,6 +96,15 @@ final class WhmFake implements Transport
     public static function connectionError(string $message = 'Connection refused'): FakeConnectionFailure
     {
         return new FakeConnectionFailure($message);
+    }
+
+    /**
+     * WHM got the call but stopped answering: a read timeout after the request
+     * was sent. The WhmConnectionFailed it raises says mayHaveReachedServer().
+     */
+    public static function timedOutAfterSending(int $seconds = 30): FakeConnectionFailure
+    {
+        return new FakeConnectionFailure("cURL error 28: Operation timed out after {$seconds}000 milliseconds with 0 bytes received");
     }
 
     /**
@@ -196,7 +213,13 @@ final class WhmFake implements Transport
 
     private function answer(ConnectionConfig $config, WhmRequest $request): TransportResponse
     {
-        $stub = $this->stubs[$request->function] ?? $this->stubs['*'] ?? null;
+        // A UAPI call can be stubbed on its own, 'uapi:Email::add_pop', before
+        // falling back to every uapi_cpanel call, then to '*'.
+        $uapiKey = self::uapiKey($request);
+        $stub = ($uapiKey !== null ? $this->stubs[$uapiKey] ?? null : null)
+            ?? $this->stubs[$request->function]
+            ?? $this->stubs['*']
+            ?? null;
 
         if ($stub === null) {
             if ($this->preventStrayCalls) {
@@ -210,7 +233,9 @@ final class WhmFake implements Transport
     }
 
     /**
-     * Every recorded call, or only those to one function.
+     * Every recorded call, or only those to one function. A UAPI function is
+     * named 'uapi:Module::function', e.g. 'uapi:Email::add_pop'; so the
+     * assertions take that form too.
      *
      * @return list<WhmRequest>
      */
@@ -220,7 +245,25 @@ final class WhmFake implements Transport
             return $this->recorded;
         }
 
-        return array_values(array_filter($this->recorded, static fn (WhmRequest $request): bool => $request->function === $function));
+        return array_values(array_filter(
+            $this->recorded,
+            static fn (WhmRequest $request): bool => str_starts_with($function, 'uapi:')
+                ? self::uapiKey($request) === $function
+                : $request->function === $function,
+        ));
+    }
+
+    /**
+     * 'uapi:Module::function' for a uapi_cpanel call, null for anything else.
+     */
+    private static function uapiKey(WhmRequest $request): ?string
+    {
+        $module = $request->params['cpanel.module'] ?? null;
+        $function = $request->params['cpanel.function'] ?? null;
+
+        return $request->function === 'uapi_cpanel' && is_string($module) && is_string($function)
+            ? "uapi:{$module}::{$function}"
+            : null;
     }
 
     /**
@@ -228,8 +271,8 @@ final class WhmFake implements Transport
      */
     public function assertCalled(string $function, ?Closure $callback = null): self
     {
-        PHPUnit::assertNotEmpty(
-            $this->matching($function, $callback),
+        self::assertThat(
+            $this->matching($function, $callback) !== [],
             $callback === null
                 ? "Expected WHM function [{$function}] to be called, but it was not."
                 : "Expected WHM function [{$function}] to be called with matching parameters, but no call matched.",
@@ -243,9 +286,39 @@ final class WhmFake implements Transport
      */
     public function assertNotCalled(string $function, ?Closure $callback = null): self
     {
-        PHPUnit::assertEmpty(
-            $this->matching($function, $callback),
+        self::assertThat(
+            $this->matching($function, $callback) === [],
             "Expected WHM function [{$function}] not to be called, but it was.",
+        );
+
+        return $this;
+    }
+
+    /**
+     * Assert a UAPI function ran as an account (through uapi_cpanel):
+     * assertUapiCalled('acme', 'Email', 'add_pop', fn (array $params) => $params['email'] === 'info').
+     * $params holds the function's own parameters, without the cpanel.* ones.
+     *
+     * @param  (Closure(array<string, mixed>, WhmRequest): bool)|null  $callback
+     */
+    public function assertUapiCalled(string $user, string $module, string $function, ?Closure $callback = null): self
+    {
+        self::assertThat(
+            $this->matchingUapi($user, $module, $function, $callback) !== [],
+            "Expected UAPI {$module}::{$function} to be called as [{$user}]".($callback instanceof Closure ? ' with matching parameters' : '').', but no call matched.',
+        );
+
+        return $this;
+    }
+
+    /**
+     * @param  (Closure(array<string, mixed>, WhmRequest): bool)|null  $callback
+     */
+    public function assertUapiNotCalled(string $user, string $module, string $function, ?Closure $callback = null): self
+    {
+        self::assertThat(
+            $this->matchingUapi($user, $module, $function, $callback) === [],
+            "Expected UAPI {$module}::{$function} not to be called as [{$user}], but it was.",
         );
 
         return $this;
@@ -255,14 +328,14 @@ final class WhmFake implements Transport
     {
         $count = count($this->recorded($function));
 
-        PHPUnit::assertSame($times, $count, "Expected WHM function [{$function}] to be called {$times} time(s), but it was called {$count} time(s).");
+        self::assertThat($count === $times, "Expected WHM function [{$function}] to be called {$times} time(s), but it was called {$count} time(s).");
 
         return $this;
     }
 
     public function assertSentCount(int $count): self
     {
-        PHPUnit::assertCount($count, $this->recorded, "Expected {$count} WHM call(s), but ".count($this->recorded).' were made.');
+        self::assertThat(count($this->recorded) === $count, "Expected {$count} WHM call(s), but ".count($this->recorded).' were made.');
 
         return $this;
     }
@@ -270,6 +343,27 @@ final class WhmFake implements Transport
     public function assertNothingSent(): self
     {
         return $this->assertSentCount(0);
+    }
+
+    /**
+     * Report through PHPUnit when it is installed, so a failure shows as a test
+     * failure and the assertion is counted. This class lives in src/ and is
+     * autoloaded in production too, where PHPUnit usually isn't installed, so
+     * it is never required: without it a failure throws a plain exception.
+     *
+     * @throws FakeAssertionFailed
+     */
+    private static function assertThat(bool $condition, string $message): void
+    {
+        if (class_exists(\PHPUnit\Framework\Assert::class)) {
+            \PHPUnit\Framework\Assert::assertTrue($condition, $message);
+
+            return;
+        }
+
+        if (! $condition) {
+            throw new FakeAssertionFailed($message);
+        }
     }
 
     /**
@@ -282,6 +376,25 @@ final class WhmFake implements Transport
             $this->recorded($function),
             static fn (WhmRequest $request): bool => ! $callback instanceof Closure || $callback($request->params, $request),
         ));
+    }
+
+    /**
+     * @param  (Closure(array<string, mixed>, WhmRequest): bool)|null  $callback
+     * @return list<WhmRequest>
+     */
+    private function matchingUapi(string $user, string $module, string $function, ?Closure $callback): array
+    {
+        return $this->matching('uapi_cpanel', static function (array $params, WhmRequest $request) use ($user, $module, $function, $callback): bool {
+            if (($params['cpanel.user'] ?? null) !== mb_strtolower(trim($user))
+                || ($params['cpanel.module'] ?? null) !== $module
+                || ($params['cpanel.function'] ?? null) !== $function) {
+                return false;
+            }
+
+            unset($params['cpanel.user'], $params['cpanel.module'], $params['cpanel.function']);
+
+            return ! $callback instanceof Closure || $callback($params, $request);
+        });
     }
 
     private function resolve(mixed $stub, ConnectionConfig $config, WhmRequest $request): TransportResponse
@@ -322,6 +435,7 @@ final class WhmFake implements Transport
         ksort($commands);
         $abortOnError = in_array($request->params['abort_on_error'] ?? 0, [1, '1', true], true);
         $results = [];
+        $failed = false;
 
         foreach ($commands as $command) {
             [$function, $query] = array_pad(explode('?', $command, 2), 2, '');
@@ -335,18 +449,30 @@ final class WhmFake implements Transport
             $inner = new WhmRequest($request->connection, $function, $params, HttpMethod::for($function, $params));
             $this->recorded[] = $inner;
 
-            $answer = $this->answer($config, $inner);
-            $json = $answer->json ?? ['data' => null, 'metadata' => ['command' => $function, 'result' => 0, 'reason' => "HTTP {$answer->status}"]];
+            // A batch is one HTTP request, so a connection error can't hit just one
+            // command; a connectionError() stub for one becomes a failed command.
+            try {
+                $answer = $this->answer($config, $inner);
+                $json = $answer->json ?? ['data' => null, 'metadata' => ['command' => $function, 'result' => 0, 'reason' => "HTTP {$answer->status}"]];
+            } catch (WhmConnectionFailed $whmConnectionFailed) {
+                $json = ['data' => null, 'metadata' => ['command' => $function, 'result' => 0, 'reason' => $whmConnectionFailed->getMessage()]];
+            }
+
             $results[] = $json;
 
             $result = is_array($json['metadata'] ?? null) ? ($json['metadata']['result'] ?? 0) : 0;
+            $failed = $failed || (int) (is_numeric($result) ? $result : 0) !== 1;
 
-            if ($abortOnError && (int) (is_numeric($result) ? $result : 0) !== 1) {
+            if ($abortOnError && $failed) {
                 break;
             }
         }
 
-        return self::response(['result' => $results]);
+        // Like WHM, a batch with a failed command is itself marked failed, while
+        // still carrying every command's answer.
+        return $failed
+            ? self::response(['result' => $results], 'One or more commands failed.', ['result' => 0])
+            : self::response(['result' => $results]);
     }
 
     /**

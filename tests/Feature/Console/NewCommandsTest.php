@@ -10,16 +10,20 @@ use Illuminate\Support\Facades\File;
 use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\Finder\Finder;
 
 final class NewCommandsTest extends TestCase
 {
     #[Test]
-    public function suspend_asks_first_and_unsuspend_does_not(): void
+    public function suspend_and_unsuspend_ask_first(): void
     {
         $fake = Whm::fake(['*' => Whm::response()]);
 
         $this->artisan('whm:suspend', ['user' => 'acme', '--reason' => 'Unpaid', '--lock' => true])
             ->expectsConfirmation('Suspend acme? The sites and mail stop working.', 'no')
+            ->assertFailed();
+        $this->artisan('whm:unsuspend', ['user' => 'acme'])
+            ->expectsConfirmation('Unsuspend acme? Its sites and mail start working again.', 'no')
             ->assertFailed();
         $fake->assertNothingSent();
 
@@ -28,10 +32,29 @@ final class NewCommandsTest extends TestCase
             ->assertSuccessful();
 
         $this->artisan('whm:unsuspend', ['user' => 'acme'])
+            ->expectsConfirmation('Unsuspend acme? Its sites and mail start working again.', 'yes')
             ->expectsOutputToContain('acme is active again.')
             ->assertSuccessful();
 
-        $fake->assertCalled('suspendacct', static fn (array $p): bool => $p === ['user' => 'acme', 'reason' => 'Unpaid', 'disallowun' => 1]);
+        $fake->assertCalled('suspendacct', static fn (array $p): bool => $p === ['user' => 'acme', 'reason' => 'Unpaid', 'disallowun' => 1])
+            ->assertCalledTimes('unsuspendacct', 1);
+    }
+
+    #[Test]
+    public function without_a_terminal_nothing_is_suspended_or_unsuspended_unless_forced(): void
+    {
+        $fake = Whm::fake(['*' => Whm::response()]);
+
+        $this->artisan('whm:suspend', ['user' => 'acme', '--no-interaction' => true])
+            ->expectsOutputToContain('--force')
+            ->assertFailed();
+        $this->artisan('whm:unsuspend', ['user' => 'acme', '--no-interaction' => true])
+            ->expectsOutputToContain('--force')
+            ->assertFailed();
+        $fake->assertNothingSent();
+
+        $this->artisan('whm:unsuspend', ['user' => 'acme', '--no-interaction' => true, '--force' => true])->assertSuccessful();
+        $fake->assertCalledTimes('unsuspendacct', 1);
     }
 
     #[Test]
@@ -39,9 +62,24 @@ final class NewCommandsTest extends TestCase
     {
         Whm::fake(['unsuspendacct' => Whm::failure('User does not exist')]);
 
-        $this->artisan('whm:unsuspend', ['user' => 'ghost'])
+        $this->artisan('whm:unsuspend', ['user' => 'ghost', '--force' => true])
             ->expectsOutputToContain('User does not exist')
             ->assertFailed();
+    }
+
+    #[Test]
+    public function a_failure_with_json_is_reported_as_json(): void
+    {
+        Whm::fake(['listpkgs' => Whm::httpError(401), 'get_disk_usage' => Whm::httpError(401)]);
+
+        foreach (['whm:packages', 'whm:usage'] as $command) {
+            self::assertSame(1, Artisan::call($command, ['--json' => true]), $command);
+
+            $output = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);
+            self::assertIsArray($output);
+            self::assertStringContainsString('HTTP 401', (string) ($output['error'] ?? ''));
+            self::assertNotEmpty($output['hint'] ?? null);
+        }
     }
 
     #[Test]
@@ -90,6 +128,24 @@ final class NewCommandsTest extends TestCase
     }
 
     #[Test]
+    public function an_old_expired_token_does_not_fail_the_token_check(): void
+    {
+        CarbonImmutable::setTestNow('2026-10-03 12:00:00');
+        Whm::fake(['api_token_list' => Whm::response(['tokens' => [
+            'old' => ['create_time' => 1767225600, 'expires_at' => CarbonImmutable::parse('2026-01-01')->getTimestamp(), 'acls' => ['all' => 1]],
+            'app' => ['create_time' => 1767225600, 'expires_at' => null, 'acls' => ['all' => 1]],
+        ]])]);
+
+        $this->artisan('whm:token')
+            ->expectsOutputToContain('1 expired token(s): old')
+            ->assertSuccessful();
+
+        self::assertCount(0, Whm::tokens()->expiringWithin(14));
+
+        CarbonImmutable::setTestNow();
+    }
+
+    #[Test]
     public function usage_lists_accounts_near_their_limits_and_fails(): void
     {
         Whm::fake([
@@ -106,6 +162,24 @@ final class NewCommandsTest extends TestCase
         self::assertMatchesRegularExpression('/\| acme +\| acme\.test +\| 0\.9 GB \/ 1\.0 GB +\| 95% +\| 10 B \/ unlimited/', $output);
         self::assertStringNotContainsString('calm', $output);
         self::assertStringContainsString('1 account(s) at or above 90% of their disk or bandwidth limit.', $output);
+    }
+
+    #[Test]
+    public function usage_formats_every_size_without_the_intl_extension(): void
+    {
+        Whm::fake([
+            'get_disk_usage' => Whm::response(['accounts' => [['user' => 'big', 'blocks_used' => 5 * 1024 ** 3, 'blocks_limit' => 5 * 1024 ** 3]]]),
+            'showbw' => Whm::response(['acct' => [['user' => 'big', 'maindomain' => 'big.test', 'totalbytes' => 1536, 'limit' => 2048]]]),
+        ]);
+
+        Artisan::call('whm:usage', ['--all' => true]);
+
+        self::assertMatchesRegularExpression('/5\.0 TB \/ 5\.0 TB .*1\.5 KB \/ 2\.0 KB/', Artisan::output());
+
+        // Number::fileSize() needs ext-intl, which the package doesn't require.
+        foreach ((new Finder)->files()->in(dirname(__DIR__, 3).'/src')->name('*.php') as $file) {
+            self::assertStringNotContainsString('Illuminate\Support\Number', $file->getContents(), $file->getRelativePathname());
+        }
     }
 
     #[Test]
@@ -180,6 +254,20 @@ final class NewCommandsTest extends TestCase
         $this->artisan('whm:record', ['function' => 'removeacct', 'params' => ['user=acme']])
             ->expectsOutputToContain('only calls read-only functions')
             ->assertFailed();
+
+        $fake->assertNothingSent();
+    }
+
+    #[Test]
+    public function record_refuses_names_and_paths_that_leave_the_project(): void
+    {
+        $fake = Whm::fake(['version' => Whm::response(['version' => '11.138.0.10'])]);
+
+        foreach ([['--name' => '../../composer'], ['--name' => 'sub/dir'], ['--name' => '..'], ['--path' => '../outside'], ['--path' => 'tests/../../outside'], ['--path' => '/etc'], ['--path' => 'C:\\temp']] as $options) {
+            $this->artisan('whm:record', ['function' => 'version', ...$options])
+                ->expectsOutputToContain(array_key_first($options))
+                ->assertFailed();
+        }
 
         $fake->assertNothingSent();
     }

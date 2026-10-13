@@ -200,8 +200,8 @@ final class Dns extends UapiModule
      *
      * @param  int  $serial  The current serial number in the DNS zone’s SOA (Start of Authority) record.
      * @param  string  $zone  The name of one of the user’s DNS zones.
-     * @param  array<array-key, mixed>|null  $add  The records to add to the zone.
-     * @param  array<array-key, mixed>|null  $edit  The records to edit in the zone.
+     * @param  array<array-key, mixed>|null  $add  The records to add to the zone. Sent as JSON: an array is encoded for you, a string is sent as it is.
+     * @param  array<array-key, mixed>|null  $edit  The records to edit in the zone. Sent as JSON: an array is encoded for you, a string is sent as it is.
      * @param  array<array-key, mixed>|null  $remove  The line indexes of records to remove from the zone.
      * @param  array<string, mixed>  $extra  Further parameters, sent as given.
      *
@@ -221,8 +221,8 @@ final class Dns extends UapiModule
         return $this->invoke('mass_edit_zone', [
             'serial' => $serial,
             'zone' => $zone,
-            'add' => $add,
-            'edit' => $edit,
+            'add' => self::json($add),
+            'edit' => self::json($edit),
             'remove' => $remove,
         ], $extra);
     }

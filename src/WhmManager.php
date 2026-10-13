@@ -16,6 +16,7 @@ use Itxshakil\CpanelWhm\Exceptions\InvalidConfiguration;
 use Itxshakil\CpanelWhm\Support\ConnectionConfig;
 use Itxshakil\CpanelWhm\Testing\WhmFake;
 use Itxshakil\CpanelWhm\Transport\HttpTransport;
+use SensitiveParameter;
 
 /**
  * Resolves named connections, like DatabaseManager. Calls it does not know
@@ -60,16 +61,37 @@ class WhmManager
     {
         $name ??= $this->getDefaultConnection();
 
-        $config = $this->configFor($name);
+        return $this->clients[$name] ??= $this->makeClient($this->configFor($name));
+    }
 
-        return $this->clients[$name] ??= new WhmClient(
-            $this->fake instanceof WhmFake ? $config->withoutRetryDelay() : $config,
-            $this->transport(),
-            $this->container->make(Dispatcher::class),
-            $this->container->bound(CacheFactory::class) ? $this->container->make(CacheFactory::class) : null,
-            cacheStore: $this->cacheSetting('store'),
-            cachePrefix: $this->cacheSetting('prefix') ?? 'cpanel-whm',
-        );
+    /**
+     * A client for a server that isn't in config/cpanel-whm.php, such as one
+     * read from a servers table:
+     *
+     *     Whm::build(['host' => $server->host, 'token' => decrypt($server->token)], name: "server-{$server->id}");
+     *
+     * The array takes the same keys as a configured connection and is validated
+     * the same way. The client gets the same events, cache and retries, and
+     * Whm::fake() covers it. It isn't remembered: build it again when needed,
+     * or keep it. $name shows up in events, logs and cache keys.
+     *
+     * @param  array<string, mixed>  $config
+     *
+     * @throws InvalidConfiguration
+     */
+    public function build(#[SensitiveParameter] array $config, string $name = 'runtime'): WhmClientContract
+    {
+        try {
+            $connection = ConnectionConfig::fromArray($name, $config);
+        } catch (InvalidConfiguration $invalidConfiguration) {
+            if (! $this->fake instanceof WhmFake) {
+                throw $invalidConfiguration;
+            }
+
+            $connection = ConnectionConfig::fake($name);
+        }
+
+        return $this->makeClient($connection);
     }
 
     /**
@@ -79,8 +101,13 @@ class WhmManager
     {
         $config = $this->config()->get("cpanel-whm.connections.{$name}");
 
+        // Under the fake, a test app with no WHM settings still works. Anything
+        // production would reject (a typo in the name, a cPanel port) still
+        // throws, so the test fails where the app would.
         if (! is_array($config)) {
-            if ($this->fake instanceof WhmFake) {
+            $connections = $this->config()->get('cpanel-whm.connections');
+
+            if ($this->fake instanceof WhmFake && (! is_array($connections) || $connections === [])) {
                 return ConnectionConfig::fake($name);
             }
 
@@ -91,12 +118,29 @@ class WhmManager
         try {
             return ConnectionConfig::fromArray($name, $config);
         } catch (InvalidConfiguration $invalidConfiguration) {
-            if ($this->fake instanceof WhmFake) {
+            if ($this->fake instanceof WhmFake && self::isUnset($config)) {
                 return ConnectionConfig::fake($name);
             }
 
             throw $invalidConfiguration;
         }
+    }
+
+    /**
+     * A connection whose host or token is empty, as in an app (or CI) without
+     * the WHM_* variables.
+     *
+     * @param  array<string, mixed>  $config
+     */
+    private static function isUnset(array $config): bool
+    {
+        foreach (['host', 'token'] as $key) {
+            if (! is_string($config[$key] ?? null) || trim($config[$key]) === '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function getDefaultConnection(): string
@@ -167,6 +211,18 @@ class WhmManager
         $value = $this->config()->get("cpanel-whm.cache.{$key}");
 
         return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    private function makeClient(ConnectionConfig $config): WhmClient
+    {
+        return new WhmClient(
+            $this->fake instanceof WhmFake ? $config->withoutRetryDelay() : $config,
+            $this->transport(),
+            $this->container->make(Dispatcher::class),
+            $this->container->bound(CacheFactory::class) ? $this->container->make(CacheFactory::class) : null,
+            cacheStore: $this->cacheSetting('store'),
+            cachePrefix: $this->cacheSetting('prefix') ?? 'cpanel-whm',
+        );
     }
 
     private function transport(): Transport

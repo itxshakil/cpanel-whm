@@ -11,7 +11,7 @@ namespace Itxshakil\CpanelWhm\Data;
 final readonly class ResellerStats
 {
     /**
-     * @param  list<array<array-key, mixed>>  $accounts  one row per owned account (user, domain, package, diskused, ...)
+     * @param  list<array<array-key, mixed>>  $accounts  one row per owned account (user, domain, package, diskused, ...); WHM includes the reseller's own account here
      * @param  array<array-key, mixed>  $raw
      */
     public function __construct(
