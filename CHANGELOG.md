@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `Resellers::stats()` leaves accounts removed during the month out of `ResellerStats::$accounts` (`filter_deleted=1`); pass `includeDeleted: true` to keep them. The docblock now says the list includes the reseller's own account, as WHM documents.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

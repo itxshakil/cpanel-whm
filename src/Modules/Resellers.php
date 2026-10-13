@@ -56,11 +56,19 @@ class Resellers extends Module
     }
 
     /**
+     * A reseller's totals and accounts for a month. WHM lists accounts removed
+     * during the month too unless asked not to, so they're left out by default.
+     *
      * @throws WhmException
      */
-    public function stats(string $user, ?int $month = null, ?int $year = null): ResellerStats
+    public function stats(string $user, ?int $month = null, ?int $year = null, bool $includeDeleted = false): ResellerStats
     {
-        $data = $this->client->call('resellerstats', ['user' => UsernameRules::normalise($user), 'month' => $month, 'year' => $year])->get('reseller');
+        $data = $this->client->call('resellerstats', [
+            'user' => UsernameRules::normalise($user),
+            'month' => $month,
+            'year' => $year,
+            'filter_deleted' => $includeDeleted ? null : 1,
+        ])->get('reseller');
 
         return ResellerStats::fromArray(is_array($data) ? $data : []);
     }

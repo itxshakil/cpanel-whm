@@ -193,7 +193,7 @@ Whm::resellers()->saveAcl('basic', ['create-acct', 'list-accts']);
 Whm::resellers()->assignAcl('res1', 'basic');
 Whm::resellers()->acls();                         // ['basic' => ['create-acct', 'list-accts'], ...]
 Whm::resellers()->setLimits('res1', accounts: 25, diskMb: 51_200, bandwidthMb: 512_000);
-Whm::resellers()->stats('res1');                  // ResellerStats: disk, bandwidth, owned accounts
+Whm::resellers()->stats('res1');                  // ResellerStats: disk, bandwidth, owned accounts (with the reseller's own; removed ones only with includeDeleted: true)
 Whm::resellers()->accountCounts('res1')->remaining();
 Whm::resellers()->suspend('res1', 'Unpaid', lock: true);
 Whm::resellers()->terminate('res1');              // deletes every account it owns
