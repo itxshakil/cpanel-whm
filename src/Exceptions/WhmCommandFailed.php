@@ -25,6 +25,13 @@ class WhmCommandFailed extends WhmException
         'requires the privilege',
     ];
 
+    /**
+     * How WHM says the cPanel account doesn't exist. Account functions word it
+     * differently: accountsummary says "does not exist", suspendacct and
+     * modifyacct say "You do not have a user named …".
+     */
+    private const string MISSING_ACCOUNT_PATTERN = '/do not have a user named|no such user|\b(?:user|account)\b[^.]*\bdoes not exist/';
+
     final public function __construct(
         private readonly string $function,
         private readonly string $reason,
@@ -40,7 +47,8 @@ class WhmCommandFailed extends WhmException
 
     /**
      * WhmPermissionDenied when the reason says the token lacks a privilege,
-     * WhmCommandFailed otherwise.
+     * AccountNotFound when it says the account doesn't exist, WhmCommandFailed
+     * otherwise.
      */
     public static function classify(string $function, WhmResponse $response): self
     {
@@ -50,6 +58,10 @@ class WhmCommandFailed extends WhmException
             if (str_contains($reason, $phrase)) {
                 return WhmPermissionDenied::from($function, $response);
             }
+        }
+
+        if (preg_match(self::MISSING_ACCOUNT_PATTERN, $reason) === 1) {
+            return AccountNotFound::from($function, $response);
         }
 
         return self::from($function, $response);

@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Itxshakil\CpanelWhm\Modules;
 
 use Illuminate\Support\Collection;
+use InvalidArgumentException;
 use Itxshakil\CpanelWhm\Data\Account;
 use Itxshakil\CpanelWhm\Data\DomainInfo;
 use Itxshakil\CpanelWhm\Data\Value;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
 use Itxshakil\CpanelWhm\Support\UsernameRules;
 use Itxshakil\CpanelWhm\WhmResponse;
 
@@ -56,12 +58,16 @@ class Domains extends Module
     /**
      * The cPanel account that owns a domain, or null when no account does.
      *
+     * @throws WhmPermissionDenied when the token may not look owners up
      * @throws WhmException
      */
     public function owner(string $domain): ?string
     {
         try {
             return Value::string($this->client->call('getdomainowner', ['domain' => $domain])->get('user'));
+        } catch (WhmPermissionDenied $whmPermissionDenied) {
+            // A token without the privilege must not read as "nobody owns it".
+            throw $whmPermissionDenied;
         } catch (WhmCommandFailed) {
             return null;
         }
@@ -104,6 +110,7 @@ class Domains extends Module
      * Add a domain alias (a parked domain) to an account. It serves the same
      * site as $webVhostDomain, which defaults to the account's main domain.
      *
+     * @throws InvalidArgumentException when $webVhostDomain is left out and the account doesn't exist
      * @throws WhmException
      */
     public function createAlias(string $user, string $domain, ?string $webVhostDomain = null): WhmResponse
@@ -112,7 +119,14 @@ class Domains extends Module
 
         if ($webVhostDomain === null) {
             $account = $this->client->accounts()->find($user);
-            $webVhostDomain = $account instanceof Account ? $account->domain : null;
+
+            // web_vhost_domain is required; without the account there is nothing to
+            // default it to, and WHM would only answer with a vague missing-parameter error.
+            if (! $account instanceof Account) {
+                throw new InvalidArgumentException("There is no cPanel account [{$user}] to add the alias {$domain} to.");
+            }
+
+            $webVhostDomain = $account->domain;
         }
 
         return $this->client->call('create_parked_domain_for_user', [
