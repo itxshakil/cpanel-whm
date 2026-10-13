@@ -53,6 +53,7 @@ All notable changes to this project are documented here. The format follows
 - DNS updates and removals send the serial of the `zone()` read their records came from (`DnsRecord::$zoneSerial`), instead of the current serial, so an edit made from a stale read is refused rather than changing the wrong line. Records from different reads can't be edited together.
 - `Transfers::migrate()` aborts the session when enqueueing or starting fails, instead of leaving it half-queued on WHM; a start that timed out after reaching WHM is left running.
 - `DnsRecord::txt()` splits long text into strings of at most 255 bytes, the DNS limit, instead of 255 characters, and never cuts a multibyte character in half.
+- `Ssl::install()` throws `WhmCommandFailed` with `statusmsg` when `installssl` reports `data.status = 0`, instead of returning a normal-looking result.
 
 ## [0.3.0] - 2026-10-08
 
