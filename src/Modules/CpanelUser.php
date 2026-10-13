@@ -55,6 +55,22 @@ class CpanelUser extends Module
         return new UserMysql($this);
     }
 
+    /**
+     * Subdomains: list, add and delete, with typed results.
+     */
+    public function subdomains(): UserSubdomains
+    {
+        return new UserSubdomains($this);
+    }
+
+    /**
+     * The account's backup dates, and a full backup into its home directory.
+     */
+    public function backups(): UserBackups
+    {
+        return new UserBackups($this);
+    }
+
     public function user(): string
     {
         return $this->user;

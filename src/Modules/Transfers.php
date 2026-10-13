@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Data\TransferSession;
 use Itxshakil\CpanelWhm\Data\Value;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Enums\TransferState;
+use Itxshakil\CpanelWhm\Exceptions\WhmConnectionFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\Support\UsernameRules;
 use Itxshakil\CpanelWhm\WhmResponse;
@@ -109,6 +110,11 @@ class Transfers extends Module
      * Create a session, enqueue every account under the same name, and start it.
      * Poll state($session->id) until isFinished().
      *
+     * When a step after creating the session fails, the session is aborted
+     * before the error is rethrown, so nothing is left half-queued on WHM. The
+     * one exception is a start() that timed out after reaching WHM: the
+     * transfer may be running, so it is left alone.
+     *
      * @param  list<string>  $users
      *
      * @throws WhmException
@@ -117,11 +123,25 @@ class Transfers extends Module
     {
         $session = $this->createSession($server, $options);
 
-        foreach ($users as $user) {
-            $this->enqueueAccount($session->id, $user);
-        }
+        try {
+            foreach ($users as $user) {
+                $this->enqueueAccount($session->id, $user);
+            }
 
-        $this->start($session->id);
+            $this->start($session->id);
+        } catch (WhmException $whmException) {
+            $mayBeRunning = $whmException instanceof WhmConnectionFailed && $whmException->mayHaveReachedServer();
+
+            if (! $mayBeRunning) {
+                try {
+                    $this->abort($session->id);
+                } catch (WhmException) {
+                    // Best effort: the original error is the one worth reporting.
+                }
+            }
+
+            throw $whmException;
+        }
 
         return $session;
     }
