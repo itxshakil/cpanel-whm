@@ -33,6 +33,7 @@ use Itxshakil\CpanelWhm\WhmManager;
  * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient cache(int|\DateInterval|\DateTimeInterface $ttl, ?string $store = null)
  * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient withoutCache()
  * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient withoutRetries()
+ * @method static \Itxshakil\CpanelWhm\Contracts\WhmClient timeout(int $seconds, ?int $connect = null)
  * @method static \Itxshakil\CpanelWhm\Modules\CpanelUser asUser(string $user)
  * @method static \Itxshakil\CpanelWhm\Support\ConnectionConfig config()
  * @method static \Itxshakil\CpanelWhm\Support\ConnectionConfig configFor(string $name)

@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `WhmClient::timeout(int $seconds, ?int $connect = null)` (and `Whm::timeout()`): a copy of the client with other timeouts, for status pages and health checks. `ConnectionConfig::withTimeouts()` backs it. The `WhmClient` contract gains `timeout()`.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added

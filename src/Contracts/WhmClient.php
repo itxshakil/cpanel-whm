@@ -71,6 +71,14 @@ interface WhmClient
     public function withoutRetries(): static;
 
     /**
+     * A copy of this client with other timeouts, in seconds, for callers that
+     * must not wait as long as provisioning does (a status page, a health check):
+     * Whm::timeout(5, connect: 2)->server()->version(). A per-call $timeout
+     * still wins, and createacct still gets at least Accounts::CREATE_TIMEOUT.
+     */
+    public function timeout(int $seconds, ?int $connect = null): static;
+
+    /**
      * Dispatch one of the package's events (AccountCreated, ...) through Laravel.
      */
     public function dispatch(object $event): void;
