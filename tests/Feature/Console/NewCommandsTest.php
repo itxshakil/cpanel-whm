@@ -180,6 +180,20 @@ final class NewCommandsTest extends TestCase
     }
 
     #[Test]
+    public function record_refuses_names_and_paths_that_leave_the_project(): void
+    {
+        $fake = Whm::fake(['version' => Whm::response(['version' => '11.138.0.10'])]);
+
+        foreach ([['--name' => '../../composer'], ['--name' => 'sub/dir'], ['--name' => '..'], ['--path' => '../outside'], ['--path' => 'tests/../../outside'], ['--path' => '/etc'], ['--path' => 'C:\\temp']] as $options) {
+            $this->artisan('whm:record', ['function' => 'version', ...$options])
+                ->expectsOutputToContain(array_key_first($options))
+                ->assertFailed();
+        }
+
+        $fake->assertNothingSent();
+    }
+
+    #[Test]
     public function record_refuses_functions_it_does_not_know(): void
     {
         $fake = Whm::fake();

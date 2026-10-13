@@ -45,6 +45,24 @@ final class RecordCommand extends Command
             return self::FAILURE;
         }
 
+        // The fixture must land inside the project: --name=../../composer would
+        // otherwise overwrite composer.json, and an absolute --path was quietly
+        // turned into a relative one.
+        $nameOption = $this->stringOption('name');
+        $pathOption = $this->stringOption('path');
+
+        if ($nameOption !== '' && (preg_match('/^[A-Za-z0-9._-]+$/', $nameOption) !== 1 || str_contains($nameOption, '..'))) {
+            $this->components->error('--name is a file name: letters, digits, dots, dashes and underscores, without a path.');
+
+            return self::FAILURE;
+        }
+
+        if (preg_match('#^(?:[/\\\\]|[A-Za-z]:)#', $pathOption) === 1 || preg_match('#(?:^|[/\\\\])\.\.(?:[/\\\\]|$)#', $pathOption) === 1) {
+            $this->components->error('--path is a directory inside the project, such as tests/Fixtures/whm: no absolute paths or "..".');
+
+            return self::FAILURE;
+        }
+
         $params = [];
 
         foreach ((array) $this->argument('params') as $pair) {

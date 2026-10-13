@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `whm:record` refuses a `--name` with a path in it and an absolute or `..` `--path`, before calling WHM, so a fixture can't overwrite files outside the fixtures directory.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
