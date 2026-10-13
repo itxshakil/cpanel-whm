@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `Passwords::generate()` throws `InvalidArgumentException` below `Passwords::MIN_LENGTH` (12) instead of quietly returning a 4-character password.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
