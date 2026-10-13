@@ -5,8 +5,8 @@
 | | WHM API 1 | UAPI |
 | --- | --- | --- |
 | Typed method (generated) | 621 of 630 (98.6%) | 680 of 693 (98.1%) |
-| Hand-written, typed results | 74 functions | through `asUser()` |
-| Callable at all | every function, with `Whm::call()` | every function, with `uapi()` |
+| Hand-written, typed results | 77 functions | through `asUser()` |
+| Callable by name | every function that takes form fields, with `Whm::call()` | every function that takes form fields, with `uapi()` |
 
 The functions without a typed method take a JSON body or a file upload; see [coverage](coverage.md).
 
@@ -17,3 +17,5 @@ The functions without a typed method take a JSON body or a file upload; see [cov
 ## Before 1.0
 
 - Run in production for six weeks with no breaking changes needed.
+
+That is the only criterion. Functions that take a JSON body or a file upload don't block 1.0; they stay callable with `Whm::call()`. What 1.0 promises is in the README, under "Stability and versioning"; the release steps are in RELEASING.md.

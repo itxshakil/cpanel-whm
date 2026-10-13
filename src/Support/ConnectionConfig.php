@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Itxshakil\CpanelWhm\Support;
 
+use DateTimeZone;
 use Itxshakil\CpanelWhm\Exceptions\InvalidConfiguration;
 use SensitiveParameter;
 
@@ -17,6 +18,16 @@ final readonly class ConnectionConfig
      */
     public const array CPANEL_PORTS = [2082, 2083, 2095, 2096];
 
+    /**
+     * curl's public key pin format: one or more sha256//<base64 of the SPKI hash>, separated by ";".
+     */
+    private const string PIN_PATTERN = '#^sha256//[A-Za-z0-9+/]{43}=(?:;sha256//[A-Za-z0-9+/]{43}=)*$#';
+
+    /**
+     * @param  string|null  $caBundle  a CA file to verify the certificate against, instead of the system's
+     * @param  string|null  $pinnedPublicKey  sha256//... pins; the certificate's public key must match one
+     * @param  string|null  $timezone  the server's timezone, for the calendar day of backup dates
+     */
     public function __construct(
         public string $name,
         public string $scheme,
@@ -30,6 +41,9 @@ final readonly class ConnectionConfig
         public int $connectTimeout = 10,
         public int $retries = 2,
         public int $retryDelayMs = 250,
+        public ?string $caBundle = null,
+        public ?string $pinnedPublicKey = null,
+        public ?string $timezone = null,
     ) {}
 
     /**
@@ -47,6 +61,9 @@ final readonly class ConnectionConfig
             'connectTimeout' => $this->connectTimeout,
             'retries' => $this->retries,
             'retryDelayMs' => $this->retryDelayMs,
+            'caBundle' => $this->caBundle,
+            'pinnedPublicKey' => $this->pinnedPublicKey,
+            'timezone' => $this->timezone,
         ];
     }
 
@@ -73,6 +90,28 @@ final readonly class ConnectionConfig
 
         [$scheme, $host, $port] = self::parseHost($name, $rawHost);
 
+        $caBundle = self::string($config['ca_bundle'] ?? null);
+
+        if ($caBundle !== '' && ! is_file($caBundle)) {
+            throw InvalidConfiguration::invalidTls($name, "has a CA bundle [{$caBundle}] that doesn't exist.", 'Point WHM_CA_BUNDLE at a PEM file with the CA (or the self-signed certificate) WHM presents.');
+        }
+
+        $pin = self::string($config['pinned_public_key'] ?? null);
+
+        if ($pin !== '' && preg_match(self::PIN_PATTERN, $pin) !== 1) {
+            throw InvalidConfiguration::invalidTls($name, 'has a pinned public key in the wrong format.', 'Use sha256//<base64>, as php artisan whm:doctor prints it; separate several with ";".');
+        }
+
+        if ($pin !== '' && ! defined('CURLOPT_PINNEDPUBLICKEY')) {
+            throw InvalidConfiguration::invalidTls($name, 'pins a public key, but this PHP has no curl support for pinning.', 'Install the curl extension built against libcurl 7.39 or newer, or remove WHM_PINNED_PUBLIC_KEY.');
+        }
+
+        $timezone = self::string($config['timezone'] ?? null);
+
+        if ($timezone !== '' && ! in_array($timezone, timezone_identifiers_list(DateTimeZone::ALL_WITH_BC), true)) {
+            throw InvalidConfiguration::invalidTimezone($name, $timezone);
+        }
+
         return new self(
             name: $name,
             scheme: $scheme,
@@ -85,6 +124,9 @@ final readonly class ConnectionConfig
             connectTimeout: max(1, self::int($config['connect_timeout'] ?? null, 10)),
             retries: max(0, self::int(is_array($config['retry'] ?? null) ? ($config['retry']['times'] ?? null) : null, 2)),
             retryDelayMs: max(0, self::int(is_array($config['retry'] ?? null) ? ($config['retry']['sleep_ms'] ?? null) : null, 250)),
+            caBundle: $caBundle !== '' ? $caBundle : null,
+            pinnedPublicKey: $pin !== '' ? $pin : null,
+            timezone: $timezone !== '' ? $timezone : null,
         );
     }
 
@@ -102,10 +144,15 @@ final readonly class ConnectionConfig
      */
     public function withoutRetryDelay(): self
     {
-        return new self(
-            $this->name, $this->scheme, $this->host, $this->port, $this->user, $this->token,
-            $this->verifyTls, $this->timeout, $this->connectTimeout, $this->retries, 0,
-        );
+        return $this->with(retryDelayMs: 0);
+    }
+
+    /**
+     * The same connection with other timeouts, in seconds (at least 1).
+     */
+    public function withTimeouts(int $timeout, ?int $connectTimeout = null): self
+    {
+        return $this->with(timeout: max(1, $timeout), connectTimeout: max(1, $connectTimeout ?? $this->connectTimeout));
     }
 
     /**
@@ -113,10 +160,7 @@ final readonly class ConnectionConfig
      */
     public function withoutRetries(): self
     {
-        return new self(
-            $this->name, $this->scheme, $this->host, $this->port, $this->user, $this->token,
-            $this->verifyTls, $this->timeout, $this->connectTimeout, 0, $this->retryDelayMs,
-        );
+        return $this->with(retries: 0);
     }
 
     public function baseUrl(): string
@@ -136,7 +180,42 @@ final readonly class ConnectionConfig
 
     public function isIpAddress(): bool
     {
-        return filter_var($this->host, FILTER_VALIDATE_IP) !== false;
+        return filter_var($this->bareHost(), FILTER_VALIDATE_IP) !== false;
+    }
+
+    /**
+     * The host without the brackets an IPv6 address carries in a URL
+     * ([2001:db8::1] becomes 2001:db8::1), for DNS lookups and TLS peer names.
+     */
+    public function bareHost(): string
+    {
+        return str_starts_with($this->host, '[') && str_ends_with($this->host, ']')
+            ? substr($this->host, 1, -1)
+            : $this->host;
+    }
+
+    /**
+     * A copy with some properties changed. Every copy goes through here, so a
+     * new property only has to be carried over in one place.
+     */
+    private function with(?int $timeout = null, ?int $connectTimeout = null, ?int $retries = null, ?int $retryDelayMs = null): self
+    {
+        return new self(
+            name: $this->name,
+            scheme: $this->scheme,
+            host: $this->host,
+            port: $this->port,
+            user: $this->user,
+            token: $this->token,
+            verifyTls: $this->verifyTls,
+            timeout: $timeout ?? $this->timeout,
+            connectTimeout: $connectTimeout ?? $this->connectTimeout,
+            retries: $retries ?? $this->retries,
+            retryDelayMs: $retryDelayMs ?? $this->retryDelayMs,
+            caBundle: $this->caBundle,
+            pinnedPublicKey: $this->pinnedPublicKey,
+            timezone: $this->timezone,
+        );
     }
 
     /**

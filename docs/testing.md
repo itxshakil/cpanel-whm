@@ -20,12 +20,24 @@ You don't need any WHM config in tests: under the fake, a connection whose host 
 | `Whm::failure(string $reason, array $data = [])` | WHM failure (`result = 0`) → `WhmCommandFailed` (or `WhmPermissionDenied` for "Access denied") |
 | `Whm::httpError(int $status = 500)` | HTTP error; 401/403 → `WhmAuthenticationFailed` |
 | `Whm::connectionError(string $message)` | `WhmConnectionFailed` |
+| `Whm::timedOutAfterSending(int $seconds = 30)` | `WhmConnectionFailed` whose `mayHaveReachedServer()` is true: WHM got the call and may have acted |
 | `Whm::uapi(mixed $data, array $warnings = [], array $messages = [])` | successful `uapi_cpanel` |
 | `Whm::uapiFailure(string\|array $errors)` | `UapiCallFailed` |
 | `Whm::sequence(...$responses)` | one per call, in order; `->whenEmpty($response)` to keep answering |
 | a closure `fn (WhmRequest $request) => ...` | computed per call |
 
 Key `'*'` answers any function. Calls with no answer throw `StrayWhmCall`; `->allowStrayCalls()` answers them with an empty success instead.
+
+UAPI calls made with `Whm::asUser()` can be answered one function at a time, with a `uapi:Module::function` key; `uapi_cpanel` then answers the rest. The same keys work in the assertions and in `recorded()`:
+
+```php
+$whm = Whm::fake([
+    'uapi:Quota::get_quota_info' => Whm::uapi(['megabytes_used' => 120]),
+    'uapi:Backup::list_backups' => Whm::uapi([...]),
+]);
+
+$whm->assertCalled('uapi:Backup::list_backups');
+```
 
 ## Assertions
 
@@ -37,6 +49,11 @@ $whm->assertCalledTimes('suspendacct', 1);
 $whm->assertSentCount(3);
 $whm->assertNothingSent();
 $whm->recorded('createacct');   // list<WhmRequest>
+
+// UAPI calls made with Whm::asUser(): by account, module and function.
+// $params holds the function's own parameters, without the cpanel.* ones.
+$whm->assertUapiCalled('acme', 'Email', 'add_pop', fn (array $params) => $params['email'] === 'info');
+$whm->assertUapiNotCalled('acme', 'Email', 'delete_pop');
 ```
 
 ## Batches

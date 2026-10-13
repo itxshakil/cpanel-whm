@@ -8,6 +8,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
+use Itxshakil\CpanelWhm\Data\NewAccount;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Events\WhmRequestFailed;
 use Itxshakil\CpanelWhm\Events\WhmRequestSending;
@@ -20,6 +21,7 @@ use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
 use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Tests\Fixtures\Responses;
 use Itxshakil\CpanelWhm\Tests\TestCase;
+use Itxshakil\CpanelWhm\WhmRequest;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 
@@ -121,6 +123,34 @@ final class HttpTransportTest extends TestCase
     }
 
     #[Test]
+    public function an_http_error_keeps_the_start_of_the_body_with_secrets_masked(): void
+    {
+        $page = '<html>cpsrvd error at https://h:2087/cpsess1234567890/json-api/version '.str_repeat('x', 3000).'</html>';
+        Http::fake(['*' => Http::sequence()
+            ->push($page, 502)
+            ->push(['data' => ['reason' => 'Upgrade in progress.', 'token' => 'SECRET'], 'metadata' => []], 503)]);
+
+        foreach ([1, 2] as $attempt) {
+            try {
+                Whm::withoutRetries()->call('version');
+                self::fail('Expected WhmHttpError');
+            } catch (WhmHttpError $whmHttpError) {
+                $body = (string) $whmHttpError->body();
+
+                if ($attempt === 1) {
+                    self::assertStringStartsWith('<html>cpsrvd error', $body);
+                    self::assertStringNotContainsString('1234567890', $body);
+                    self::assertSame(WhmHttpError::BODY_LIMIT + 1, mb_strlen($body));
+                } else {
+                    // A JSON error body gives the message its reason, from data.reason when metadata has none.
+                    self::assertStringContainsString('HTTP 503 for version: Upgrade in progress.', $whmHttpError->getMessage());
+                    self::assertStringNotContainsString('SECRET', $body);
+                }
+            }
+        }
+    }
+
+    #[Test]
     public function a_404_has_no_hint(): void
     {
         self::assertNull(WhmHttpError::forStatus(404, 'version')->hint());
@@ -151,6 +181,74 @@ final class HttpTransportTest extends TestCase
         Whm::server()->version();
 
         Http::assertSentCount(1);
+    }
+
+    #[Test]
+    public function a_ca_bundle_and_a_pinned_key_reach_the_http_client(): void
+    {
+        $pin = 'sha256//'.base64_encode(str_repeat('k', 32));
+        config()->set('cpanel-whm.connections.main.ca_bundle', __FILE__);
+        config()->set('cpanel-whm.connections.main.pinned_public_key', $pin);
+
+        $options = [];
+        Http::fake(static function (Request $request, array $sent) use (&$options) {
+            $options = $sent;
+
+            return Http::response(Responses::envelope(['version' => '11.134.0.5']));
+        });
+
+        Whm::server()->version();
+
+        self::assertSame(__FILE__, $options['verify'] ?? null);
+        self::assertSame($pin, $options['curl'][CURLOPT_PINNEDPUBLICKEY] ?? null);
+    }
+
+    #[Test]
+    public function a_client_copy_can_use_shorter_timeouts(): void
+    {
+        $sent = [];
+        Http::fake(static function (Request $request, array $options) use (&$sent) {
+            $sent[] = [$options['timeout'] ?? null, $options['connect_timeout'] ?? null];
+
+            return Http::response(Responses::envelope(['version' => '11.134.0.5']));
+        });
+
+        Whm::timeout(5, connect: 2)->server()->version();
+        Whm::timeout(5, connect: 2)->call('version', timeout: 9);
+        Whm::server()->version();
+
+        // The copy's timeouts, a per-call timeout winning over them, and the original client untouched.
+        self::assertSame([[5, 2], [9, 2], [30, 10]], $sent);
+    }
+
+    #[Test]
+    public function a_short_timeout_client_keeps_the_ca_bundle_and_the_pinned_key(): void
+    {
+        $pin = 'sha256//'.base64_encode(str_repeat('k', 32));
+        config()->set('cpanel-whm.connections.main.ca_bundle', __FILE__);
+        config()->set('cpanel-whm.connections.main.pinned_public_key', $pin);
+
+        $options = [];
+        Http::fake(static function (Request $request, array $sent) use (&$options) {
+            $options = $sent;
+
+            return Http::response(Responses::envelope(['version' => '11.134.0.5']));
+        });
+
+        Whm::timeout(5, connect: 2)->server()->version();
+
+        self::assertSame(__FILE__, $options['verify'] ?? null);
+        self::assertSame($pin, $options['curl'][CURLOPT_PINNEDPUBLICKEY] ?? null);
+    }
+
+    #[Test]
+    public function createacct_keeps_its_long_timeout_on_a_short_timeout_client(): void
+    {
+        $fake = Whm::fake(['createacct' => Whm::response(['user' => 'acme'])]);
+
+        Whm::timeout(5)->accounts()->create(new NewAccount(username: 'acme', domain: 'acme.example', password: 'S3cure!pass'));
+
+        $fake->assertCalled('createacct', static fn (array $params, WhmRequest $request): bool => $request->timeout === 120);
     }
 
     #[Test]

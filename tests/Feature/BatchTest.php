@@ -7,8 +7,11 @@ namespace Itxshakil\CpanelWhm\Tests\Feature;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
+use Itxshakil\CpanelWhm\Events\WhmRequestFailed;
 use Itxshakil\CpanelWhm\Events\WhmRequestSending;
+use Itxshakil\CpanelWhm\Events\WhmResponseReceived;
 use Itxshakil\CpanelWhm\Exceptions\StrayWhmCall;
+use Itxshakil\CpanelWhm\Exceptions\UapiCallFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
 use Itxshakil\CpanelWhm\Facades\Whm;
@@ -102,6 +105,35 @@ final class BatchTest extends TestCase
     }
 
     #[Test]
+    public function the_fake_marks_a_batch_with_a_failed_command_failed_as_whm_does(): void
+    {
+        $fake = Whm::fake([
+            'version' => Whm::response(['version' => '11.138.0.10']),
+            'removeacct' => Whm::failure('nope'),
+            'gethostname' => Whm::connectionError(),
+        ]);
+
+        // The client still hands back every command's answer.
+        $results = Whm::batch()->add('version')->add('removeacct', ['user' => 'ghost'])->add('gethostname')->send();
+
+        self::assertCount(3, $results);
+        self::assertSame([1, 2], array_keys($results->failures()));
+        self::assertStringContainsString('Could not reach WHM', $results->failures()[2]->reason());
+
+        $fake->assertCalledTimes('batch', 1);
+    }
+
+    #[Test]
+    public function the_fake_answers_a_batch_that_fully_succeeds_with_result_1(): void
+    {
+        Event::fake([WhmRequestFailed::class]);
+        Whm::fake(['version' => Whm::response(['version' => '11.138.0.10'])]);
+
+        self::assertTrue(Whm::batch()->add('version')->add('version')->send()->successful());
+        Event::assertNotDispatched(WhmRequestFailed::class);
+    }
+
+    #[Test]
     public function the_fake_still_refuses_commands_it_has_no_answer_for(): void
     {
         Whm::fake(['version' => Whm::response()]);
@@ -142,5 +174,61 @@ final class BatchTest extends TestCase
         $results = Whm::batch()->add('version')->send();
 
         self::assertInstanceOf(WhmCommandFailed::class, $results->failures()[0]);
+    }
+
+    #[Test]
+    public function a_batch_with_one_failed_command_is_a_received_response_not_a_failed_request(): void
+    {
+        Event::fake([WhmResponseReceived::class, WhmRequestFailed::class]);
+        Http::fake(['*' => Http::response(Responses::envelope(['result' => [
+            Responses::envelope(['version' => '11.138.0.10'], command: 'version'),
+            Responses::envelope(null, result: 0, reason: 'nope', command: 'removeacct'),
+        ]], result: 0, reason: 'One or more commands failed.', command: 'batch'))]);
+
+        $results = Whm::batch()->add('version')->add('removeacct', ['user' => 'ghost'])->send();
+
+        self::assertSame([1], array_keys($results->failures()));
+        Event::assertNotDispatched(WhmRequestFailed::class);
+        Event::assertDispatched(WhmResponseReceived::class, static fn (WhmResponseReceived $event): bool => $event->request->function === 'batch');
+
+        // Raw calls see the same thing: the batch ran.
+        self::assertCount(2, (array) Whm::call('batch', ['command' => ['version', 'removeacct?user=ghost']])->get('result'));
+    }
+
+    #[Test]
+    public function a_failed_batch_without_results_still_throws(): void
+    {
+        Http::fake(['*' => Http::response(Responses::envelope(null, result: 0, reason: 'Invalid batch.', command: 'batch'))]);
+
+        $this->expectException(WhmCommandFailed::class);
+        $this->expectExceptionMessage('Invalid batch.');
+
+        Whm::batch()->add('version')->send();
+    }
+
+    #[Test]
+    public function a_uapi_command_whose_cpanel_function_failed_is_a_failure(): void
+    {
+        Http::fake(['*' => Http::response(Responses::envelope(['result' => [
+            Responses::envelope(['uapi' => ['status' => 1, 'data' => []]], command: 'uapi_cpanel'),
+            Responses::envelope(['uapi' => ['status' => 0, 'errors' => ['The mailbox already exists.'], 'data' => null]], command: 'uapi_cpanel'),
+        ]], command: 'batch'))]);
+
+        $results = Whm::batch()
+            ->add('uapi_cpanel', ['cpanel.user' => 'acme', 'cpanel.module' => 'Email', 'cpanel.function' => 'list_pops'])
+            ->add('uapi_cpanel', ['cpanel.user' => 'acme', 'cpanel.module' => 'Email', 'cpanel.function' => 'add_pop', 'email' => 'info'])
+            ->send();
+
+        self::assertFalse($results->successful());
+        self::assertSame([1], array_keys($results->failures()));
+
+        $failure = $results->failures()[1];
+        self::assertInstanceOf(UapiCallFailed::class, $failure);
+        self::assertSame('Email', $failure->module());
+        self::assertSame('add_pop', $failure->function());
+        self::assertSame(['The mailbox already exists.'], $failure->errors());
+
+        $this->expectException(UapiCallFailed::class);
+        $results->throw();
     }
 }
