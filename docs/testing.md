@@ -10,7 +10,7 @@ $whm = Whm::fake([
 ]);
 ```
 
-You don't need any WHM config in tests: under the fake, missing connections get a placeholder.
+You don't need any WHM config in tests: under the fake, a connection whose host or token is unset (or every connection, when none are configured) gets a placeholder. A connection name that isn't configured, or a setting production would reject, still throws `InvalidConfiguration`, so a typo fails the test instead of the deploy.
 
 ## Responses
 

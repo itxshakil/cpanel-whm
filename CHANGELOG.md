@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Under `Whm::fake()`, a misspelled connection name or a connection production would reject (a cPanel port, for example) now throws `InvalidConfiguration`, as in production. The placeholder connection is used only when no connections are configured or the connection's host or token is unset.
+
 ## [0.3.0] - 2026-10-08
 
 ### Added
