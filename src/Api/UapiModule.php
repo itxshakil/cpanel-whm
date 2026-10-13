@@ -29,7 +29,7 @@ abstract class UapiModule
      */
     protected function invoke(string $function, array $params, array $extra = []): UapiResult
     {
-        return $this->user->uapi(static::MODULE, $function, [...$params, ...$extra]);
+        return $this->user->uapi(static::MODULE, $function, WhmGroup::merge($params, $extra));
     }
 
     /**
