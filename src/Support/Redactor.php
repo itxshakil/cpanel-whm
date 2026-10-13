@@ -40,10 +40,13 @@ final class Redactor
     /**
      * Parameter names that hold a secret anywhere in the name: password, passwd,
      * passphrase, oldpass, mysql_pass, pass_hash, client_secret, private_key,
-     * api_token, ... A bare "pass" must end the name and start a word, so flags
-     * such as passive, showpass, spf_bypass or db_pass_update are left alone.
+     * api_token, accesshash, ... A bare "pass" must end the name and start a word,
+     * so flags such as passive, showpass, spf_bypass or db_pass_update are left alone.
+     *
+     * An access hash logs in to WHM like the account's password, so it is masked
+     * whether it is sent or returned (the deprecated accesshash function returns one).
      */
-    private const string SENSITIVE_PATTERN = '/(?:password|passwd|passphrase)(?:_hash)?$|(?:^|_|old|new)pass(?:_hash)?$|secret|private_?key|(?:^|_)token$|key_data|auth_?code|api_?key/';
+    private const string SENSITIVE_PATTERN = '/(?:password|passwd|passphrase)(?:_hash)?$|(?:^|_|old|new)pass(?:_hash)?$|secret|private_?key|(?:^|_)token$|key_data|auth_?code|api_?key|access_?hash/';
 
     /**
      * @template TKey of array-key

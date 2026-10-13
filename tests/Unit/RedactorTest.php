@@ -44,6 +44,7 @@ final class RedactorTest extends TestCase
         foreach ([
             'client_secret', 'passphrase', 'key_passphrase', 'sshkey_passphrase', 'oldpass', 'mysql_pass',
             'privatekey', 'password_hash', 'pass_hash', 'key_data', 'password-1', 'newpass-2', 'dbpassword',
+            'accesshash', 'access_hash', 'remote_accesshash',
         ] as $key) {
             yield $key => [$key];
         }

@@ -211,6 +211,19 @@ final class SecretHandlingTest extends TestCase
     }
 
     #[Test]
+    public function an_access_hash_returned_by_whm_never_reaches_an_event(): void
+    {
+        Event::fake([WhmResponseReceived::class]);
+        Http::fake(['*' => Http::response(Responses::envelope(['accesshash' => "ACCESS-HASH-LINE-1\nACCESS-HASH-LINE-2"], command: 'accesshash'))]);
+
+        $response = Whm::call('accesshash', ['generate' => 0]);
+
+        self::assertStringContainsString('ACCESS-HASH-LINE-1', (string) $response->get('accesshash'));
+
+        Event::assertDispatched(WhmResponseReceived::class, static fn (WhmResponseReceived $event): bool => ! str_contains(print_r($event->response, true), 'ACCESS-HASH'));
+    }
+
+    #[Test]
     public function connection_failures_do_not_keep_the_raw_curl_error_in_the_chain(): void
     {
         Http::fake(static fn () => throw new ConnectionException(
