@@ -62,6 +62,7 @@
     },
     "scripts": {
         "test": "phpunit",
+        "test:live": "phpunit --testsuite Live",
         "analyse": "phpstan analyse --memory-limit=1G",
         "format": "pint",
         "lint": "pint --test",

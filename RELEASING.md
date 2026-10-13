@@ -7,6 +7,7 @@
    Also make a UAPI call fail on purpose through `Whm::api()->apiDevelopmentTools()->cpanel(...)` (UAPI and cPanel API 2) and confirm it throws `UapiCallFailed`: cPanel's spec does not document that response, so its shape is unverified.
    Run a `Whm::batch()` with two commands, one with parameters, and confirm WHM accepts the repeated `command`, `command-1` parameters.
    If a second server is available, run `Whm::transfers()->migrate()` for one disposable account and poll `state()` until it finishes.
+   The batch encoding and the failed-UAPI shape are also covered by the live suite: `WHM_LIVE_HOST=... WHM_LIVE_TOKEN=... WHM_LIVE_ACCOUNT=... composer test:live`, or the "Live WHM" workflow with the repository secrets set. Add `WHM_LIVE_WRITE=1` and `WHM_LIVE_DOMAIN` for the throwaway-account round trip.
 3. Create `github.com/itxshakil/cpanel-whm` (public, no README, licence or .gitignore, since they're already here), push `main`, and wait for every CI job to go green: Pint, PHPStan, the Composer validation and the PHP × Laravel matrix (prefer-lowest and highest).
 4. In the repo settings, add the topics: `laravel`, `laravel-package`, `cpanel`, `whm`, `whm-api`, `uapi`, `web-hosting`, `php`.
 5. Create these labels so the labeler and release-drafter work: `client`, `modules`, `console`, `testing`, `config`, `events`, `tests`, `documentation`, `ci`, `tooling`, `dependencies`, `meta`, `breaking-change`, `skip-changelog`, `question`.

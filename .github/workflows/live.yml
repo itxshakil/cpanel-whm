@@ -1,0 +1,41 @@
+name: Live WHM
+
+# Runs tests/Live against a real WHM server, by hand only. Needs the
+# WHM_LIVE_HOST and WHM_LIVE_TOKEN repository secrets; the other settings are
+# optional (see tests/Live/LiveTestCase.php). Writes only happen when the
+# "write" input is ticked and WHM_LIVE_DOMAIN is set.
+
+on:
+    workflow_dispatch:
+        inputs:
+            write:
+                description: Create and remove a throwaway account
+                type: boolean
+                default: false
+
+permissions:
+    contents: read
+
+jobs:
+    live:
+        name: Live WHM checks
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+            - uses: shivammathur/setup-php@v2
+              with:
+                  php-version: 8.4
+                  extensions: dom, mbstring, intl, openssl, curl
+                  tools: composer
+                  coverage: none
+            - uses: ramsey/composer-install@v4
+            - run: vendor/bin/phpunit --testsuite Live
+              env:
+                  WHM_LIVE_HOST: ${{ secrets.WHM_LIVE_HOST }}
+                  WHM_LIVE_TOKEN: ${{ secrets.WHM_LIVE_TOKEN }}
+                  WHM_LIVE_USER: ${{ secrets.WHM_LIVE_USER }}
+                  WHM_LIVE_VERIFY_TLS: ${{ secrets.WHM_LIVE_VERIFY_TLS }}
+                  WHM_LIVE_ACCOUNT: ${{ secrets.WHM_LIVE_ACCOUNT }}
+                  WHM_LIVE_DOMAIN: ${{ secrets.WHM_LIVE_DOMAIN }}
+                  WHM_LIVE_PACKAGE: ${{ secrets.WHM_LIVE_PACKAGE }}
+                  WHM_LIVE_WRITE: ${{ inputs.write && '1' || '0' }}
