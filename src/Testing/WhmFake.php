@@ -435,6 +435,7 @@ final class WhmFake implements Transport
         ksort($commands);
         $abortOnError = in_array($request->params['abort_on_error'] ?? 0, [1, '1', true], true);
         $results = [];
+        $failed = false;
 
         foreach ($commands as $command) {
             [$function, $query] = array_pad(explode('?', $command, 2), 2, '');
@@ -448,18 +449,30 @@ final class WhmFake implements Transport
             $inner = new WhmRequest($request->connection, $function, $params, HttpMethod::for($function, $params));
             $this->recorded[] = $inner;
 
-            $answer = $this->answer($config, $inner);
-            $json = $answer->json ?? ['data' => null, 'metadata' => ['command' => $function, 'result' => 0, 'reason' => "HTTP {$answer->status}"]];
+            // A batch is one HTTP request, so a connection error can't hit just one
+            // command; a connectionError() stub for one becomes a failed command.
+            try {
+                $answer = $this->answer($config, $inner);
+                $json = $answer->json ?? ['data' => null, 'metadata' => ['command' => $function, 'result' => 0, 'reason' => "HTTP {$answer->status}"]];
+            } catch (WhmConnectionFailed $whmConnectionFailed) {
+                $json = ['data' => null, 'metadata' => ['command' => $function, 'result' => 0, 'reason' => $whmConnectionFailed->getMessage()]];
+            }
+
             $results[] = $json;
 
             $result = is_array($json['metadata'] ?? null) ? ($json['metadata']['result'] ?? 0) : 0;
+            $failed = $failed || (int) (is_numeric($result) ? $result : 0) !== 1;
 
-            if ($abortOnError && (int) (is_numeric($result) ? $result : 0) !== 1) {
+            if ($abortOnError && $failed) {
                 break;
             }
         }
 
-        return self::response(['result' => $results]);
+        // Like WHM, a batch with a failed command is itself marked failed, while
+        // still carrying every command's answer.
+        return $failed
+            ? self::response(['result' => $results], 'One or more commands failed.', ['result' => 0])
+            : self::response(['result' => $results]);
     }
 
     /**

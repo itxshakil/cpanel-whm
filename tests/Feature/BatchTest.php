@@ -105,6 +105,35 @@ final class BatchTest extends TestCase
     }
 
     #[Test]
+    public function the_fake_marks_a_batch_with_a_failed_command_failed_as_whm_does(): void
+    {
+        $fake = Whm::fake([
+            'version' => Whm::response(['version' => '11.138.0.10']),
+            'removeacct' => Whm::failure('nope'),
+            'gethostname' => Whm::connectionError(),
+        ]);
+
+        // The client still hands back every command's answer.
+        $results = Whm::batch()->add('version')->add('removeacct', ['user' => 'ghost'])->add('gethostname')->send();
+
+        self::assertCount(3, $results);
+        self::assertSame([1, 2], array_keys($results->failures()));
+        self::assertStringContainsString('Could not reach WHM', $results->failures()[2]->reason());
+
+        $fake->assertCalledTimes('batch', 1);
+    }
+
+    #[Test]
+    public function the_fake_answers_a_batch_that_fully_succeeds_with_result_1(): void
+    {
+        Event::fake([WhmRequestFailed::class]);
+        Whm::fake(['version' => Whm::response(['version' => '11.138.0.10'])]);
+
+        self::assertTrue(Whm::batch()->add('version')->add('version')->send()->successful());
+        Event::assertNotDispatched(WhmRequestFailed::class);
+    }
+
+    #[Test]
     public function the_fake_still_refuses_commands_it_has_no_answer_for(): void
     {
         Whm::fake(['version' => Whm::response()]);
