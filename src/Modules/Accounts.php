@@ -217,6 +217,24 @@ class Accounts extends Module
     }
 
     /**
+     * Delete an account unless it is already gone, for jobs that may run twice.
+     * True when this call removed it, false when WHM had no such account (no
+     * AccountRemoved event then: nothing changed).
+     *
+     * @throws WhmException
+     */
+    public function removeIfExists(string $user, bool $keepDns = false): bool
+    {
+        try {
+            $this->remove($user, $keepDns);
+        } catch (AccountNotFound) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Change the account's password. Sent as a POST body, never in the URL.
      *
      * @throws WhmException

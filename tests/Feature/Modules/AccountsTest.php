@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Data\NewAccount;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Enums\SearchType;
 use Itxshakil\CpanelWhm\Events\AccountCreated;
+use Itxshakil\CpanelWhm\Events\AccountRemoved;
 use Itxshakil\CpanelWhm\Exceptions\AccountNotFound;
 use Itxshakil\CpanelWhm\Exceptions\InvalidUsername;
 use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
@@ -309,6 +310,25 @@ final class AccountsTest extends TestCase
             ->assertCalled('passwd', static fn (array $p, WhmRequest $r): bool => $p['db_pass_update'] === 1 && $r->method === HttpMethod::Post)
             ->assertCalled('changepackage', static fn (array $p): bool => $p === ['user' => 'acme', 'pkg' => 'pro'])
             ->assertCalled('modifyacct', static fn (array $p): bool => $p === ['user' => 'acme', 'CONTACTEMAIL' => 'new@acme.example']);
+    }
+
+    #[Test]
+    public function remove_if_exists_treats_an_already_removed_account_as_done(): void
+    {
+        Event::fake([AccountRemoved::class]);
+        $fake = Whm::fake(['removeacct' => Whm::sequence(Whm::response(), Whm::accountNotFound('acme'), Whm::failure('Disk quota exceeded.'))]);
+
+        self::assertTrue(Whm::accounts()->removeIfExists('acme', keepDns: true));
+        self::assertFalse(Whm::accounts()->removeIfExists('acme'));
+
+        Event::assertDispatchedTimes(AccountRemoved::class, 1);
+        $fake->assertCalled('removeacct', static fn (array $p): bool => $p === ['user' => 'acme', 'keepdns' => 1]);
+
+        // Any other failure still throws.
+        $this->expectException(WhmCommandFailed::class);
+        $this->expectExceptionMessage('Disk quota exceeded.');
+
+        Whm::accounts()->removeIfExists('acme');
     }
 
     #[Test]
