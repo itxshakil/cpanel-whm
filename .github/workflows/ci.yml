@@ -12,6 +12,11 @@ concurrency:
     group: ci-${{ github.ref }}
     cancel-in-progress: true
 
+# No job writes anything, so a change to the repository's default token scope
+# never hands write access to these jobs or the actions they run.
+permissions:
+    contents: read
+
 # No job talks to a real WHM server: every test fakes the network.
 jobs:
     lint:
