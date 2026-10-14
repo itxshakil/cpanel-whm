@@ -34,9 +34,23 @@ use Itxshakil\CpanelWhm\Support\RequestLogger;
 final class CpanelWhmServiceProvider extends ServiceProvider
 {
     /**
-     * Named as a string so Octane stays optional.
+     * Octane's events for the start of a request, a task (Octane::concurrently())
+     * and a tick, each with its own sandbox. Named as strings so Octane stays optional.
      */
-    private const string OCTANE_REQUEST_RECEIVED = 'Laravel\\Octane\\Events\\RequestReceived';
+    private const array OCTANE_OPERATION_STARTED = [
+        'Laravel\\Octane\\Events\\RequestReceived',
+        'Laravel\\Octane\\Events\\TaskReceived',
+        'Laravel\\Octane\\Events\\TickReceived',
+    ];
+
+    /**
+     * The matching ends. Octane flushes the sandbox right after these.
+     */
+    private const array OCTANE_OPERATION_ENDED = [
+        'Laravel\\Octane\\Events\\RequestTerminated',
+        'Laravel\\Octane\\Events\\TaskTerminated',
+        'Laravel\\Octane\\Events\\TickTerminated',
+    ];
 
     public function register(): void
     {
@@ -110,18 +124,29 @@ final class CpanelWhmServiceProvider extends ServiceProvider
     }
 
     /**
-     * Under Octane the manager outlives a request. Each request gets clients
-     * built from that request's sandbox (its config, events and cache).
+     * Under Octane the manager outlives a request. Each request, task and tick
+     * gets clients built from its own sandbox (its config, events and cache),
+     * and the manager goes back to the base application when it ends, so it
+     * never keeps a flushed sandbox for the next operation.
      */
     private function registerOctaneReset(): void
     {
-        $this->app->make(Dispatcher::class)->listen(self::OCTANE_REQUEST_RECEIVED, function (object $event): void {
-            $sandbox = $event->sandbox ?? null;
+        $events = $this->app->make(Dispatcher::class);
 
-            if ($sandbox instanceof Container && $this->app->resolved(WhmManager::class)) {
-                $this->app->make(WhmManager::class)->setContainer($sandbox);
-            }
+        $events->listen(self::OCTANE_OPERATION_STARTED, function (object $event): void {
+            $this->pointManagerAt($event->sandbox ?? null);
         });
+
+        $events->listen(self::OCTANE_OPERATION_ENDED, function (object $event): void {
+            $this->pointManagerAt($event->app ?? null);
+        });
+    }
+
+    private function pointManagerAt(mixed $container): void
+    {
+        if ($container instanceof Container && $this->app->resolved(WhmManager::class)) {
+            $this->app->make(WhmManager::class)->setContainer($container);
+        }
     }
 
     private function registerLogging(): void
