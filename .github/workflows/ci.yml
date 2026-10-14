@@ -24,15 +24,15 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v7
-            - uses: shivammathur/setup-php@v2
+            - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
               with:
                   php-version: 8.4
                   tools: composer
                   coverage: none
-            - uses: ramsey/composer-install@v4
+            - uses: ramsey/composer-install@65e4f84970763564f46a70b8a54b90d033b3bdda # 4.0.0
             - run: vendor/bin/pint --test
             - name: Lint GitHub Actions workflows
-              uses: raven-actions/actionlint@v2
+              uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7 # v2.2.0
 
     analyse:
         name: Static Analysis (PHPStan, level max | PHP ${{ matrix.php }})
@@ -45,12 +45,12 @@ jobs:
                 php: ["8.4", "8.5"]
         steps:
             - uses: actions/checkout@v7
-            - uses: shivammathur/setup-php@v2
+            - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
               with:
                   php-version: ${{ matrix.php }}
                   tools: composer
                   coverage: none
-            - uses: ramsey/composer-install@v4
+            - uses: ramsey/composer-install@65e4f84970763564f46a70b8a54b90d033b3bdda # 4.0.0
             - run: php -d memory_limit=1G vendor/bin/phpstan analyse --no-progress
 
     packagist:
@@ -58,7 +58,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v7
-            - uses: shivammathur/setup-php@v2
+            - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
               with:
                   php-version: 8.4
                   tools: composer
@@ -87,7 +87,7 @@ jobs:
                       deps: highest
         steps:
             - uses: actions/checkout@v7
-            - uses: shivammathur/setup-php@v2
+            - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
               with:
                   php-version: ${{ matrix.php }}
                   extensions: dom, mbstring, intl, openssl, fileinfo, curl
@@ -95,7 +95,7 @@ jobs:
                   coverage: none
             - name: Pin Laravel version
               run: composer require "laravel/framework:${{ matrix.laravel }}" --no-update --no-interaction
-            - uses: ramsey/composer-install@v4
+            - uses: ramsey/composer-install@65e4f84970763564f46a70b8a54b90d033b3bdda # 4.0.0
               with:
                   dependency-versions: ${{ matrix.deps }}
             - run: vendor/bin/phpunit

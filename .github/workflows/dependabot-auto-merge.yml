@@ -1,8 +1,9 @@
 name: Dependabot auto-merge
 
-# Dependabot PRs for CI actions merge themselves once the "CI passed" check is
-# green. Nothing here ships to people who install the package, and CI is the
-# review. Runtime dependency bumps (none today) still wait for a human.
+# Dependabot PRs with minor or patch updates to CI actions merge themselves once
+# the "CI passed" check is green. Nothing here ships to people who install the
+# package, and CI is the review. A new major version waits for a human, and so
+# do runtime dependency bumps (none today).
 #
 # Needs, once, in the repo settings (see RELEASING.md):
 #   - "Allow auto-merge"
@@ -21,15 +22,21 @@ jobs:
         steps:
             - name: Dependabot metadata
               id: metadata
-              uses: dependabot/fetch-metadata@v3
+              uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
               with:
                   github-token: "${{ secrets.GITHUB_TOKEN }}"
 
             # GitHub may refuse to let GITHUB_TOKEN merge changes to workflow
             # files. If it does, this step stays non-fatal and the monthly
             # grouped actions PR needs one click.
+            #
+            # Minor and patch updates only. update-type is the highest change in
+            # the grouped PR, so one new major version (or an unknown type)
+            # leaves the whole PR for a human to review.
             - name: Auto-merge GitHub Actions updates
-              if: steps.metadata.outputs.package-ecosystem == 'github_actions'
+              if: >-
+                  steps.metadata.outputs.package-ecosystem == 'github_actions'
+                  && contains(fromJSON('["version-update:semver-minor", "version-update:semver-patch"]'), steps.metadata.outputs.update-type)
               continue-on-error: true
               run: gh pr merge --auto --squash "$PR_URL"
               env:
