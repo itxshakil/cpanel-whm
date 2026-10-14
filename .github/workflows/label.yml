@@ -1,6 +1,20 @@
 name: Labeler
 
-on: [pull_request_target]
+# Both labelers run in one job, one after the other. As two workflows they
+# raced: actions/labeler writes back the full label list it read at the start,
+# so it could drop the "type: …" label the title autolabeler had just added,
+# and release-drafter then filed the PR under the wrong section.
+#
+# pull_request_target so PRs from forks get labels too. Safe here: no step
+# checks out or runs the PR's code. "edited" re-labels a retitled PR.
+on:
+    pull_request_target:
+        types: [opened, reopened, synchronize, edited]
+
+# One run at a time per PR, so a quick push after opening can't race either.
+concurrency:
+    group: label-${{ github.event.pull_request.number }}
+    cancel-in-progress: false
 
 jobs:
     label:
@@ -9,6 +23,13 @@ jobs:
             contents: read
             pull-requests: write
         steps:
+            # Area labels from the changed paths (.github/labeler.yml).
             - uses: actions/labeler@v7
               with:
                   repo-token: "${{ secrets.GITHUB_TOKEN }}"
+
+            # Then the "type: …" label from the PR title (.github/release-drafter.yml).
+            # It only adds labels, so it can't undo the step above.
+            - uses: release-drafter/release-drafter/autolabeler@978bb0b30c5ee8cdd332ced253758157150d43f0 # v7.10.0
+              with:
+                  config-name: release-drafter.yml
