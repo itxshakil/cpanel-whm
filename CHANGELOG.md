@@ -7,6 +7,7 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
+- `UsernameRules` refuses names ending in "assword" and every reserved alias cPanel documents (87 names, up from 35, such as `dovecot`, `mailnull`, `wheel`, `support` and `www`), so `accounts()->create()` stops them before calling WHM.
 - `composer.json` requires `guzzlehttp/guzzle` (`^7.8.2|^8.0`, the same range Laravel allows). `HttpTransport` catches Guzzle's exceptions to redact the token and query string from raw errors, which used to depend on Guzzle arriving through `laravel/framework`.
 - CI and the Release workflow install the `git archive` Packagist ships (`bin/check-archive`) and fail when `.gitattributes` leaves out a runtime file, a class doesn't autoload or the config doesn't load.
 

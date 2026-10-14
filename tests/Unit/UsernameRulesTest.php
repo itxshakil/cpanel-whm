@@ -37,7 +37,42 @@ final class UsernameRulesTest extends TestCase
             'underscore' => ['acme_co', 'lowercase letters and numbers'],
             'starts with test' => ['testing1', 'start with "test"'],
             'reserved' => ['root', 'reserved'],
+            'ends in assword' => ['mypassword', 'end in "assword"'],
+            'reserved service account' => ['dovecot', 'reserved'],
+            'reserved role alias' => ['support', 'reserved'],
         ];
+    }
+
+    /**
+     * cPanel's default reserved aliases, from "Reserved, Invalid, and
+     * Misconfigured Usernames" (docs.cpanel.net, July 2026).
+     */
+    #[Test]
+    public function cpanels_documented_reserved_names_are_refused(): void
+    {
+        $documented = [
+            'admin', 'abuse', 'adm', 'amandabackup', 'apache', 'bin', 'canna', 'daemon', 'dbus', 'decode', 'desktop',
+            'dovecot', 'dumper', 'fax', 'ftp', 'games', 'gdm', 'gopher', 'halt', 'hostmaster', 'hkadmincp', 'ident',
+            'ingres', 'ldap', 'lp', 'mail', 'mailnull', 'manager', 'mysql', 'named', 'netdump', 'news', 'nfsnobody',
+            'nobody', 'noc', 'nscd', 'ntp', 'nut', 'operator', 'pcap', 'postfix', 'postgres', 'postmaster', 'privoxy',
+            'pvm', 'quagga', 'radiusd', 'radvd', 'root', 'rpc', 'rpcuser', 'rpm', 'security', 'shutdown', 'smmsp',
+            'squid', 'sshd', 'sudo', 'sync', 'system', 'toor', 'uucp', 'vcsa', 'webalizer', 'webmaster', 'wheel',
+            'wnn', 'xfs', 'info', 'marketing', 'sales', 'support', 'newsadm', 'newsadmin', 'usenet', 'ftpadm',
+            'ftpadmin', 'www',
+        ];
+
+        foreach ($documented as $name) {
+            self::assertSame('it is reserved by the system.', UsernameRules::violation($name), $name);
+        }
+    }
+
+    #[Test]
+    public function names_that_only_contain_a_rule_word_still_pass(): void
+    {
+        // "assword" only matters at the end, and reserved names only as the whole name.
+        self::assertTrue(UsernameRules::passes('passwordco'));
+        self::assertTrue(UsernameRules::passes('rootbeer'));
+        self::assertTrue(UsernameRules::passes('mysupport'));
     }
 
     #[Test]
