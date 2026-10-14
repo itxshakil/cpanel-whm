@@ -27,11 +27,13 @@ final readonly class BatchResults implements ArrayAccess, Countable, IteratorAgg
      * @param  list<WhmResponse>  $responses
      * @param  list<string>  $functions  the function of each command sent
      * @param  list<array<string, mixed>>  $params  the parameters of each command sent
+     * @param  WhmResponse|null  $batch  WHM's answer to the batch call itself
      */
     public function __construct(
         private array $responses,
         private array $functions,
         private array $params = [],
+        private ?WhmResponse $batch = null,
     ) {}
 
     public function get(int $index): WhmResponse
@@ -94,7 +96,8 @@ final readonly class BatchResults implements ArrayAccess, Countable, IteratorAgg
     }
 
     /**
-     * Throw the first failed command's exception, if any.
+     * Throw the first failed command's exception, if any. A batch WHM cut
+     * short without a failure throws too, since some commands never ran.
      *
      * @throws WhmCommandFailed
      * @throws UapiCallFailed
@@ -105,6 +108,10 @@ final readonly class BatchResults implements ArrayAccess, Countable, IteratorAgg
 
         if ($failures !== []) {
             throw reset($failures);
+        }
+
+        if (! $this->complete()) {
+            throw new WhmCommandFailed('batch', 'WHM answered '.count($this->responses).' of '.count($this->functions).' commands.', $this->batch ?? new WhmResponse);
         }
 
         return $this;

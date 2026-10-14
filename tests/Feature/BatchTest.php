@@ -105,6 +105,27 @@ final class BatchTest extends TestCase
     }
 
     #[Test]
+    public function a_batch_cut_short_without_a_failure_is_not_successful_and_throws(): void
+    {
+        // Two commands sent, one answered, and that one succeeded.
+        Http::fake(['*' => Http::response(Responses::envelope(['result' => [
+            Responses::envelope(['version' => '11.138.0.10'], command: 'version'),
+        ]], command: 'batch'))]);
+
+        $results = Whm::batch()->add('version')->add('gethostname')->send();
+
+        self::assertCount(1, $results);
+        self::assertSame([], $results->failures());
+        self::assertFalse($results->complete());
+        self::assertFalse($results->successful());
+
+        $this->expectException(WhmCommandFailed::class);
+        $this->expectExceptionMessage('WHM batch failed: WHM answered 1 of 2 commands');
+
+        $results->throw();
+    }
+
+    #[Test]
     public function the_fake_marks_a_batch_with_a_failed_command_failed_as_whm_does(): void
     {
         $fake = Whm::fake([
