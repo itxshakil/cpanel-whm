@@ -13,6 +13,7 @@ use Itxshakil\CpanelWhm\Events\AccountPasswordChanged;
 use Itxshakil\CpanelWhm\Events\AccountRemoved;
 use Itxshakil\CpanelWhm\Events\AccountSuspended;
 use Itxshakil\CpanelWhm\Events\AccountUnsuspended;
+use Itxshakil\CpanelWhm\Events\WhmFunctionSucceeded;
 use Itxshakil\CpanelWhm\Events\WhmResponseReceived;
 use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
 use Itxshakil\CpanelWhm\Facades\Whm;
@@ -103,5 +104,72 @@ final class EventsTest extends TestCase
             && $e->request->params['user'] === 'acme');
         Event::assertDispatched(WhmResponseReceived::class, static fn (WhmResponseReceived $e): bool => $e->request->function === 'batch');
         Event::assertDispatchedTimes(WhmResponseReceived::class, 3);
+    }
+
+    #[Test]
+    public function every_path_that_changes_something_fires_function_succeeded(): void
+    {
+        Event::fake([WhmFunctionSucceeded::class, AccountCreated::class]);
+        Whm::fake(['*' => Whm::response(), 'uapi_cpanel' => Whm::uapi()]);
+
+        Whm::accounts()->create(new NewAccount(username: 'acme', domain: 'acme.test', password: 'S3cure!pass'));
+        Whm::api()->accounts()->createacct(username: 'other', domain: 'other.test', password: 'S3cure!pass');
+        Whm::call('suspendacct', ['user' => 'acme']);
+        Whm::asUser('acme')->uapi('Email', 'add_pop', ['email' => 'info', 'password' => 'S3cure!pass']);
+        Whm::batch()->add('suspendacct', ['user' => 'third'])->add('unsuspendacct', ['user' => 'fourth'])->send();
+
+        $fired = [];
+        Event::assertDispatched(WhmFunctionSucceeded::class, static function (WhmFunctionSucceeded $e) use (&$fired): bool {
+            $fired[] = [$e->connection, $e->function, $e->uapi(), $e->params['user'] ?? $e->params['username'] ?? $e->params['cpanel.user'] ?? null];
+
+            return true;
+        });
+
+        // One per change, in order: a batch fires one per command and none for "batch" itself.
+        self::assertSame([
+            ['main', 'createacct', null, 'acme'],
+            ['main', 'createacct', null, 'other'],
+            ['main', 'suspendacct', null, 'acme'],
+            ['main', 'uapi_cpanel', 'Email::add_pop', 'acme'],
+            ['main', 'suspendacct', null, 'third'],
+            ['main', 'unsuspendacct', null, 'fourth'],
+        ], $fired);
+
+        // Alongside the module's own event, not instead of it.
+        Event::assertDispatchedTimes(AccountCreated::class, 1);
+    }
+
+    #[Test]
+    public function function_succeeded_carries_redacted_parameters(): void
+    {
+        Event::fake([WhmFunctionSucceeded::class]);
+        Whm::fake(['*' => Whm::response()]);
+
+        Whm::call('passwd', ['user' => 'acme', 'password' => 'S3cure!pass']);
+
+        Event::assertDispatched(WhmFunctionSucceeded::class, static fn (WhmFunctionSucceeded $e): bool => $e->function === 'passwd'
+            && $e->params['user'] === 'acme'
+            && ! str_contains(serialize($e), 'S3cure!pass'));
+    }
+
+    #[Test]
+    public function reads_failures_and_failed_batch_commands_fire_no_function_succeeded(): void
+    {
+        Event::fake([WhmFunctionSucceeded::class]);
+        Whm::fake([
+            'version' => Whm::response(['version' => '11.138.0.10']),
+            'uapi_cpanel' => Whm::uapi([]),
+            'suspendacct' => Whm::failure('nope'),
+            'unsuspendacct' => Whm::response(),
+        ]);
+
+        Whm::server()->version();
+        Whm::asUser('acme')->uapi('Email', 'list_pops');
+        rescue(static fn () => Whm::call('suspendacct', ['user' => 'acme']), report: false);
+        Whm::batch()->add('version')->add('suspendacct', ['user' => 'acme'])->add('unsuspendacct', ['user' => 'acme'])->send();
+
+        // Only the batch's one successful change.
+        Event::assertDispatchedTimes(WhmFunctionSucceeded::class, 1);
+        Event::assertDispatched(WhmFunctionSucceeded::class, static fn (WhmFunctionSucceeded $e): bool => $e->function === 'unsuspendacct');
     }
 }

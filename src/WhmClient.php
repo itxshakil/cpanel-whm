@@ -13,6 +13,7 @@ use Itxshakil\CpanelWhm\Api\WhmApi;
 use Itxshakil\CpanelWhm\Contracts\Transport;
 use Itxshakil\CpanelWhm\Contracts\WhmClient as WhmClientContract;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
+use Itxshakil\CpanelWhm\Events\WhmFunctionSucceeded;
 use Itxshakil\CpanelWhm\Events\WhmRequestFailed;
 use Itxshakil\CpanelWhm\Events\WhmRequestSending;
 use Itxshakil\CpanelWhm\Events\WhmResponseReceived;
@@ -39,9 +40,11 @@ use Itxshakil\CpanelWhm\Modules\Suspensions;
 use Itxshakil\CpanelWhm\Modules\Tokens;
 use Itxshakil\CpanelWhm\Modules\Transfers;
 use Itxshakil\CpanelWhm\Modules\Usage;
+use Itxshakil\CpanelWhm\Support\Changes;
 use Itxshakil\CpanelWhm\Support\ConnectionConfig;
 use Itxshakil\CpanelWhm\Support\FunctionCatalog;
 use Itxshakil\CpanelWhm\Support\Params;
+use Itxshakil\CpanelWhm\Support\Redactor;
 use Itxshakil\CpanelWhm\Transport\TransportResponse;
 use SensitiveParameter;
 
@@ -129,6 +132,11 @@ final class WhmClient implements WhmClientContract
         // A change makes this server's cached reads stale (a new account, a suspension, ...).
         if (! $readOnly) {
             $this->flushCache();
+        }
+
+        // A batch fires one per successful command instead; see WhmBatch::send().
+        if ($function !== 'batch' && Changes::made($function, $params)) {
+            $this->events?->dispatch(new WhmFunctionSucceeded($this->config->name, $function, Redactor::redact($params), $response->redacted()));
         }
 
         return $response;

@@ -314,17 +314,31 @@ The hand-written modules dispatch these after WHM confirms the change:
 | `AccountPasswordChanged` | `accounts()->changePassword()` | `passwd` | `connection`, `user` (never the password) |
 | `DnsZoneChanged` | `dns()->add()`, `update()`, `remove()`, `edit()` | `mass_edit_dns_zone` | `connection`, `zone`, `serial`, `added`, `edited`, `removed` |
 
-Only those methods fire them. The same WHM function called through `Whm::api()`, `Whm::call()` or inside a `Whm::batch()` fires none of these, because the payload (a `CreatedAccount`, the record counts) is built by the module. To catch every path, listen to `WhmResponseReceived` instead:
+Only those methods fire them. The same WHM function called through `Whm::api()`, `Whm::call()` or inside a `Whm::batch()` fires none of these, because the payload (a `CreatedAccount`, the record counts) is built by the module.
+
+To catch every change, whichever path made it, listen to `WhmFunctionSucceeded`. It fires after every successful call that changes something, including the module calls above (alongside their own event, and before it):
 
 ```php
-Event::listen(WhmResponseReceived::class, function (WhmResponseReceived $e) {
-    if ($e->request->function === 'suspendacct') {
-        Activity::log("Suspended {$e->request->params['user']}");   // params are already redacted
+Event::listen(WhmFunctionSucceeded::class, function (WhmFunctionSucceeded $e) {
+    if ($e->function === 'suspendacct') {
+        Activity::log("Suspended {$e->params['user']} on {$e->connection}");   // params are already redacted
+    }
+
+    if ($e->uapi() === 'Email::add_pop') {
+        Activity::log("Added mailbox {$e->params['email']} for {$e->params['cpanel.user']}");
     }
 });
 ```
 
-A batch is one request, so it fires `WhmResponseReceived` once, with `function` set to `batch`.
+| Property | |
+| --- | --- |
+| `connection` | the connection name |
+| `function` | the WHM function, such as `createacct` or `uapi_cpanel` |
+| `params` | the normalised parameters, secrets redacted |
+| `response` | WHM's answer, redacted |
+| `uapi()` | `"Module::function"` when the call ran a UAPI function, otherwise null |
+
+Reads never fire it, including UAPI reads such as `Email::list_pops`, and neither does a failed call. A batch fires one per command that succeeded and changed something, and none for the `batch` request itself.
 
 They are a good fit for an audit log:
 

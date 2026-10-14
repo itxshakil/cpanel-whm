@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- `WhmFunctionSucceeded`: fired after every successful call that changes something, whichever path made it (a module, `Whm::api()`, `Whm::call()`, `uapi()` or each command of a batch), with the connection, function, redacted parameters and response, and `uapi()` for the UAPI function a `uapi_cpanel` call ran. Reads and failures never fire it. The module events (`AccountCreated`, ...) still fire as before, after it.
+
 ### Changed
 - `UsernameRules` refuses names ending in "assword" and every reserved alias cPanel documents (87 names, up from 35, such as `dovecot`, `mailnull`, `wheel`, `support` and `www`), so `accounts()->create()` stops them before calling WHM.
 - `composer.json` requires `guzzlehttp/guzzle` (`^7.8.2|^8.0`, the same range Laravel allows). `HttpTransport` catches Guzzle's exceptions to redact the token and query string from raw errors, which used to depend on Guzzle arriving through `laravel/framework`.
