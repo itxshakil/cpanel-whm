@@ -10,6 +10,7 @@ use Itxshakil\CpanelWhm\Data\BandwidthUsage;
 use Itxshakil\CpanelWhm\Data\DiskUsage;
 use Itxshakil\CpanelWhm\Data\Value;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use Itxshakil\CpanelWhm\Support\Filter;
 use Itxshakil\CpanelWhm\Support\UsernameRules;
 
 /**
@@ -30,19 +31,21 @@ class Usage extends Module
      */
     public function disk(bool $fresh = false): Collection
     {
-        $response = $this->client->call('get_disk_usage', ['cache_mode' => $fresh ? 'off' : 'on']);
-
-        return collect($this->rows($response->get('accounts')))->map(DiskUsage::fromArray(...))->values();
+        return $this->diskUsage($fresh);
     }
 
     /**
+     * One account's disk usage. get_disk_usage has no user argument, so WHM
+     * filters its list (api.filter) and returns only that account's row.
+     *
      * @throws WhmException
      */
     public function diskFor(string $user, bool $fresh = false): ?DiskUsage
     {
         $user = UsernameRules::normalise($user);
 
-        return $this->disk($fresh)->first(static fn (DiskUsage $usage): bool => $usage->user === $user);
+        return $this->diskUsage($fresh, Filter::where('user', 'eq', $user))
+            ->first(static fn (DiskUsage $usage): bool => $usage->user === $user);
     }
 
     /**
@@ -115,6 +118,18 @@ class Usage extends Module
         $user = UsernameRules::normalise($user);
 
         return new AccountUsage($user, $this->diskFor($user), $this->bandwidthFor($user));
+    }
+
+    /**
+     * @return Collection<int, DiskUsage>
+     *
+     * @throws WhmException
+     */
+    private function diskUsage(bool $fresh, ?Filter $filter = null): Collection
+    {
+        $response = $this->client->call('get_disk_usage', ['cache_mode' => $fresh ? 'off' : 'on', ...$filter?->toParams() ?? []]);
+
+        return collect($this->rows($response->get('accounts')))->map(DiskUsage::fromArray(...))->values();
     }
 
     /**

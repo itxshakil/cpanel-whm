@@ -25,27 +25,33 @@ use SensitiveParameter;
 class UserMysql extends UserModule
 {
     /**
+     * Pass $page (from 1) to read $perPage at a time.
+     *
      * @return Collection<int, MysqlDatabase>
      *
+     * @throws InvalidArgumentException when $page or $perPage is below 1
      * @throws UapiCallFailed
      * @throws WhmException
      */
-    public function databases(): Collection
+    public function databases(?int $page = null, int $perPage = 100): Collection
     {
-        return collect(self::rows($this->user->api()->mysql()->listDatabases()->data))
+        return collect(self::rows($this->user->api()->mysql()->listDatabases(extra: self::page($page, $perPage))->data))
             ->map(MysqlDatabase::fromArray(...))
             ->values();
     }
 
     /**
+     * Pass $page (from 1) to read $perPage at a time.
+     *
      * @return Collection<int, MysqlUser>
      *
+     * @throws InvalidArgumentException when $page or $perPage is below 1
      * @throws UapiCallFailed
      * @throws WhmException
      */
-    public function users(): Collection
+    public function users(?int $page = null, int $perPage = 100): Collection
     {
-        return collect(self::rows($this->user->api()->mysql()->listUsers()->data))
+        return collect(self::rows($this->user->api()->mysql()->listUsers(extra: self::page($page, $perPage))->data))
             ->map(MysqlUser::fromArray(...))
             ->values();
     }

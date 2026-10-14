@@ -177,7 +177,7 @@ Factories: `a`, `aaaa`, `cname`, `mx`, `ns`, `txt` (split into strings of at mos
 ```php
 Whm::domains()->list();                     // Collection<DomainInfo> across the server
 Whm::domains()->list('acme');               // one account's domains
-Whm::domains()->find('shop.acme.example');  // ?DomainInfo: user, owner, type (main/addon/sub/parked), documentRoot, ipv4, phpVersion
+Whm::domains()->find('shop.acme.example');  // ?DomainInfo: user, owner, type (main/addon/sub/parked), documentRoot, ipv4, phpVersion (WHM filters the list, so only that row comes back)
 Whm::domains()->owner('acme.example');      // "acme" or null
 Whm::domains()->userData('acme.example');   // Apache settings from domainuserdata
 

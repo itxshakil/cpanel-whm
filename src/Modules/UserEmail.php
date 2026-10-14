@@ -26,25 +26,23 @@ class UserEmail extends UserModule
 {
     /**
      * The account's mailboxes, without the main account's system mailbox.
+     * Pass $page (from 1) to read $perPage mailboxes at a time; the main
+     * account's row, when it falls on a page, is still left out.
      *
      * @return Collection<int, EmailAccount>
      *
+     * @throws InvalidArgumentException when $page or $perPage is below 1
      * @throws UapiCallFailed
      * @throws WhmException
      */
-    public function list(?string $domain = null): Collection
+    public function list(?string $domain = null, ?int $page = null, int $perPage = 100): Collection
     {
-        // Without get_restrictions, UAPI leaves out the suspended_* and hold_outgoing
-        // fields, and every mailbox would read as not suspended.
-        $rows = self::rows($this->user->api()->email()->listPopsWithDisk(domain: $domain, getRestrictions: 1)->data);
-
-        return collect($rows)
-            ->reject(static fn (array $row): bool => ($row['email'] ?? null) === 'Main Account')
-            ->map(EmailAccount::fromArray(...))
-            ->values();
+        return $this->mailboxes($domain, self::page($page, $perPage));
     }
 
     /**
+     * One mailbox, filtered by UAPI rather than read from the whole list.
+     *
      * @throws UapiCallFailed
      * @throws WhmException
      */
@@ -53,7 +51,33 @@ class UserEmail extends UserModule
         [, $domain] = self::split($address);
         $address = mb_strtolower(trim($address));
 
-        return $this->list($domain)->first(static fn (EmailAccount $account): bool => $account->address === $address);
+        // "contains" is the documented case-insensitive match; the exact
+        // address is checked here, so info@ never returns ainfo@.
+        return $this->mailboxes($domain, [
+            'api.filter' => 1,
+            'api.filter_column' => 'email',
+            'api.filter_type' => 'contains',
+            'api.filter_term' => $address,
+        ])->first(static fn (EmailAccount $account): bool => $account->address === $address);
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     * @return Collection<int, EmailAccount>
+     *
+     * @throws UapiCallFailed
+     * @throws WhmException
+     */
+    private function mailboxes(?string $domain, array $extra): Collection
+    {
+        // Without get_restrictions, UAPI leaves out the suspended_* and hold_outgoing
+        // fields, and every mailbox would read as not suspended.
+        $rows = self::rows($this->user->api()->email()->listPopsWithDisk(domain: $domain, getRestrictions: 1, extra: $extra)->data);
+
+        return collect($rows)
+            ->reject(static fn (array $row): bool => ($row['email'] ?? null) === 'Main Account')
+            ->map(EmailAccount::fromArray(...))
+            ->values();
     }
 
     /**
