@@ -30,13 +30,19 @@ jobs:
               uses: raven-actions/actionlint@v2
 
     analyse:
-        name: Static Analysis (PHPStan, level max)
+        name: Static Analysis (PHPStan, level max | PHP ${{ matrix.php }})
         runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                # PHPStan reads the running PHP's function signatures, so some
+                # errors only show on the newest version (chr() on 8.5, for one).
+                php: ["8.4", "8.5"]
         steps:
             - uses: actions/checkout@v7
             - uses: shivammathur/setup-php@v2
               with:
-                  php-version: 8.4
+                  php-version: ${{ matrix.php }}
                   tools: composer
                   coverage: none
             - uses: ramsey/composer-install@v4
