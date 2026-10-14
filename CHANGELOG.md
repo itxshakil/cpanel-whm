@@ -11,6 +11,7 @@ All notable changes to this project are documented here. The format follows
 - CI and the Release workflow install the `git archive` Packagist ships (`bin/check-archive`) and fail when `.gitattributes` leaves out a runtime file, a class doesn't autoload or the config doesn't load.
 
 ### Fixed
+- Under Octane, `Whm::` inside a task (`Octane::concurrently()`) or a tick uses that operation's sandbox, as it already did for requests, and the manager lets go of each sandbox when the operation ends. Before, tasks and ticks could reach the previous request's flushed sandbox.
 - `BatchResults::throw()` throws `WhmCommandFailed` when WHM answered fewer commands than the batch sent, even if none of the answers failed. It used to return normally, though `complete()` and `successful()` were already false.
 
 ## [0.4.0] - 2026-10-14

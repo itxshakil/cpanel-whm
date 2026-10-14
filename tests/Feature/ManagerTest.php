@@ -14,6 +14,7 @@ use Itxshakil\CpanelWhm\Tests\Fixtures\Responses;
 use Itxshakil\CpanelWhm\Tests\TestCase;
 use Itxshakil\CpanelWhm\WhmManager;
 use Itxshakil\CpanelWhm\WhmRequest;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 
 final class ManagerTest extends TestCase
@@ -34,6 +35,43 @@ final class ManagerTest extends TestCase
         Whm::server()->version();
 
         Http::assertSent(static fn (Request $request): bool => str_starts_with($request->url(), 'https://new-server.example.com:2087/'));
+    }
+
+    /**
+     * Octane runs tasks (Octane::concurrently()) and ticks in their own
+     * sandbox too, and flushes each sandbox when the operation ends.
+     */
+    #[Test]
+    #[DataProvider('octaneOperations')]
+    public function under_octane_tasks_and_ticks_use_their_own_sandbox_and_let_it_go_afterwards(string $received, string $terminated): void
+    {
+        Http::fake(['*' => Http::response(Responses::envelope(['version' => '11.134.0.5']))]);
+        Whm::server()->version();
+
+        $sandbox = clone $this->app;
+        $config = new ConfigRepository($this->app->make('config')->all());
+        $config->set('cpanel-whm.connections.main.host', 'new-server.example.com');
+        $sandbox->instance('config', $config);
+        $event = (object) ['app' => $this->app, 'sandbox' => $sandbox];
+
+        $this->app->make('events')->dispatch("Laravel\\Octane\\Events\\{$received}", [$event]);
+        Whm::server()->version();
+
+        $this->app->make('events')->dispatch("Laravel\\Octane\\Events\\{$terminated}", [$event]);
+        Whm::server()->version();
+
+        $hosts = Http::recorded()->map(static fn (array $pair): string => (string) parse_url($pair[0]->url(), PHP_URL_HOST))->all();
+        self::assertSame(['server.example.com', 'new-server.example.com', 'server.example.com'], $hosts);
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function octaneOperations(): iterable
+    {
+        yield 'request' => ['RequestReceived', 'RequestTerminated'];
+        yield 'task' => ['TaskReceived', 'TaskTerminated'];
+        yield 'tick' => ['TickReceived', 'TickTerminated'];
     }
 
     #[Test]
