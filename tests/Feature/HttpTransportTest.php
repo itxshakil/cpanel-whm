@@ -9,6 +9,7 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Itxshakil\CpanelWhm\Data\NewAccount;
+use Itxshakil\CpanelWhm\Data\RemoteServer;
 use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Events\WhmRequestFailed;
 use Itxshakil\CpanelWhm\Events\WhmRequestSending;
@@ -19,6 +20,8 @@ use Itxshakil\CpanelWhm\Exceptions\WhmConnectionFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmHttpError;
 use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
 use Itxshakil\CpanelWhm\Facades\Whm;
+use Itxshakil\CpanelWhm\Modules\Accounts;
+use Itxshakil\CpanelWhm\Modules\Transfers;
 use Itxshakil\CpanelWhm\Tests\Fixtures\Responses;
 use Itxshakil\CpanelWhm\Tests\TestCase;
 use Itxshakil\CpanelWhm\WhmRequest;
@@ -173,14 +176,47 @@ final class HttpTransportTest extends TestCase
     }
 
     #[Test]
-    public function tls_verification_can_be_turned_off(): void
+    public function tls_verification_is_on_by_default_and_can_be_turned_off(): void
     {
-        config()->set('cpanel-whm.connections.main.verify_tls', false);
-        Http::fake(['*' => Http::response(Responses::envelope(['version' => '11.134.0.5']))]);
+        $verify = [];
+        Http::fake(static function (Request $request, array $options) use (&$verify) {
+            $verify[] = $options['verify'] ?? true;
+
+            return Http::response(Responses::envelope(['version' => '11.134.0.5']));
+        });
 
         Whm::server()->version();
 
-        Http::assertSentCount(1);
+        config()->set('cpanel-whm.connections.main.verify_tls', false);
+        Whm::purge();
+        Whm::server()->version();
+
+        self::assertSame([true, false], $verify);
+    }
+
+    #[Test]
+    public function slow_functions_reach_the_http_client_with_their_long_timeouts(): void
+    {
+        $sent = [];
+        Http::fake(static function (Request $request, array $options) use (&$sent) {
+            $sent[basename((string) parse_url($request->url(), PHP_URL_PATH))] = [$options['timeout'] ?? null, $options['connect_timeout'] ?? null];
+
+            return Http::response(Responses::envelope(['result' => []]));
+        });
+
+        Whm::server()->version();
+        rescue(static fn () => Whm::accounts()->create(new NewAccount(username: 'acme', domain: 'acme.example', password: 'S3cure!pass')), report: false);
+        rescue(static fn () => Whm::resellers()->terminate('res1'), report: false);
+        rescue(static fn () => Whm::transfers()->createSession(new RemoteServer('old.example.com', password: 'r00t-Pass')), report: false);
+        Whm::batch()->add('version')->timeout(900)->send();
+
+        self::assertSame([
+            'version' => [30, 10],
+            'createacct' => [Accounts::CREATE_TIMEOUT, 10],
+            'terminatereseller' => [600, 10],
+            'create_remote_root_transfer_session' => [Transfers::SESSION_TIMEOUT, 10],
+            'batch' => [900, 10],
+        ], $sent);
     }
 
     #[Test]
