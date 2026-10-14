@@ -121,7 +121,7 @@ Whm::accounts()->modify('acme', ['CONTACTEMAIL' => 'new@acme.example']);
 Whm::accounts()->remove('acme');
 ```
 
-Usernames are checked against cPanel's rules before any request: lowercase letters and digits, no leading digit, not starting with "test", at most 16 characters, and not a reserved name. A bad name throws `InvalidUsername` with the rule it broke.
+Usernames are checked against cPanel's rules before any request: lowercase letters and digits, no leading digit, not starting with "test" or ending in "assword", at most 16 characters, and not one of cPanel's reserved names. A bad name throws `InvalidUsername` with the rule it broke.
 
 ### Suspensions, packages, quotas
 
