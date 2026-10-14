@@ -28,7 +28,7 @@ gh api -X PUT repos/itxshakil/cpanel-whm/branches/main/protection --input - <<'J
 JSON
 ```
 
-After that, Dependabot's monthly PR for GitHub Actions merges itself when CI is green. `enforce_admins: false` means you can still push straight to `main`.
+After that, Dependabot's monthly PR for GitHub Actions merges itself when CI is green, unless it contains a new major version, which needs a review. `enforce_admins: false` means you can still push straight to `main`.
 
 ## Each release
 
