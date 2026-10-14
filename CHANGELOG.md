@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- The path labeler and the PR-title autolabeler run one after the other in one job, one run per PR at a time. As separate workflows they raced, and the path labeler could drop the `type: …` label, so release-drafter filed the PR under the wrong section.
+
 ## [0.5.0] - 2026-10-14
 
 Check these when upgrading:
