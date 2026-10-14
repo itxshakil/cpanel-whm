@@ -32,8 +32,8 @@ jobs:
                   tools: composer
                   coverage: none
 
-            - name: Validate composer.json
-              run: composer validate --strict
-
-            - name: Ensure package installs without dev dependencies
-              run: composer install --no-interaction --prefer-dist --no-dev
+            # Installs the tag's `git archive`, which is what Packagist ships:
+            # .gitattributes trims it, so the full checkout could pass while
+            # the published package is missing files.
+            - name: Check the archive Packagist ships
+              run: bin/check-archive "$GITHUB_SHA"

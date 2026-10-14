@@ -65,6 +65,9 @@ jobs:
                   coverage: none
             - run: composer validate --strict
             - run: composer dump-autoload --dry-run --optimize
+            # Packagist ships `git archive`, trimmed by .gitattributes, not this checkout.
+            - name: Check the archive Packagist ships
+              run: bin/check-archive
 
     test:
         name: Tests (${{ matrix.os == 'windows-latest' && 'Windows | ' || '' }}PHP ${{ matrix.php }} | Laravel ${{ matrix.laravel }} | ${{ matrix.deps }})

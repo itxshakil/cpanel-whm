@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+#
+# Checks the package as Packagist ships it: `git archive` of a commit, trimmed
+# by the export-ignore lines in .gitattributes. A line that drops runtime files
+# would otherwise pass CI, which works on the full checkout.
+#
+#   bin/check-archive [commit]   # defaults to HEAD
+#
+set -euo pipefail
+
+ref="${1:-HEAD}"
+# Everything the package needs at runtime. All of it must be in the archive.
+runtime=(src config resources composer.json LICENSE.md)
+
+dir="$(mktemp -d)"
+trap 'rm -rf "$dir"' EXIT
+
+git archive --format=tar "$ref" | tar -x -C "$dir"
+
+missing="$(comm -23 \
+    <(git ls-tree -r --name-only "$ref" -- "${runtime[@]}" | sort) \
+    <(cd "$dir" && find . -type f | sed 's#^\./##' | sort))"
+
+if [[ -n "$missing" ]]; then
+    echo "The archive of $ref is missing runtime files (check export-ignore in .gitattributes):" >&2
+    echo "$missing" >&2
+    exit 1
+fi
+
+cd "$dir"
+composer validate --strict --no-check-lock
+composer install --no-interaction --no-progress --prefer-dist --no-dev
+# --strict-psr fails when a class's file doesn't match its PSR-4 path.
+composer dump-autoload --no-dev --optimize --strict-psr
+
+# The classes Laravel's package discovery loads, and the published config.
+# shellcheck disable=SC2016 # the $ are PHP's, not the shell's
+php -r '
+    require "vendor/autoload.php";
+    $laravel = json_decode(file_get_contents("composer.json"), true)["extra"]["laravel"];
+    foreach ([...$laravel["providers"], ...array_values($laravel["aliases"])] as $class) {
+        class_exists($class) || throw new RuntimeException("{$class} does not autoload from the archive.");
+    }
+    is_array(require "config/cpanel-whm.php") || throw new RuntimeException("config/cpanel-whm.php does not return an array.");
+'
+
+echo "The archive of $ref installs, autoloads and has every runtime file."
