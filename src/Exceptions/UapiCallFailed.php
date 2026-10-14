@@ -33,12 +33,18 @@ final class UapiCallFailed extends WhmException
      */
     public static function fromInnerCall(string $whmFunction, array $params, WhmResponse $response): ?self
     {
-        [$moduleKey, $functionKey, $candidates] = match ($whmFunction) {
+        $keys = match ($whmFunction) {
             'uapi_cpanel' => ['cpanel.module', 'cpanel.function', ['uapi']],
             // UAPI answers under result, cPanel API 2 under cpanelresult (event.result).
             'cpanel' => ['cpanel_jsonapi_module', 'cpanel_jsonapi_func', ['uapi', 'result', 'cpanelresult']],
-            default => [null, null, []],
+            default => null,
         };
+
+        if ($keys === null) {
+            return null;
+        }
+
+        [$moduleKey, $functionKey, $candidates] = $keys;
 
         foreach ($candidates as $path) {
             $inner = $response->get($path);
