@@ -8,6 +8,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 - `composer.json` requires `guzzlehttp/guzzle` (`^7.8.2|^8.0`, the same range Laravel allows). `HttpTransport` catches Guzzle's exceptions to redact the token and query string from raw errors, which used to depend on Guzzle arriving through `laravel/framework`.
+- CI and the Release workflow install the `git archive` Packagist ships (`bin/check-archive`) and fail when `.gitattributes` leaves out a runtime file, a class doesn't autoload or the config doesn't load.
 
 ### Fixed
 - `BatchResults::throw()` throws `WhmCommandFailed` when WHM answered fewer commands than the batch sent, even if none of the answers failed. It used to return normally, though `complete()` and `successful()` were already false.
