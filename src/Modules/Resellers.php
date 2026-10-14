@@ -148,6 +148,10 @@ class Resellers extends Module
      * kind of limit on; pass $limitAccounts or $limitResources false to turn
      * it off again (unlimited).
      *
+     * setresellerlimits turns a limit off when its enable_* flag is left out,
+     * so a flag this call doesn't set is read first (acctcounts for the
+     * account limit, resellerstats for disk and bandwidth) and sent back.
+     *
      * @throws InvalidArgumentException when a limit is given while turning that limit off
      * @throws WhmException
      */
@@ -170,11 +174,12 @@ class Resellers extends Module
             throw new InvalidArgumentException('A disk or bandwidth limit was given while turning resource limits off.');
         }
 
-        $limitAccounts ??= $accounts !== null ? true : null;
-        $limitResources ??= $diskMb !== null || $bandwidthMb !== null ? true : null;
+        $user = UsernameRules::normalise($user);
+        $limitAccounts ??= $accounts !== null ? true : $this->accountCounts($user)->limit !== null;
+        $limitResources ??= $diskMb !== null || $bandwidthMb !== null ? true : $this->hasResourceLimits($user);
 
         return $this->client->call('setresellerlimits', [
-            'user' => UsernameRules::normalise($user),
+            'user' => $user,
             'enable_account_limit' => $limitAccounts,
             'account_limit' => $accounts,
             'enable_resource_limits' => $limitResources,
@@ -184,6 +189,19 @@ class Resellers extends Module
             'enable_overselling_diskspace' => $oversellDisk,
             'enable_overselling_bandwidth' => $oversellBandwidth,
         ], HttpMethod::Post);
+    }
+
+    /**
+     * Whether a disk or bandwidth limit is in force: resellerstats reports 0
+     * for both when resource limits are off.
+     *
+     * @throws WhmException
+     */
+    private function hasResourceLimits(string $user): bool
+    {
+        $stats = $this->stats($user);
+
+        return $stats->diskQuotaMb > 0 || $stats->bandwidthLimitMb > 0;
     }
 
     /**

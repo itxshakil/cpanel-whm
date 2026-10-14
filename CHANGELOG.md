@@ -12,6 +12,7 @@ All notable changes to this project are documented here. The format follows
 - CI and the Release workflow install the `git archive` Packagist ships (`bin/check-archive`) and fail when `.gitattributes` leaves out a runtime file, a class doesn't autoload or the config doesn't load.
 
 ### Fixed
+- `Resellers::setLimits()` keeps the kind of limit a call doesn't mention. `setresellerlimits` defaults `enable_account_limit` and `enable_resource_limits` to 0, so setting only the disk quota could switch the account limit off (and the other way round). The method now reads the current state (`acctcounts`, `resellerstats`) and sends that flag back.
 - Under Octane, `Whm::` inside a task (`Octane::concurrently()`) or a tick uses that operation's sandbox, as it already did for requests, and the manager lets go of each sandbox when the operation ends. Before, tasks and ticks could reach the previous request's flushed sandbox.
 - `BatchResults::throw()` throws `WhmCommandFailed` when WHM answered fewer commands than the batch sent, even if none of the answers failed. It used to return normally, though `complete()` and `successful()` were already false.
 
