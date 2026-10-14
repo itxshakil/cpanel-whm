@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- `composer.json` requires `guzzlehttp/guzzle` (`^7.8.2|^8.0`, the same range Laravel allows). `HttpTransport` catches Guzzle's exceptions to redact the token and query string from raw errors, which used to depend on Guzzle arriving through `laravel/framework`.
+
 ### Fixed
 - `BatchResults::throw()` throws `WhmCommandFailed` when WHM answered fewer commands than the batch sent, even if none of the answers failed. It used to return normally, though `complete()` and `successful()` were already false.
 
