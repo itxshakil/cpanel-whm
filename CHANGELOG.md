@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-14
+
+This release changes some public behaviour, as minor versions may before 1.0.
+Check these when upgrading:
+
+- PHP needs `ext-openssl`, and Laravel must be 12.69+ or 13.30+.
+- A nested array, a date or any other object passed as a parameter throws `InvalidArgumentException` instead of being sent.
+- `Passwords::generate()` refuses lengths below 12, and `Quotas::setDiskQuota()` and `setBandwidthLimit()` refuse 0 and negative values.
+- `Domains::owner()` throws `WhmPermissionDenied` instead of returning null when the token lacks the privilege.
+- `whm:suspend` and `whm:unsuspend` ask first and refuse without a terminal; pass `--force` in scripts.
+- `whm:doctor` fails a plain `http://` connection unless the connection sets `allow_insecure_http`.
+- The `WhmClient` contract gains `timeout()`, `withHttpMethod()`, `flushCache()` and `featureLists()`, and `NetworkProbe::certificate()` takes an optional `$caBundle`: custom implementations need them.
+
 ### Added
 - `AccountNotFound` (extends `WhmCommandFailed`): thrown by every call when WHM says the named account doesn't exist, including the "You do not have a user named …" wording of `suspendacct`, `modifyacct` and `removeacct`. `Whm::accountNotFound()` fakes it.
 - `Accounts::removeIfExists()`: removes an account, or returns false when it is already gone, so a retried job doesn't fail.
@@ -57,6 +70,7 @@ All notable changes to this project are documented here. The format follows
 - Requires Laravel 12.69+ or 13.30+, the lowest versions CI can install (Composer skips releases with security advisories), so every allowed version is tested.
 - Release drafts take the version and the section from the PR title's Conventional Commit type (`feat:`, `fix:`, `docs:`, ...), via `type: …` labels set automatically, instead of from area labels. `skip-changelog` now actually excludes a PR.
 - CI also runs the test suite on Windows (PHP 8.5, Laravel 13, highest dependencies).
+- CI runs PHPStan on PHP 8.5 as well as 8.4, since some errors only show against the newest PHP's function signatures.
 
 ### Fixed
 - `whm:record` prints a replay hint with the path relative to the project root, so it can be committed.
