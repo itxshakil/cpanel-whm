@@ -235,6 +235,46 @@ final class BackupsAndResellersTest extends TestCase
         ]);
     }
 
+    /**
+     * setresellerlimits defaults both enable_* flags to 0, so a flag left out
+     * would switch that limit off. The current state is read and sent back.
+     */
+    #[Test]
+    public function limits_that_were_not_mentioned_keep_their_current_setting(): void
+    {
+        $fake = Whm::fake([
+            'setresellerlimits' => Whm::response(),
+            'acctcounts' => Whm::response(['reseller' => ['user' => 'res1', 'active' => 3, 'suspended' => 0, 'limit' => 25]]),
+            'resellerstats' => Whm::response(['reseller' => ['user' => 'res1', 'diskquota' => 0, 'bandwidthlimit' => 0, 'acct' => []]]),
+        ]);
+
+        Whm::resellers()->setLimits('res1', diskMb: 1000);
+        Whm::resellers()->setLimits('res1', accounts: 30);
+        Whm::resellers()->setLimits('res1', overselling: true);
+
+        $sent = array_map(static fn ($request): array => $request->params, $fake->recorded('setresellerlimits'));
+
+        self::assertSame([
+            // The account limit is on (25), so it stays on; resources become limited.
+            ['user' => 'res1', 'enable_account_limit' => 1, 'enable_resource_limits' => 1, 'diskspace_limit' => 1000],
+            // Disk and bandwidth are unlimited (0), so resource limits stay off.
+            ['user' => 'res1', 'enable_account_limit' => 1, 'account_limit' => 30, 'enable_resource_limits' => 0],
+            ['user' => 'res1', 'enable_account_limit' => 1, 'enable_resource_limits' => 0, 'enable_overselling' => 1],
+        ], $sent);
+        $fake->assertCalledTimes('acctcounts', 2)->assertCalledTimes('resellerstats', 2);
+    }
+
+    #[Test]
+    public function limits_given_for_both_groups_need_no_extra_read(): void
+    {
+        $fake = Whm::fake(['setresellerlimits' => Whm::response()]);
+
+        Whm::resellers()->setLimits('res1', accounts: 25, bandwidthMb: 5000);
+        Whm::resellers()->setLimits('res1', limitAccounts: false, limitResources: true);
+
+        $fake->assertNotCalled('acctcounts')->assertNotCalled('resellerstats')->assertCalledTimes('setresellerlimits', 2);
+    }
+
     #[Test]
     public function a_limit_given_while_turning_it_off_is_refused(): void
     {
