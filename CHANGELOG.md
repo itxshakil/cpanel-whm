@@ -7,9 +7,11 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- `asUser()->email()->list()`, `mysql()->databases()` and `mysql()->users()` take `page:` and `perPage:` (UAPI pagination, default 100 per page).
 - `WhmFunctionSucceeded`: fired after every successful call that changes something, whichever path made it (a module, `Whm::api()`, `Whm::call()`, `uapi()` or each command of a batch), with the connection, function, redacted parameters and response, and `uapi()` for the UAPI function a `uapi_cpanel` call ran. Reads and failures never fire it. The module events (`AccountCreated`, ...) still fire as before, after it.
 
 ### Changed
+- `Domains::find()`, `Domains::list($user)` and `Usage::diskFor()` (and so `Usage::account()`) ask WHM to filter `get_domain_info` and `get_disk_usage` (`api.filter`), so a single lookup gets one row instead of the whole server's list. `asUser()->email()->find()` filters by address on the UAPI side the same way. Results still match exactly in PHP.
 - `UsernameRules` refuses names ending in "assword" and every reserved alias cPanel documents (87 names, up from 35, such as `dovecot`, `mailnull`, `wheel`, `support` and `www`), so `accounts()->create()` stops them before calling WHM.
 - `composer.json` requires `guzzlehttp/guzzle` (`^7.8.2|^8.0`, the same range Laravel allows). `HttpTransport` catches Guzzle's exceptions to redact the token and query string from raw errors, which used to depend on Guzzle arriving through `laravel/framework`.
 - CI and the Release workflow install the `git archive` Packagist ships (`bin/check-archive`) and fail when `.gitattributes` leaves out a runtime file, a class doesn't autoload or the config doesn't load.

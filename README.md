@@ -167,6 +167,8 @@ $mailbox->password;    // generated when you pass none
 
 Whm::asUser('acme')->mysql()->createDatabase('acme_shop');
 Whm::asUser('acme')->mysql()->grant('acme_app', 'acme_shop');
+
+Whm::asUser('acme')->email()->list(page: 2, perPage: 50);   // UAPI pagination; also mysql()->databases() and users()
 ```
 
 ### DNS, domains, usage, backups, resellers, SSL, tokens

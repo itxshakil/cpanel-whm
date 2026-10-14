@@ -51,6 +51,65 @@ final class UserEmailAndMysqlTest extends TestCase
     }
 
     #[Test]
+    public function finding_a_mailbox_asks_uapi_to_filter_by_address(): void
+    {
+        $fake = Whm::fake(['uapi_cpanel' => Whm::uapi([
+            ['email' => 'ainfo@acme.example', 'user' => 'ainfo', 'domain' => 'acme.example'],
+            ['email' => 'info@acme.example', 'user' => 'info', 'domain' => 'acme.example'],
+        ])]);
+
+        // "contains" can match more than one; the exact address still decides.
+        self::assertSame('info@acme.example', Whm::asUser('acme')->email()->find('Info@Acme.Example')?->address);
+
+        $fake->assertCalled('uapi_cpanel', static fn (array $p): bool => $p['cpanel.function'] === 'list_pops_with_disk'
+            && $p['domain'] === 'acme.example'
+            && $p['api.filter'] === 1 && $p['api.filter_column'] === 'email'
+            && $p['api.filter_type'] === 'contains' && $p['api.filter_term'] === 'info@acme.example');
+    }
+
+    #[Test]
+    public function uapi_lists_can_be_read_a_page_at_a_time(): void
+    {
+        $fake = Whm::fake(['uapi_cpanel' => Whm::uapi([])]);
+        $user = Whm::asUser('acme');
+
+        $user->email()->list(page: 2, perPage: 50);
+        $user->mysql()->databases(page: 1, perPage: 10);
+        $user->mysql()->users(page: 3);
+        $user->email()->list();
+
+        $paging = static fn (array $p): ?array => isset($p['api.paginate'])
+            ? [$p['cpanel.function'], $p['api.paginate'], $p['api.paginate_page'], $p['api.paginate_size']]
+            : [$p['cpanel.function']];
+
+        self::assertSame([
+            ['list_pops_with_disk', 1, 2, 50],
+            ['list_databases', 1, 1, 10],
+            ['list_users', 1, 3, 100],
+            ['list_pops_with_disk'],
+        ], array_map(static fn ($r): ?array => $paging($r->params), $fake->recorded('uapi_cpanel')));
+    }
+
+    #[Test]
+    public function a_page_below_one_is_refused_before_calling_whm(): void
+    {
+        $fake = Whm::fake();
+
+        $refused = 0;
+
+        foreach ([static fn () => Whm::asUser('acme')->email()->list(page: 0), static fn () => Whm::asUser('acme')->mysql()->users(page: 1, perPage: 0)] as $call) {
+            try {
+                $call();
+            } catch (InvalidArgumentException) {
+                $refused++;
+            }
+        }
+
+        self::assertSame(2, $refused);
+        $fake->assertNothingSent();
+    }
+
+    #[Test]
     public function a_mailbox_is_created_with_a_generated_password_when_none_is_given(): void
     {
         $fake = Whm::fake(['uapi_cpanel' => Whm::uapi('info+acme.example')]);

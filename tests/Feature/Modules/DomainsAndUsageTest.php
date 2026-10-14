@@ -35,6 +35,33 @@ final class DomainsAndUsageTest extends TestCase
         self::assertNull(Whm::domains()->find('missing.test'));
     }
 
+    /**
+     * get_domain_info and get_disk_usage take no per-item argument, so the
+     * server filters them (WHM API 1's api.filter), as listaccts searches do.
+     */
+    #[Test]
+    public function single_domain_and_disk_lookups_ask_whm_for_one_row(): void
+    {
+        $fake = Whm::fake([
+            'get_domain_info' => Whm::response(['domains' => [['domain' => 'acme.test', 'user' => 'acme', 'domain_type' => 'main']]]),
+            'get_disk_usage' => Whm::response(['accounts' => [['user' => 'acme', 'blocks_used' => 1024, 'blocks_limit' => 2048]]]),
+        ]);
+
+        Whm::domains()->find('Acme.Test.');
+        Whm::domains()->list('ACME');
+        Whm::domains()->list();
+        Whm::usage()->diskFor('ACME');
+
+        $filter = static fn (string $field, string $value): array => [
+            'api.filter.enable' => 1, 'api.filter.a.field' => $field, 'api.filter.a.arg0' => $value, 'api.filter.a.type' => 'eq',
+        ];
+
+        $fake->assertCalled('get_domain_info', static fn (array $p): bool => $p === $filter('domain', 'acme.test'))
+            ->assertCalled('get_domain_info', static fn (array $p): bool => $p === $filter('user', 'acme'))
+            ->assertCalled('get_domain_info', static fn (array $p): bool => $p === [])
+            ->assertCalled('get_disk_usage', static fn (array $p): bool => $p === ['cache_mode' => 'on', ...$filter('user', 'acme')]);
+    }
+
     #[Test]
     public function the_owner_of_a_domain_is_looked_up(): void
     {
@@ -112,6 +139,7 @@ final class DomainsAndUsageTest extends TestCase
         self::assertNull(Whm::usage()->diskFor('free')?->percentUsed());
 
         Whm::usage()->disk(fresh: true);
+        Whm::usage()->disk();
         $fake->assertCalled('get_disk_usage', static fn (array $p): bool => $p === ['cache_mode' => 'on'])
             ->assertCalled('get_disk_usage', static fn (array $p): bool => $p === ['cache_mode' => 'off']);
     }

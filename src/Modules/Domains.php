@@ -13,6 +13,7 @@ use Itxshakil\CpanelWhm\Enums\HttpMethod;
 use Itxshakil\CpanelWhm\Exceptions\WhmCommandFailed;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
 use Itxshakil\CpanelWhm\Exceptions\WhmPermissionDenied;
+use Itxshakil\CpanelWhm\Support\Filter;
 use Itxshakil\CpanelWhm\Support\UsernameRules;
 use Itxshakil\CpanelWhm\WhmResponse;
 
@@ -34,25 +35,41 @@ class Domains extends Module
      */
     public function list(?string $user = null): Collection
     {
-        $domains = collect($this->rows($this->client->call('get_domain_info')->get('domains')))
-            ->map(DomainInfo::fromArray(...));
-
-        if ($user !== null) {
-            $user = UsernameRules::normalise($user);
-            $domains = $domains->filter(static fn (DomainInfo $domain): bool => $domain->user === $user);
+        if ($user === null) {
+            return $this->domainInfo();
         }
 
-        return $domains->values();
+        $user = UsernameRules::normalise($user);
+
+        return $this->domainInfo(Filter::where('user', 'eq', $user))
+            ->filter(static fn (DomainInfo $domain): bool => $domain->user === $user)
+            ->values();
     }
 
     /**
+     * One domain. get_domain_info has no domain argument, so WHM filters its
+     * list (api.filter) and returns only the matching row.
+     *
      * @throws WhmException
      */
     public function find(string $domain): ?DomainInfo
     {
         $domain = mb_strtolower(rtrim($domain, '.'));
 
-        return $this->list()->first(static fn (DomainInfo $info): bool => mb_strtolower($info->domain) === $domain);
+        return $this->domainInfo(Filter::where('domain', 'eq', $domain))
+            ->first(static fn (DomainInfo $info): bool => mb_strtolower($info->domain) === $domain);
+    }
+
+    /**
+     * @return Collection<int, DomainInfo>
+     *
+     * @throws WhmException
+     */
+    private function domainInfo(?Filter $filter = null): Collection
+    {
+        return collect($this->rows($this->client->call('get_domain_info', $filter?->toParams() ?? [])->get('domains')))
+            ->map(DomainInfo::fromArray(...))
+            ->values();
     }
 
     /**
