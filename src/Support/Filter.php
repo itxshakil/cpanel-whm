@@ -35,6 +35,11 @@ final class Filter
     ];
 
     /**
+     * WHM names each condition by a letter: api.filter.a.*, api.filter.b.*, ...
+     */
+    private const string LETTERS = 'abcdefghijklmnopqrstuvwxyz';
+
+    /**
      * @var list<array{field: string, type: string, value: string}>
      */
     private array $conditions = [];
@@ -55,8 +60,8 @@ final class Filter
             throw new InvalidArgumentException("Unknown WHM filter operator [{$operator}].");
         }
 
-        if (count($this->conditions) >= 26) {
-            throw new InvalidArgumentException('WHM supports at most 26 filters per call.');
+        if (count($this->conditions) >= strlen(self::LETTERS)) {
+            throw new InvalidArgumentException('WHM supports at most '.strlen(self::LETTERS).' filters per call.');
         }
 
         $this->conditions[] = ['field' => $field, 'type' => $type, 'value' => (string) $value];
@@ -81,7 +86,7 @@ final class Filter
         $params = ['api.filter.enable' => 1];
 
         foreach ($this->conditions as $index => $condition) {
-            $letter = chr(ord('a') + $index);
+            $letter = self::LETTERS[$index];
             $params["api.filter.{$letter}.field"] = $condition['field'];
             $params["api.filter.{$letter}.arg0"] = $condition['value'];
             $params["api.filter.{$letter}.type"] = $condition['type'];
