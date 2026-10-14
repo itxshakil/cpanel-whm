@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `BatchResults::throw()` throws `WhmCommandFailed` when WHM answered fewer commands than the batch sent, even if none of the answers failed. It used to return normally, though `complete()` and `successful()` were already false.
+
 ## [0.4.0] - 2026-10-14
 
 This release changes some public behaviour, as minor versions may before 1.0.
