@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Itxshakil\CpanelWhm;
 
 use Itxshakil\CpanelWhm\Contracts\WhmClient;
+use Itxshakil\CpanelWhm\Events\WhmFunctionSucceeded;
 use Itxshakil\CpanelWhm\Exceptions\WhmException;
+use Itxshakil\CpanelWhm\Support\Changes;
 use Itxshakil\CpanelWhm\Support\Params;
+use Itxshakil\CpanelWhm\Support\Redactor;
 use SensitiveParameter;
 
 /**
@@ -94,7 +97,19 @@ final class WhmBatch
             $responses[] = WhmResponse::fromArray(is_array($result) ? $result : []);
         }
 
-        return new BatchResults($responses, array_column($this->commands, 'function'), array_column($this->commands, 'params'), $response);
+        $results = new BatchResults($responses, array_column($this->commands, 'function'), array_column($this->commands, 'params'), $response);
+        $failures = $results->failures();
+
+        // The client fires nothing for "batch" itself: each command that changed something does.
+        foreach ($responses as $index => $commandResponse) {
+            ['function' => $function, 'params' => $commandParams] = $this->commands[$index] ?? ['function' => '', 'params' => []];
+
+            if ($function !== '' && ! isset($failures[$index]) && Changes::made($function, $commandParams)) {
+                $this->client->dispatch(new WhmFunctionSucceeded($this->client->config()->name, $function, Redactor::redact($commandParams), $commandResponse->redacted()));
+            }
+        }
+
+        return $results;
     }
 
     /**
