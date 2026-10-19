@@ -158,7 +158,7 @@ final class SecretHandlingTest extends TestCase
     #[Test]
     public function a_failed_batch_does_not_leak_the_secrets_its_other_commands_returned(): void
     {
-        Event::fake([WhmRequestFailed::class]);
+        Event::fake([WhmRequestFailed::class, WhmResponseReceived::class]);
         Http::fake(['*' => Http::response(Responses::envelope(['result' => [
             Responses::envelope(['token' => 'NEW-TOKEN-VALUE'], command: 'api_token_create'),
             Responses::envelope(['url' => 'https://server.example.com:2083/cpsess1234567890/login/?session=acme:SESSION-ID'], command: 'create_user_session'),
@@ -174,15 +174,35 @@ final class SecretHandlingTest extends TestCase
         // The caller still gets the real values.
         self::assertSame('NEW-TOKEN-VALUE', $results[0]->get('token'));
 
-        Event::assertDispatched(WhmRequestFailed::class, static function (WhmRequestFailed $event): bool {
-            if (! $event->exception instanceof WhmCommandFailed) {
-                return false;
-            }
+        $serialized = print_r(Event::dispatched(WhmRequestFailed::class)->flatten()->all(), true)
+            .print_r(Event::dispatched(WhmResponseReceived::class)->flatten()->all(), true);
 
-            $serialized = print_r($event->exception->response(), true);
+        Event::assertDispatched(WhmResponseReceived::class);
+        self::assertStringNotContainsString('NEW-TOKEN-VALUE', $serialized);
+        self::assertStringNotContainsString('SESSION-ID', $serialized);
+        self::assertStringNotContainsString('1234567890', $serialized);
+    }
 
-            return ! str_contains($serialized, 'NEW-TOKEN-VALUE') && ! str_contains($serialized, 'SESSION-ID') && ! str_contains($serialized, '1234567890');
-        });
+    #[Test]
+    public function a_failed_command_reaches_events_with_its_response_redacted(): void
+    {
+        Event::fake([WhmRequestFailed::class]);
+        Http::fake(['*' => Http::response(Responses::envelope(['token' => 'NEW-TOKEN-VALUE'], result: 0, reason: 'nope', command: 'api_token_create'))]);
+
+        $exception = null;
+
+        try {
+            Whm::call('api_token_create', ['token_name' => 'ci']);
+        } catch (WhmCommandFailed $whmCommandFailed) {
+            $exception = $whmCommandFailed;
+        }
+
+        // The caller still gets the original response.
+        self::assertInstanceOf(WhmCommandFailed::class, $exception);
+        self::assertSame('NEW-TOKEN-VALUE', $exception->response()->get('token'));
+
+        Event::assertDispatched(WhmRequestFailed::class, static fn (WhmRequestFailed $event): bool => $event->exception instanceof WhmCommandFailed
+            && ! str_contains(print_r($event->exception->response(), true), 'NEW-TOKEN-VALUE'));
     }
 
     #[Test]
