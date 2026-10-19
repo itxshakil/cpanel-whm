@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-19
+
+Security release. Upgrade from any earlier version, and check these:
+
+- `serialize()` of a `ConnectionConfig` (and so of a `WhmClient`) throws `LogicException`. Queue or cache the connection name and resolve it with `Whm::connection($name)`.
+- `Tokens::create()` throws `InvalidArgumentException` for an empty `$privileges` or `$allowedIps`. Pass null for "all".
+- `asUser()->uapi()` and the generated UAPI methods throw `InvalidArgumentException` for any `cpanel.*` parameter.
+
 ### Security
 - `ConnectionConfig` leaves the API token out of `json_encode()` and log context, and refuses `serialize()`, so the token can't reach logs, queue payloads, the cache or the session.
 - An access hash (`accesshash`, `access_hash`) is masked in events, logs, `whm:call` output and recorded fixtures.
