@@ -313,7 +313,8 @@ final class RetryAndCacheTest extends TestCase
 
     private function useBrokenCacheStore(): void
     {
-        Cache::extend('broken', static fn () => Cache::repository(new class extends ArrayStore
+        // Not static: Laravel 12 binds the extension closure to the cache manager.
+        Cache::extend('broken', fn () => Cache::repository(new class extends ArrayStore
         {
             public function increment($key, $value = 1): never
             {
