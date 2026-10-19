@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-10-19
+
+### Fixed
+- A change no longer throws when the cache store fails while dropping cached reads afterwards. WHM had already made the change, so the exception made callers (and queue retries) repeat it. The failure is reported through the exception handler instead. `Whm::flushCache()` called directly still throws.
+
 ## [0.5.1] - 2026-10-19
 
 Security release. Upgrade from any earlier version, and check these:

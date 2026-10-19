@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Itxshakil\CpanelWhm\Tests\Feature;
 
+use Illuminate\Cache\ArrayStore;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Exceptions;
 use Itxshakil\CpanelWhm\Data\DnsRecord;
 use Itxshakil\CpanelWhm\Events\WhmRequestFailed;
 use Itxshakil\CpanelWhm\Events\WhmRequestSending;
@@ -16,6 +18,7 @@ use Itxshakil\CpanelWhm\Exceptions\WhmHttpError;
 use Itxshakil\CpanelWhm\Facades\Whm;
 use Itxshakil\CpanelWhm\Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 
 final class RetryAndCacheTest extends TestCase
 {
@@ -236,6 +239,31 @@ final class RetryAndCacheTest extends TestCase
     }
 
     #[Test]
+    public function a_cache_store_that_fails_after_a_change_is_reported_not_thrown(): void
+    {
+        Exceptions::fake();
+        $this->useBrokenCacheStore();
+        $fake = Whm::fake(['unsuspendacct' => Whm::response()]);
+
+        // WHM already made the change, so the caller must not see a failure and retry it.
+        Whm::suspensions()->unsuspend('acme');
+
+        $fake->assertCalledTimes('unsuspendacct', 1);
+        Exceptions::assertReported(static fn (RuntimeException $e): bool => $e->getMessage() === 'cache is down');
+    }
+
+    #[Test]
+    public function an_explicit_flush_still_throws_when_the_cache_store_fails(): void
+    {
+        $this->useBrokenCacheStore();
+        Whm::fake();
+
+        $this->expectExceptionMessage('cache is down');
+
+        Whm::flushCache();
+    }
+
+    #[Test]
     public function a_failed_change_leaves_the_cache_alone(): void
     {
         $fake = Whm::fake(['listaccts' => Whm::response(['acct' => []]), 'suspendacct' => Whm::failure('nope')]);
@@ -281,5 +309,18 @@ final class RetryAndCacheTest extends TestCase
 
         self::assertSame('11.138.0.10', Whm::cache(300)->server()->version());
         $fake->assertCalledTimes('version', 2);
+    }
+
+    private function useBrokenCacheStore(): void
+    {
+        Cache::extend('broken', static fn () => Cache::repository(new class extends ArrayStore
+        {
+            public function increment($key, $value = 1): never
+            {
+                throw new RuntimeException('cache is down');
+            }
+        }));
+        config()->set('cache.stores.broken', ['driver' => 'broken']);
+        config()->set('cache.default', 'broken');
     }
 }

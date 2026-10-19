@@ -130,8 +130,10 @@ final class WhmClient implements WhmClientContract
         $response = $this->send($function, $params, $method, $timeout, $readOnly);
 
         // A change makes this server's cached reads stale (a new account, a suspension, ...).
+        // WHM has already made the change by now. A cache store that is down must
+        // not turn it into a failure, or the caller retries a change that worked.
         if (! $readOnly) {
-            $this->flushCache();
+            rescue($this->flushCache(...));
         }
 
         // A batch fires one per successful command instead; see WhmBatch::send().
